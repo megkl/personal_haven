@@ -20,8 +20,8 @@ class _MainNavigationScreenState extends ConsumerState<MainNavigationScreen> {
   final List<Widget> _screens = [
     const HomeScreen(),
     const JournalScreen(),
-    const RitualsScreen(),
     const WellnessScreen(),
+    const RitualsScreen(),
     const ProfileScreen(),
   ];
 
@@ -29,20 +29,22 @@ class _MainNavigationScreenState extends ConsumerState<MainNavigationScreen> {
   Widget build(BuildContext context) {
     return Scaffold(
       body: _screens[_selectedIndex],
-      floatingActionButton: _selectedIndex == 0 || _selectedIndex == 1
-          ? FloatingActionButton(
-              onPressed: () {
-                Navigator.push(
-                  context,
-                  MaterialPageRoute(builder: (_) => const AddJournalEntryScreen()),
-                );
-              },
-              backgroundColor: const Color(0xFF4ECDC4),
-              child: const Icon(Icons.add, color: Colors.white, size: 32),
-            )
-          : null,
-      floatingActionButtonLocation: FloatingActionButtonLocation.centerDocked,
+      // floatingActionButton: _selectedIndex == 0 || _selectedIndex == 1
+      //     ? FloatingActionButton(
+      //         onPressed: () {
+      //           Navigator.push(
+      //             context,
+      //             MaterialPageRoute(builder: (_) => const AddJournalEntryScreen()),
+      //           );
+      //         },
+      //         backgroundColor: const Color(0xFF4ECDC4),
+      //         child: const Icon(Icons.add, color: Colors.white, size: 32),
+      //       )
+      //     : null,
+      // floatingActionButtonLocation: FloatingActionButtonLocation.endDocked,
+      
       bottomNavigationBar: BottomAppBar(
+        height: const Size.fromHeight(70).height,
         shape: const CircularNotchedRectangle(),
         notchMargin: 8,
         child: Row(
@@ -50,8 +52,9 @@ class _MainNavigationScreenState extends ConsumerState<MainNavigationScreen> {
           children: [
             _buildNavItem(Icons.home, 'Home', 0),
             _buildNavItem(Icons.book, 'Journal', 1),
-            const SizedBox(width: 40),
-            _buildNavItem(Icons.spa, 'Wellness', 3),
+            //const SizedBox(width: 40),
+            _buildNavItem(Icons.rice_bowl, 'Rituals', 3),
+            _buildNavItem(Icons.spa, 'Wellness', 2),
             _buildNavItem(Icons.person, 'Profile', 4),
           ],
         ),

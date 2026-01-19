@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:intl/intl.dart';
 import 'package:personal_haven/providers/event_provider.dart';
+import 'package:personal_haven/providers/task_provider.dart';
 
 class HomeScreen extends ConsumerWidget {
   const HomeScreen({super.key});
@@ -11,6 +12,7 @@ class HomeScreen extends ConsumerWidget {
     final userName = ref.watch(userNameProvider);
     final events = ref.watch(eventsProvider);
     final entries = ref.watch(journalEntriesProvider);
+    final tasks = ref.watch(taskRepositoryProvider);
 
     final greeting = _getGreeting();
     final todayEntries = entries.where((e) {
@@ -256,6 +258,7 @@ class HomeScreen extends ConsumerWidget {
                           ],
                         ),
                       ),
+                      
                     ],
                   ),
                 ),

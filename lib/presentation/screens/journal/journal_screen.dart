@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:intl/intl.dart';
 import 'package:personal_haven/core/constants/app_colors.dart';
+import 'package:personal_haven/presentation/screens/journal/add_entry_screen.dart';
 import 'package:personal_haven/presentation/screens/journal/edit_entry_screen.dart';
 import 'package:personal_haven/providers/event_provider.dart';
 
@@ -192,6 +193,18 @@ class _JournalScreenState extends ConsumerState<JournalScreen> {
           ),
         ],
       ),
+       floatingActionButton:  FloatingActionButton(
+              onPressed: () {
+                Navigator.push(
+                  context,
+                  MaterialPageRoute(builder: (_) => const AddJournalEntryScreen()),
+                );
+              },
+              backgroundColor: const Color(0xFF4ECDC4),
+              child: const Icon(Icons.add, color: Colors.white, size: 32),
+            ),
+      floatingActionButtonLocation: FloatingActionButtonLocation.endDocked,
+      
     );
   }
 }

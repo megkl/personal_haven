@@ -28,7 +28,7 @@ class AppInitializer extends ConsumerWidget {
         }
 
         if (!hasSeenOnboarding) {
-          return const OnboardingScreen();
+          return const SplashScreen();
         }
 
         if (!authState.isAuthenticated) {

@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:personal_haven/core/constants/app_colors.dart';
 import 'package:personal_haven/presentation/screens/auth/signup_screen.dart';
 import 'package:personal_haven/presentation/screens/profile/main_navigation_screen.dart';
 import 'package:shared_preferences/shared_preferences.dart';
@@ -49,7 +50,7 @@ class _LoginScreenState extends State<LoginScreen> {
                 'Log in to continue',
                 style: TextStyle(
                   fontSize: 16,
-                  color: Color(0xFFCD8B76),
+                  color: AppColors.primary,
                 ),
               ),
               const SizedBox(height: 60),
@@ -83,7 +84,7 @@ class _LoginScreenState extends State<LoginScreen> {
               ElevatedButton(
                 onPressed: _login,
                 style: ElevatedButton.styleFrom(
-                  backgroundColor: const Color(0xFFCD8B76),
+                  backgroundColor: AppColors.primary,
                   minimumSize: const Size(double.infinity, 56),
                   shape: RoundedRectangleBorder(
                     borderRadius: BorderRadius.circular(28),
@@ -114,7 +115,7 @@ class _LoginScreenState extends State<LoginScreen> {
                       );
                     },
                     child: const Text(
-                      'Log In',
+                      'Create Account',
                       style: TextStyle(color: Color(0xFF4ECDC4)),
                     ),
                     ),

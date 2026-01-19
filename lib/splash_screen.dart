@@ -146,6 +146,7 @@ class _SplashScreenState extends ConsumerState<SplashScreen>
                     Text(
                       'Personal Haven',
                       style: TextStyle(
+                        fontFamily: 'Outfit',
                         fontSize: 36,
                         fontWeight: FontWeight.bold,
                         color: Colors.white,
@@ -154,8 +155,9 @@ class _SplashScreenState extends ConsumerState<SplashScreen>
                     ),
                     SizedBox(height: 8),
                     Text(
-                      'Your Wellness Journey',
+                      'Your Little Safe Space.',
                       style: TextStyle(
+                        fontFamily: 'Outfit',
                         fontSize: 16,
                         color: Colors.white70,
                         letterSpacing: 0.5,
