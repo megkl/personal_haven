@@ -2,7 +2,6 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:personal_haven/core/constants/app_colors.dart';
 import 'package:personal_haven/presentation/screens/auth/login_screen.dart';
-import 'package:personal_haven/presentation/screens/onboarding/onboarding_screen.dart';
 import 'package:personal_haven/providers/auth_provider.dart';
 import 'package:personal_haven/splash_screen.dart';
 

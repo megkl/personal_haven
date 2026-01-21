@@ -1,7 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:personal_haven/presentation/screens/home/home_screen.dart';
-import 'package:personal_haven/presentation/screens/journal/add_entry_screen.dart';
 import 'package:personal_haven/presentation/screens/journal/journal_screen.dart';
 import 'package:personal_haven/presentation/screens/profile/profile_screen.dart';
 import 'package:personal_haven/presentation/screens/rituals/rituals_screen.dart';
