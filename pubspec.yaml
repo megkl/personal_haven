@@ -44,7 +44,8 @@ dependencies:
   shared_preferences: ^2.2.2
   
   # Biometric Authentication
-  local_auth: ^2.1.7
+  local_auth: ^2.1.8
+  crypto: ^3.0.3
   
   # Date/Time
   intl: ^0.18.1
@@ -56,6 +57,7 @@ dependencies:
   cupertino_icons: ^1.0.6
   equatable: ^2.0.8
 
+  
 dev_dependencies:
   flutter_test:
     sdk: flutter

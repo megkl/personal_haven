@@ -39,12 +39,36 @@ class DatabaseHelper {
         password_hash TEXT NOT NULL,
         username TEXT UNIQUE,
         first_name TEXT,
+        bio TEXT,
         last_name TEXT,
         avatar_url TEXT,
         created_at TEXT NOT NULL,
         last_login_at TEXT,
         is_premium INTEGER DEFAULT 0,
         preferences_json TEXT
+      )
+    ''');
+
+    // User credentials table (separate for security)
+    await db.execute('''
+      CREATE TABLE user_credentials (
+        user_id TEXT PRIMARY KEY,
+        password_hash TEXT NOT NULL,
+        salt TEXT NOT NULL,
+        created_at TEXT NOT NULL,
+        updated_at TEXT,
+        FOREIGN KEY (user_id) REFERENCES users (id) ON DELETE CASCADE
+      )
+    ''');
+
+    // Biometric settings table
+    await db.execute('''
+      CREATE TABLE biometric_settings (
+        user_id TEXT PRIMARY KEY,
+        is_enabled INTEGER NOT NULL DEFAULT 0,
+        biometric_type TEXT,
+        last_used TEXT,
+        FOREIGN KEY (user_id) REFERENCES users (id) ON DELETE CASCADE
       )
     ''');
 
@@ -202,6 +226,8 @@ class DatabaseHelper {
 
   /// Create database indexes
   Future<void> _createIndexes(Database db) async {
+    await db.execute('CREATE INDEX idx_users_email ON users(email)');
+    await db.execute('CREATE INDEX idx_users_username ON users(username)');
     await db.execute(
       'CREATE INDEX idx_journal_user_date ON journal_entries(user_id, entry_date DESC)',
     );

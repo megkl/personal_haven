@@ -157,3 +157,41 @@ class User extends Equatable {
     return 'User(id: $id, email: $email, name: $fullName)';
   }
 }
+
+class UserCredentials {
+  final String userId;
+  final String passwordHash;
+  final String salt;
+  final DateTime createdAt;
+  final DateTime? updatedAt;
+
+  const UserCredentials({
+    required this.userId,
+    required this.passwordHash,
+    required this.salt,
+    required this.createdAt,
+    this.updatedAt,
+  });
+
+  Map<String, dynamic> toMap() {
+    return {
+      'user_id': userId,
+      'password_hash': passwordHash,
+      'salt': salt,
+      'created_at': createdAt.toIso8601String(),
+      'updated_at': updatedAt?.toIso8601String(),
+    };
+  }
+
+  factory UserCredentials.fromMap(Map<String, dynamic> map) {
+    return UserCredentials(
+      userId: map['user_id'] as String,
+      passwordHash: map['password_hash'] as String,
+      salt: map['salt'] as String,
+      createdAt: DateTime.parse(map['created_at'] as String),
+      updatedAt: map['updated_at'] != null 
+          ? DateTime.parse(map['updated_at'] as String) 
+          : null,
+    );
+  }
+}
