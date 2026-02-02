@@ -37,6 +37,9 @@ class AppColors {
   static const Color moodHappy = Color(0xFFFFD700);
   static const Color moodNeutral = Color(0xFFB0B0B0);
   static const Color moodSad = Color(0xFF6495ED);
+  static const Color moodCalm = Color(0xFF6495ED);
+  static const Color moodFrustrated = Color(0xFF6495ED);
+  static const Color moodTired = Color(0xFF6495ED);
 
   // Category Colors
   static const Color categoryNotes = Color(0xFFFFE082);

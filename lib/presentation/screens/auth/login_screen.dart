@@ -4,6 +4,7 @@ import 'package:personal_haven/data/repositories/user_repository.dart';
 import 'package:personal_haven/presentation/screens/auth/signup_screen.dart';
 import 'package:personal_haven/core/utils/biometrics_helper.dart';
 import 'package:personal_haven/presentation/screens/home/home_screen.dart';
+import 'package:personal_haven/presentation/screens/profile/main_navigation_screen.dart';
 import 'package:personal_haven/services/auth_service.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
@@ -67,9 +68,13 @@ class _LoginScreenState extends State<LoginScreen> {
     if (!mounted) return;
 
     if (result.success) {
+       final prefs = await SharedPreferences.getInstance();
+
+       await prefs.setBool('isLoggedIn', true);
+        if (!mounted) return;
       Navigator.pushReplacement(
         context,
-        MaterialPageRoute(builder: (_) => const HomeScreen()),
+        MaterialPageRoute(builder: (_) => const MainNavigationScreen()),
       );
     } else {
       ScaffoldMessenger.of(context).showSnackBar(

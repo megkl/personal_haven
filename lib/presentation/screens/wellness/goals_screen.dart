@@ -347,7 +347,7 @@ class GoalsScreen extends ConsumerWidget {
   void _showAddGoalDialog(BuildContext context, WidgetRef ref) {
     final titleController = TextEditingController();
     final targetController = TextEditingController();
-    String selectedUnit = 'USD';
+    String selectedUnit = 'KES';
     String selectedCategory = 'fitness';
     DateTime? targetDate;
 
@@ -380,7 +380,7 @@ class GoalsScreen extends ConsumerWidget {
                 value: selectedUnit,
                 decoration: const InputDecoration(labelText: 'Unit'),
                 items: const [
-                  DropdownMenuItem(value: 'USD', child: Text('USD (Money)')),
+                  DropdownMenuItem(value: 'KES', child: Text('KES (Money)')),
                   DropdownMenuItem(value: 'kg', child: Text('kg (Weight)')),
                   DropdownMenuItem(value: 'minutes', child: Text('Minutes')),
                   DropdownMenuItem(value: 'count', child: Text('Count')),

@@ -5,7 +5,6 @@ import 'package:personal_haven/presentation/screens/auth/login_screen.dart';
 import 'package:personal_haven/presentation/screens/profile/main_navigation_screen.dart';
 import 'package:personal_haven/services/auth_service.dart';
 
-
 class SignUpScreen extends StatefulWidget {
   const SignUpScreen({super.key});
 
@@ -22,6 +21,8 @@ class _SignUpScreenState extends State<SignUpScreen> {
   final _passwordController = TextEditingController();
   final _confirmPasswordController = TextEditingController();
 
+  final _confirmPasswordFocusNode = FocusNode();
+
   bool _biometricEnabled = false;
   bool _isLoading = false;
   bool _obscurePassword = true;
@@ -29,10 +30,22 @@ class _SignUpScreenState extends State<SignUpScreen> {
   bool _biometricAvailable = false;
   String _biometricType = 'Biometric';
 
+  // Track password for real-time validation
+  String _password = '';
+  bool _isPasswordValid = false;
+
   @override
   void initState() {
     super.initState();
     _checkBiometricAvailability();
+    _passwordController.addListener(_onPasswordChanged);
+  }
+
+  void _onPasswordChanged() {
+    setState(() {
+      _password = _passwordController.text;
+      _isPasswordValid = PasswordValidator.isValid(_password);
+    });
   }
 
   Future<void> _checkBiometricAvailability() async {
@@ -46,6 +59,13 @@ class _SignUpScreenState extends State<SignUpScreen> {
     }
   }
 
+  void _onAllRequirementsMet() {
+    // Auto-focus confirm password field when all requirements are met
+    if (_confirmPasswordController.text.isEmpty) {
+      _confirmPasswordFocusNode.requestFocus();
+    }
+  }
+
   Future<void> _signUp() async {
     if (!_formKey.currentState!.validate()) return;
 
@@ -54,14 +74,14 @@ class _SignUpScreenState extends State<SignUpScreen> {
     final result = await AuthService.instance.signUp(
       email: _emailController.text.trim(),
       password: _passwordController.text,
-      username: _usernameController.text.trim().isEmpty 
-          ? null 
+      username: _usernameController.text.trim().isEmpty
+          ? null
           : _usernameController.text.trim(),
-      firstName: _firstNameController.text.trim().isEmpty 
-          ? null 
+      firstName: _firstNameController.text.trim().isEmpty
+          ? null
           : _firstNameController.text.trim(),
-      lastName: _lastNameController.text.trim().isEmpty 
-          ? null 
+      lastName: _lastNameController.text.trim().isEmpty
+          ? null
           : _lastNameController.text.trim(),
       enableBiometric: _biometricEnabled,
     );
@@ -71,7 +91,6 @@ class _SignUpScreenState extends State<SignUpScreen> {
     if (!mounted) return;
 
     if (result.success) {
-      // Navigate to home screen
       Navigator.pushReplacement(
         context,
         MaterialPageRoute(builder: (_) => const MainNavigationScreen()),
@@ -136,6 +155,7 @@ class _SignUpScreenState extends State<SignUpScreen> {
                 TextFormField(
                   controller: _firstNameController,
                   decoration: _inputDecoration('First Name'),
+                  textInputAction: TextInputAction.next,
                   validator: (value) {
                     if (value == null || value.trim().isEmpty) {
                       return 'Please enter your first name';
@@ -149,6 +169,7 @@ class _SignUpScreenState extends State<SignUpScreen> {
                 TextFormField(
                   controller: _lastNameController,
                   decoration: _inputDecoration('Last Name (Optional)'),
+                  textInputAction: TextInputAction.next,
                 ),
                 const SizedBox(height: 16),
 
@@ -156,6 +177,7 @@ class _SignUpScreenState extends State<SignUpScreen> {
                 TextFormField(
                   controller: _usernameController,
                   decoration: _inputDecoration('Username (Optional)'),
+                  textInputAction: TextInputAction.next,
                 ),
                 const SizedBox(height: 16),
 
@@ -164,11 +186,13 @@ class _SignUpScreenState extends State<SignUpScreen> {
                   controller: _emailController,
                   keyboardType: TextInputType.emailAddress,
                   decoration: _inputDecoration('Email Address'),
+                  textInputAction: TextInputAction.next,
                   validator: (value) {
                     if (value == null || value.trim().isEmpty) {
                       return 'Please enter your email';
                     }
-                    if (!RegExp(r'^[\w-\.]+@([\w-]+\.)+[\w-]{2,4}$').hasMatch(value)) {
+                    if (!RegExp(r'^[\w-\.]+@([\w-]+\.)+[\w-]{2,4}$')
+                        .hasMatch(value)) {
                       return 'Please enter a valid email';
                     }
                     return null;
@@ -180,10 +204,13 @@ class _SignUpScreenState extends State<SignUpScreen> {
                 TextFormField(
                   controller: _passwordController,
                   obscureText: _obscurePassword,
+                  textInputAction: TextInputAction.next,
                   decoration: _inputDecoration('Password').copyWith(
                     suffixIcon: IconButton(
                       icon: Icon(
-                        _obscurePassword ? Icons.visibility_off : Icons.visibility,
+                        _obscurePassword
+                            ? Icons.visibility_off
+                            : Icons.visibility,
                         color: const Color(0xFF4ECDC4),
                       ),
                       onPressed: () {
@@ -195,49 +222,58 @@ class _SignUpScreenState extends State<SignUpScreen> {
                     if (value == null || value.isEmpty) {
                       return 'Please enter a password';
                     }
-                    if (!PasswordHelper.isPasswordStrong(value)) {
-                      return PasswordHelper.getPasswordStrengthMessage(value);
+                    if (!PasswordValidator.isValid(value)) {
+                      return 'Password does not meet requirements';
                     }
                     return null;
                   },
+                ),
+                const SizedBox(height: 12),
+
+                // Password Requirements Widget
+                PasswordRequirements(
+                  password: _password,
+                  onAllRequirementsMet: _onAllRequirementsMet,
                 ),
                 const SizedBox(height: 16),
 
                 // Confirm Password
-                TextFormField(
-                  controller: _confirmPasswordController,
-                  obscureText: _obscureConfirmPassword,
-                  decoration: _inputDecoration('Confirm Password').copyWith(
-                    suffixIcon: IconButton(
-                      icon: Icon(
-                        _obscureConfirmPassword ? Icons.visibility_off : Icons.visibility,
-                        color: const Color(0xFF4ECDC4),
+                AnimatedOpacity(
+                  opacity: _isPasswordValid ? 1.0 : 0.6,
+                  duration: const Duration(milliseconds: 300),
+                  child: TextFormField(
+                    controller: _confirmPasswordController,
+                    focusNode: _confirmPasswordFocusNode,
+                    obscureText: _obscureConfirmPassword,
+                    enabled: _isPasswordValid,
+                    textInputAction: TextInputAction.done,
+                    decoration: _inputDecoration('Confirm Password').copyWith(
+                      fillColor: _isPasswordValid
+                          ? Colors.white
+                          : Colors.white.withOpacity(0.7),
+                      suffixIcon: IconButton(
+                        icon: Icon(
+                          _obscureConfirmPassword
+                              ? Icons.visibility_off
+                              : Icons.visibility,
+                          color: _isPasswordValid
+                              ? const Color(0xFF4ECDC4)
+                              : const Color(0xFF4ECDC4).withOpacity(0.5),
+                        ),
+                        onPressed: _isPasswordValid
+                            ? () {
+                                setState(() => _obscureConfirmPassword =
+                                    !_obscureConfirmPassword);
+                              }
+                            : null,
                       ),
-                      onPressed: () {
-                        setState(() => _obscureConfirmPassword = !_obscureConfirmPassword);
-                      },
                     ),
-                  ),
-                  validator: (value) {
-                    if (value != _passwordController.text) {
-                      return 'Passwords do not match';
-                    }
-                    return null;
-                  },
-                ),
-                const SizedBox(height: 8),
-
-                // Password requirements
-                Padding(
-                  padding: const EdgeInsets.symmetric(horizontal: 4),
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      _passwordRequirement('At least 8 characters'),
-                      _passwordRequirement('Uppercase and lowercase letters'),
-                      _passwordRequirement('At least one number'),
-                      _passwordRequirement('At least one special character'),
-                    ],
+                    validator: (value) {
+                      if (value != _passwordController.text) {
+                        return 'Passwords do not match';
+                      }
+                      return null;
+                    },
                   ),
                 ),
                 const SizedBox(height: 24),
@@ -253,8 +289,8 @@ class _SignUpScreenState extends State<SignUpScreen> {
                     child: Row(
                       children: [
                         Icon(
-                          _biometricType.contains('Face') 
-                              ? Icons.face 
+                          _biometricType.contains('Face')
+                              ? Icons.face
                               : Icons.fingerprint,
                           color: const Color(0xFF4ECDC4),
                         ),
@@ -270,8 +306,11 @@ class _SignUpScreenState extends State<SignUpScreen> {
                         ),
                         Switch(
                           value: _biometricEnabled,
-                          onChanged: (value) => setState(() => _biometricEnabled = value),
-                          activeThumbColor: const Color(0xFF4ECDC4),
+                          onChanged: (value) =>
+                              setState(() => _biometricEnabled = value),
+                          activeColor: const Color(0xFF4ECDC4),
+                          activeTrackColor:
+                              const Color(0xFF4ECDC4).withOpacity(0.5),
                         ),
                       ],
                     ),
@@ -283,10 +322,13 @@ class _SignUpScreenState extends State<SignUpScreen> {
                   onPressed: _isLoading ? null : _signUp,
                   style: ElevatedButton.styleFrom(
                     backgroundColor: const Color(0xFF4ECDC4),
+                    disabledBackgroundColor:
+                        const Color(0xFF4ECDC4).withOpacity(0.5),
                     minimumSize: const Size(double.infinity, 56),
                     shape: RoundedRectangleBorder(
                       borderRadius: BorderRadius.circular(28),
                     ),
+                    elevation: 0,
                   ),
                   child: _isLoading
                       ? const SizedBox(
@@ -319,7 +361,8 @@ class _SignUpScreenState extends State<SignUpScreen> {
                         style: TextStyle(color: Color(0xFF2D3E40)),
                       ),
                     ),
-                    const Text('  |  ', style: TextStyle(color: Color(0xFF2D3E40))),
+                    const Text('  |  ',
+                        style: TextStyle(color: Color(0xFF2D3E40))),
                     TextButton(
                       onPressed: () {},
                       child: const Text(
@@ -367,11 +410,20 @@ class _SignUpScreenState extends State<SignUpScreen> {
   InputDecoration _inputDecoration(String hint) {
     return InputDecoration(
       hintText: hint,
+      hintStyle: const TextStyle(color: Color(0xFF9E9E9E)),
       filled: true,
       fillColor: Colors.white,
       border: OutlineInputBorder(
         borderRadius: BorderRadius.circular(12),
         borderSide: BorderSide.none,
+      ),
+      enabledBorder: OutlineInputBorder(
+        borderRadius: BorderRadius.circular(12),
+        borderSide: BorderSide.none,
+      ),
+      focusedBorder: OutlineInputBorder(
+        borderRadius: BorderRadius.circular(12),
+        borderSide: const BorderSide(color: Color(0xFF4ECDC4), width: 2),
       ),
       errorBorder: OutlineInputBorder(
         borderRadius: BorderRadius.circular(12),
@@ -384,22 +436,6 @@ class _SignUpScreenState extends State<SignUpScreen> {
     );
   }
 
-  Widget _passwordRequirement(String text) {
-    return Padding(
-      padding: const EdgeInsets.only(bottom: 4),
-      child: Row(
-        children: [
-          const Icon(Icons.check_circle_outline, size: 16, color: Color(0xFF2D3E40)),
-          const SizedBox(width: 8),
-          Text(
-            text,
-            style: const TextStyle(fontSize: 12, color: Color(0xFF2D3E40)),
-          ),
-        ],
-      ),
-    );
-  }
-
   @override
   void dispose() {
     _firstNameController.dispose();
@@ -408,6 +444,7 @@ class _SignUpScreenState extends State<SignUpScreen> {
     _emailController.dispose();
     _passwordController.dispose();
     _confirmPasswordController.dispose();
+    _confirmPasswordFocusNode.dispose();
     super.dispose();
   }
 }

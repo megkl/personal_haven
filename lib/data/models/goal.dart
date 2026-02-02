@@ -8,7 +8,7 @@ class Goal extends Equatable {
   final String? description;
   final double targetValue;
   final double currentValue;
-  final String unit; // 'USD', 'kg', 'minutes', 'count', etc.
+  final String unit; // 'KES', 'kg', 'minutes', 'count', etc.
   final DateTime startDate;
   final DateTime? targetDate;
   final String status; // 'active', 'completed', 'paused', 'archived'

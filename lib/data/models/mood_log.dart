@@ -1,4 +1,6 @@
 import 'package:equatable/equatable.dart';
+import 'package:flutter/services.dart';
+import 'package:personal_haven/core/constants/app_colors.dart';
 
 class MoodLog extends Equatable {
   final String id;
@@ -59,4 +61,38 @@ class MoodLog extends Equatable {
 
   @override
   List<Object?> get props => [id, userId, moodLevel, moodEmoji, notes, timestamp];
+}
+
+class MoodOption {
+  final String emoji;
+  final String label;
+  final Color color;
+
+  const MoodOption({
+    required this.emoji,
+    required this.label,
+    required this.color,
+  });
+}
+
+// Predefined mood options
+class MoodOptions {
+  static  List<MoodOption> all = [
+    MoodOption(emoji: '😊', label: 'Happy', color: AppColors.moodHappy),
+    MoodOption(emoji: '😌', label: 'Calm', color: AppColors.moodCalm),
+    MoodOption(emoji: '😐', label: 'Neutral', color: AppColors.moodNeutral),
+    MoodOption(emoji: '😔', label: 'Sad', color: AppColors.moodSad),
+    MoodOption(emoji: '😤', label: 'Frustrated', color: AppColors.moodFrustrated),
+    MoodOption(emoji: '😴', label: 'Tired', color: AppColors.moodTired),
+    MoodOption(emoji: '🥰', label: 'Loved', color: Color(0xFFFF9A9E)),
+    MoodOption(emoji: '😰', label: 'Anxious', color: Color(0xFFFFB347)),
+  ];
+
+  static MoodOption? getByEmoji(String emoji) {
+    try {
+      return all.firstWhere((m) => m.emoji == emoji);
+    } catch (_) {
+      return null;
+    }
+  }
 }
