@@ -1,8 +1,7 @@
 import 'package:sqflite/sqflite.dart';
 import 'package:path/path.dart';
 
-/// SQLite Database Helper for Personal Haven
-/// Manages database creation, migrations, and connections
+
 class DatabaseHelper {
   static final DatabaseHelper instance = DatabaseHelper._init();
   static Database? _database;
@@ -29,6 +28,7 @@ class DatabaseHelper {
     );
   }
 
+
   /// Create all tables
   Future<void> _createDB(Database db, int version) async {
     // User table
@@ -36,7 +36,6 @@ class DatabaseHelper {
       CREATE TABLE users (
         user_id TEXT PRIMARY KEY,
         email TEXT UNIQUE NOT NULL,
-        password_hash TEXT NOT NULL,
         username TEXT UNIQUE,
         first_name TEXT,
         bio TEXT,

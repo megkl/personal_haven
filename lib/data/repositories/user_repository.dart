@@ -14,6 +14,11 @@ class UserRepository {
     String? username,
     String? firstName,
     String? lastName,
+    String? bio,
+    String? avatarUrl,
+    Map<String, dynamic>? preferencesJson,
+    String? lastLoginAt,
+    String? isPremium,
     bool enableBiometric = false,
   }) async {
     final db = await _dbHelper.database;
@@ -36,6 +41,10 @@ class UserRepository {
         firstName: firstName?.trim(),
         lastName: lastName?.trim(),
         createdAt: DateTime.now(),
+        bio: bio?.trim(),
+        avatarUrl: avatarUrl,
+        preferences: preferencesJson,
+        lastLoginAt: lastLoginAt != null ? DateTime.parse(lastLoginAt) : null,
         isPremium: false,
       );
 
@@ -135,7 +144,7 @@ class UserRepository {
     await db.update(
       'users',
       {'last_login_at': DateTime.now().toIso8601String()},
-      where: 'id = ?',
+      where: 'user_id = ?',
       whereArgs: [userId],
     );
   }

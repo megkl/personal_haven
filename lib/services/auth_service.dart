@@ -1,8 +1,8 @@
 import 'package:personal_haven/core/utils/biometrics_helper.dart';
 import 'package:personal_haven/core/utils/password_helper.dart';
+import 'package:personal_haven/data/data_sources/local/shared_prefs_helper.dart';
 import 'package:personal_haven/data/models/user.dart';
 import 'package:personal_haven/data/repositories/user_repository.dart';
-import 'package:shared_preferences/shared_preferences.dart';
 
 class AuthService {
   final UserRepository _userRepo = UserRepository();
@@ -17,15 +17,18 @@ class AuthService {
     String? username,
     String? firstName,
     String? lastName,
+    String? bio,
+    String? avatarUrl,
+    Map<String, dynamic>? preferencesJson,
+    String? lastLoginAt,
+    String? isPremium,
     bool enableBiometric = false,
   }) async {
     try {
-      // Validate email
       if (!_isValidEmail(email)) {
         return AuthResult(success: false, error: 'Invalid email address');
       }
 
-      // Validate password
       if (!PasswordHelper.isPasswordStrong(password)) {
         return AuthResult(
           success: false,
@@ -33,13 +36,17 @@ class AuthService {
         );
       }
 
-      // Create user
       final user = await _userRepo.createUser(
         email: email,
         password: password,
         username: username,
         firstName: firstName,
         lastName: lastName,
+        bio: bio,
+        preferencesJson: preferencesJson,
+        avatarUrl: avatarUrl,
+        lastLoginAt: lastLoginAt,
+        isPremium: isPremium,
         enableBiometric: enableBiometric,
       );
 
@@ -47,8 +54,8 @@ class AuthService {
         return AuthResult(success: false, error: 'Failed to create account. Email may already exist.');
       }
 
-      // Save session
-      await _saveSession(user.id);
+      final prefs = await SharedPrefsHelper.getInstance();
+      await prefs.saveUserSession(user);
 
       return AuthResult(success: true, user: user);
     } catch (e) {
@@ -68,8 +75,9 @@ class AuthService {
         return AuthResult(success: false, error: 'Invalid email or password');
       }
 
-      // Save session
-      await _saveSession(user.id);
+      // ✅ Save user session using SharedPrefsHelper
+      final prefs = await SharedPrefsHelper.getInstance();
+      await prefs.saveUserSession(user);
 
       return AuthResult(success: true, user: user);
     } catch (e) {
@@ -80,13 +88,11 @@ class AuthService {
   /// Login with biometric
   Future<AuthResult> loginWithBiometric(String userId) async {
     try {
-      // Check if biometric is enabled
       final isEnabled = await _userRepo.isBiometricEnabled(userId);
       if (!isEnabled) {
         return AuthResult(success: false, error: 'Biometric authentication not enabled');
       }
 
-      // Authenticate
       final authenticated = await BiometricHelper.authenticate(
         reason: 'Login to Personal Haven',
       );
@@ -95,18 +101,17 @@ class AuthService {
         return AuthResult(success: false, error: 'Biometric authentication failed');
       }
 
-      // Get user
       final user = await _userRepo.getUserById(userId);
       if (user == null) {
         return AuthResult(success: false, error: 'User not found');
       }
 
-      // Update last biometric use
       await _userRepo.updateBiometricLastUsed(userId);
       await _userRepo.updateLastLogin(userId);
 
-      // Save session
-      await _saveSession(user.id);
+      // ✅ Save user session using SharedPrefsHelper
+      final prefs = await SharedPrefsHelper.getInstance();
+      await prefs.saveUserSession(user);
 
       return AuthResult(success: true, user: user);
     } catch (e) {
@@ -116,8 +121,8 @@ class AuthService {
 
   /// Get current user from session
   Future<User?> getCurrentUser() async {
-    final prefs = await SharedPreferences.getInstance();
-    final userId = prefs.getString('current_user_id');
+    final prefs = await SharedPrefsHelper.getInstance();
+    final userId = prefs.getUserId();
 
     if (userId != null) {
       return await _userRepo.getUserById(userId);
@@ -127,31 +132,21 @@ class AuthService {
 
   /// Check if user is logged in
   Future<bool> isLoggedIn() async {
-    final prefs = await SharedPreferences.getInstance();
-    return prefs.getBool('is_logged_in') ?? false;
+    final prefs = await SharedPrefsHelper.getInstance();
+    return prefs.isLoggedIn();
   }
 
   /// Logout
   Future<void> logout() async {
-    final prefs = await SharedPreferences.getInstance();
-    await prefs.remove('current_user_id');
-    await prefs.setBool('is_logged_in', false);
+    final prefs = await SharedPrefsHelper.getInstance();
+    await prefs.clearSession();
   }
 
-  /// Save session
-  Future<void> _saveSession(String userId) async {
-    final prefs = await SharedPreferences.getInstance();
-    await prefs.setString('current_user_id', userId);
-    await prefs.setBool('is_logged_in', true);
-  }
-
-  /// Validate email format
   bool _isValidEmail(String email) {
     return RegExp(r'^[\w-\.]+@([\w-]+\.)+[\w-]{2,4}$').hasMatch(email);
   }
 }
 
-/// Authentication result
 class AuthResult {
   final bool success;
   final User? user;

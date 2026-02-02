@@ -1,15 +1,43 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:intl/intl.dart';
+import 'package:personal_haven/data/data_sources/local/shared_prefs_helper.dart';
 import 'package:personal_haven/providers/event_provider.dart';
 import 'package:personal_haven/providers/task_provider.dart';
 
-class HomeScreen extends ConsumerWidget {
+class HomeScreen extends ConsumerStatefulWidget {
   const HomeScreen({super.key});
 
   @override
-  Widget build(BuildContext context, WidgetRef ref) {
-    final userName = ref.watch(userNameProvider);
+  ConsumerState<HomeScreen> createState() => _HomeScreenState();
+}
+
+class _HomeScreenState extends ConsumerState<HomeScreen> {
+  String? _userName;
+  String? _userEmail;
+  String? _avatarUrl;
+  bool _isLoading = true;
+
+  @override
+  void initState() {
+    super.initState();
+    _loadUserData();
+  }
+
+  Future<void> _loadUserData() async {
+    final prefs = await SharedPrefsHelper.getInstance();
+
+    setState(() {
+      _userName = prefs.getFullName() ?? prefs.getUsername() ?? 'Friend';
+      _userEmail = prefs.getUserEmail();
+      _avatarUrl = prefs.getAvatarUrl();
+      _isLoading = false;
+    });
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    // Access ref directly (no parameter needed with ConsumerStatefulWidget)
     final events = ref.watch(eventsProvider);
     final entries = ref.watch(journalEntriesProvider);
     final tasks = ref.watch(taskRepositoryProvider);
@@ -21,6 +49,16 @@ class HomeScreen extends ConsumerWidget {
           e.createdAt.month == now.month &&
           e.createdAt.day == now.day;
     }).length;
+
+    // Show loading state while fetching user data
+    if (_isLoading) {
+      return const Scaffold(
+        backgroundColor: Color(0xFFB8E6E3),
+        body: Center(
+          child: CircularProgressIndicator(color: Colors.white),
+        ),
+      );
+    }
 
     return Scaffold(
       backgroundColor: const Color(0xFFB8E6E3),
@@ -46,9 +84,29 @@ class HomeScreen extends ConsumerWidget {
                       ),
                     ],
                   ),
-                  IconButton(
-                    icon: const Icon(Icons.more_vert, color: Colors.white),
-                    onPressed: () {},
+                  // User avatar
+                  GestureDetector(
+                    onTap: () {
+                      // Navigate to profile or show menu
+                    },
+                    child: _avatarUrl != null
+                        ? CircleAvatar(
+                            radius: 18,
+                            backgroundImage: NetworkImage(_avatarUrl!),
+                          )
+                        : CircleAvatar(
+                            radius: 18,
+                            backgroundColor: Colors.white.withOpacity(0.3),
+                            child: Text(
+                              _userName?.isNotEmpty == true
+                                  ? _userName![0].toUpperCase()
+                                  : 'U',
+                              style: const TextStyle(
+                                color: Colors.white,
+                                fontWeight: FontWeight.bold,
+                              ),
+                            ),
+                          ),
                   ),
                 ],
               ),
@@ -63,8 +121,9 @@ class HomeScreen extends ConsumerWidget {
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
+                      // Use _userName from SharedPrefs
                       Text(
-                        '$greeting, $userName!',
+                        '$greeting, $_userName!',
                         style: const TextStyle(
                           fontSize: 32,
                           fontWeight: FontWeight.bold,
@@ -84,7 +143,7 @@ class HomeScreen extends ConsumerWidget {
                           mainAxisAlignment: MainAxisAlignment.center,
                           children: [
                             Text(
-                              'How so you feeling?',
+                              'How are you feeling?',
                               style: TextStyle(
                                 fontSize: 20,
                                 fontWeight: FontWeight.w600,
@@ -163,7 +222,7 @@ class HomeScreen extends ConsumerWidget {
                             ),
                             SizedBox(height: 8),
                             Text(
-                              '"You are capable on amazing things"',
+                              '"You are capable of amazing things"',
                               style: TextStyle(
                                 fontSize: 16,
                                 color: Colors.white,
@@ -258,7 +317,6 @@ class HomeScreen extends ConsumerWidget {
                           ],
                         ),
                       ),
-                      
                     ],
                   ),
                 ),

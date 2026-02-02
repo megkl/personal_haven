@@ -2,7 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:personal_haven/core/utils/biometrics_helper.dart';
 import 'package:personal_haven/core/utils/password_helper.dart';
 import 'package:personal_haven/presentation/screens/auth/login_screen.dart';
-import 'package:personal_haven/presentation/screens/home/home_screen.dart';
+import 'package:personal_haven/presentation/screens/profile/main_navigation_screen.dart';
 import 'package:personal_haven/services/auth_service.dart';
 
 
@@ -74,7 +74,7 @@ class _SignUpScreenState extends State<SignUpScreen> {
       // Navigate to home screen
       Navigator.pushReplacement(
         context,
-        MaterialPageRoute(builder: (_) => const HomeScreen()),
+        MaterialPageRoute(builder: (_) => const MainNavigationScreen()),
       );
     } else {
       ScaffoldMessenger.of(context).showSnackBar(
@@ -271,7 +271,7 @@ class _SignUpScreenState extends State<SignUpScreen> {
                         Switch(
                           value: _biometricEnabled,
                           onChanged: (value) => setState(() => _biometricEnabled = value),
-                          activeColor: const Color(0xFF4ECDC4),
+                          activeThumbColor: const Color(0xFF4ECDC4),
                         ),
                       ],
                     ),
