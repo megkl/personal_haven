@@ -181,11 +181,33 @@ class DatabaseHelper {
         start_date TEXT NOT NULL,
         target_date TEXT,
         status TEXT NOT NULL,
+        category TEXT NOT NULL,
         created_at TEXT NOT NULL,
         updated_at TEXT NOT NULL,
         FOREIGN KEY (user_id) REFERENCES users (user_id) ON DELETE CASCADE
       )
     ''');
+
+    // Food Entry table
+    await db.execute('''
+      CREATE TABLE IF NOT EXISTS food_entries (
+        food_entry_id TEXT PRIMARY KEY,
+        user_id TEXT NOT NULL,
+        meal_type TEXT NOT NULL,
+        food_name TEXT NOT NULL,
+        description TEXT,
+        calories INTEGER,
+        protein INTEGER,
+        carbs INTEGER,
+        fat INTEGER,
+        consumed_at TEXT NOT NULL,
+        FOREIGN KEY (user_id) REFERENCES users (user_id) ON DELETE CASCADE
+      )
+    ''');
+    
+    await db.execute(
+      'CREATE INDEX IF NOT EXISTS idx_food_user_date ON food_entries(user_id, consumed_at DESC)'
+    );
 
     // Event/Calendar table
     await db.execute('''

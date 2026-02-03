@@ -85,7 +85,7 @@ class MoodOption {
 
 class MoodOptions {
   static const List<MoodOption> all = [
-    MoodOption(emoji: '😊', label: 'Happy', level: 5, color: Color(0xFFFFD93D)),
+    MoodOption(emoji: '😊', label: 'Happy', level: 5, color: Color.fromARGB(255, 43, 176, 28)),
     MoodOption(emoji: '😌', label: 'Calm', level: 4, color: Color(0xFF6BCB77)),
     MoodOption(emoji: '🙏', label: 'Grateful', level: 5, color: Color(0xFFFF9A9E)),
     MoodOption(emoji: '⚡', label: 'Energetic', level: 4, color: Color(0xFFFFB347)),

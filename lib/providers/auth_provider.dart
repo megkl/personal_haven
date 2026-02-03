@@ -105,9 +105,9 @@ class AuthNotifier extends StateNotifier<AuthState> {
 
       // In production, verify credentials with backend
       // For now, accept any credentials
-      final userId = 'user_demo';
-
       final prefs = await SharedPreferences.getInstance();
+      final userId = prefs.getString('userId') ?? 'user_demo';
+
       await prefs.setBool('isLoggedIn', true);
       await prefs.setString('userId', userId);
       await prefs.setString('userEmail', email);

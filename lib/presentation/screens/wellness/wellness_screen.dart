@@ -86,14 +86,7 @@ class _WellnessScreenState extends State<WellnessScreen>
                     fontWeight: FontWeight.normal,
                   ),
                   tabs: [
-                    Tab(
-                      icon: Icon(
-                        Icons.restaurant,
-                        color: _currentIndex == 0 ? Colors.white : Colors.white70,
-                      ),
-                      text: 'Food',
-                    ),
-                    Tab(
+                     Tab(
                       icon: Icon(
                         Icons.account_balance_wallet,
                         color: _currentIndex == 1 ? Colors.white : Colors.white70,
@@ -107,6 +100,14 @@ class _WellnessScreenState extends State<WellnessScreen>
                       ),
                       text: 'Goals',
                     ),
+                    Tab(
+                      icon: Icon(
+                        Icons.restaurant,
+                        color: _currentIndex == 0 ? Colors.white : Colors.white70,
+                      ),
+                      text: 'Food',
+                    ),
+                  
                   ],
                 ),
               ),
@@ -116,9 +117,9 @@ class _WellnessScreenState extends State<WellnessScreen>
         body: TabBarView(
           controller: _tabController,
           children: const [
-            FoodDiaryScreen(),
             BudgetScreen(),
             GoalsScreen(),
+            FoodDiaryScreen()
           ],
         ),
       ),

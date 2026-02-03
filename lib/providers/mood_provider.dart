@@ -61,11 +61,12 @@ class MoodNotifier extends StateNotifier<MoodState> {
     }
   }
 
-  Future<void> logMood(int moodLevel, String moodEmoji, {String? notes}) async {
+  Future<void> logMood(int moodLevel, String moodEmoji, {String? moodLabel, String? notes}) async {
     try {
       final log = await _repository.logMood(
         userId: _userId,
         moodLevel: moodLevel,
+        moodLabel: moodLabel ?? '',
         moodEmoji: moodEmoji,
         notes: notes,
       );
