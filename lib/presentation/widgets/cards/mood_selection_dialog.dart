@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
+import 'package:personal_haven/data/data_sources/local/shared_prefs_helper.dart';
 import 'package:personal_haven/data/models/mood_log.dart';
-import 'package:shared_preferences/shared_preferences.dart';
+import 'package:uuid/uuid.dart';
 
 class MoodSelectionDialog extends StatefulWidget {
   final MoodLog? currentMood;
@@ -15,16 +16,15 @@ class MoodSelectionDialog extends StatefulWidget {
 }
 
 class _MoodSelectionDialogState extends State<MoodSelectionDialog> {
-  String? _selectedEmoji;
-  String? _selectedLabel;
+  MoodOption? _selectedMood;
   final _noteController = TextEditingController();
+  final _uuid = const Uuid();
 
   @override
   void initState() {
     super.initState();
     if (widget.currentMood != null) {
-      _selectedEmoji = widget.currentMood!.moodEmoji;
-      //_selectedLabel = widget.currentMood!.label;
+      _selectedMood = MoodOptions.getByEmoji(widget.currentMood!.moodEmoji);
       _noteController.text = widget.currentMood!.notes ?? '';
     }
   }
@@ -81,21 +81,20 @@ class _MoodSelectionDialogState extends State<MoodSelectionDialog> {
               shrinkWrap: true,
               physics: const NeverScrollableScrollPhysics(),
               gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
-                crossAxisCount: 4,
-                crossAxisSpacing: 12,
-                mainAxisSpacing: 12,
-                childAspectRatio: 1,
+                crossAxisCount: 5,
+                crossAxisSpacing: 10,
+                mainAxisSpacing: 10,
+                childAspectRatio: 0.85,
               ),
               itemCount: MoodOptions.all.length,
               itemBuilder: (context, index) {
                 final mood = MoodOptions.all[index];
-                final isSelected = _selectedEmoji == mood.emoji;
+                final isSelected = _selectedMood?.emoji == mood.emoji;
 
                 return GestureDetector(
                   onTap: () {
                     setState(() {
-                      _selectedEmoji = mood.emoji;
-                      _selectedLabel = mood.label;
+                      _selectedMood = mood;
                     });
                   },
                   child: AnimatedContainer(
@@ -104,7 +103,7 @@ class _MoodSelectionDialogState extends State<MoodSelectionDialog> {
                       color: isSelected
                           ? mood.color.withOpacity(0.3)
                           : Colors.grey.withOpacity(0.1),
-                      borderRadius: BorderRadius.circular(16),
+                      borderRadius: BorderRadius.circular(12),
                       border: Border.all(
                         color: isSelected ? mood.color : Colors.transparent,
                         width: 2,
@@ -115,19 +114,22 @@ class _MoodSelectionDialogState extends State<MoodSelectionDialog> {
                       children: [
                         Text(
                           mood.emoji,
-                          style: const TextStyle(fontSize: 28),
+                          style: const TextStyle(fontSize: 24),
                         ),
                         const SizedBox(height: 4),
                         Text(
                           mood.label,
                           style: TextStyle(
-                            fontSize: 10,
+                            fontSize: 9,
                             fontWeight:
                                 isSelected ? FontWeight.w600 : FontWeight.normal,
                             color: isSelected
                                 ? const Color(0xFF2D3E40)
                                 : const Color(0xFF9E9E9E),
                           ),
+                          textAlign: TextAlign.center,
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
                         ),
                       ],
                     ),
@@ -137,13 +139,43 @@ class _MoodSelectionDialogState extends State<MoodSelectionDialog> {
             ),
             const SizedBox(height: 20),
 
+            // Selected mood indicator
+            if (_selectedMood != null)
+              Container(
+                padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                decoration: BoxDecoration(
+                  color: _selectedMood!.color.withOpacity(0.2),
+                  borderRadius: BorderRadius.circular(20),
+                ),
+                child: Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Text(
+                      _selectedMood!.emoji,
+                      style: const TextStyle(fontSize: 20),
+                    ),
+                    const SizedBox(width: 8),
+                    Text(
+                      'Feeling ${_selectedMood!.label}',
+                      style: TextStyle(
+                        fontSize: 14,
+                        fontWeight: FontWeight.w600,
+                        color: _selectedMood!.color.withOpacity(1),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            const SizedBox(height: 16),
+
             // Optional note
             TextField(
               controller: _noteController,
               maxLines: 2,
+              maxLength: 200,
               decoration: InputDecoration(
-                hintText: 'Add a note (optional)',
-                hintStyle: const TextStyle(color: Color(0xFF9E9E9E)),
+                hintText: 'Add a note about how you\'re feeling (optional)',
+                hintStyle: const TextStyle(color: Color(0xFF9E9E9E), fontSize: 14),
                 filled: true,
                 fillColor: Colors.grey.withOpacity(0.1),
                 border: OutlineInputBorder(
@@ -151,15 +183,16 @@ class _MoodSelectionDialogState extends State<MoodSelectionDialog> {
                   borderSide: BorderSide.none,
                 ),
                 contentPadding: const EdgeInsets.all(16),
+                counterStyle: const TextStyle(fontSize: 10),
               ),
             ),
-            const SizedBox(height: 24),
+            const SizedBox(height: 20),
 
             // Save Button
             SizedBox(
               width: double.infinity,
               child: ElevatedButton(
-                onPressed: _selectedEmoji != null ? _saveMood : null,
+                onPressed: _selectedMood != null ? _saveMood : null,
                 style: ElevatedButton.styleFrom(
                   backgroundColor: const Color(0xFF4ECDC4),
                   disabledBackgroundColor:
@@ -186,21 +219,25 @@ class _MoodSelectionDialogState extends State<MoodSelectionDialog> {
     );
   }
 
-  void _saveMood() async {
-    if (_selectedEmoji == null || _selectedLabel == null) return;
-final prefs = await SharedPreferences.getInstance();
+  Future<void> _saveMood() async {
+    if (_selectedMood == null) return;
+
+    final prefs = await SharedPrefsHelper.getInstance();
+    final userId = prefs.getUserId();
+
+    if (userId == null) {
+      Navigator.pop(context);
+      return;
+    }
+
     final mood = MoodLog(
-      id: DateTime.now().millisecondsSinceEpoch.toString(),
-      userId: prefs.getString('current_user_id') ?? 
-      '',
-      moodEmoji: _selectedEmoji!,
-      moodLevel: MoodOptions.all
-          .firstWhere((m) => m.emoji == _selectedEmoji!)
-          .label
-          .hashCode,
-      //label: _selectedLabel!,
+      id: _uuid.v4(),
+      userId: userId,
+      moodLevel: _selectedMood!.level,
+      moodLabel: _selectedMood!.label,
+      moodEmoji: _selectedMood!.emoji,
       timestamp: DateTime.now(),
-      notes: _noteController.text.isNotEmpty ? _noteController.text : null,
+      notes: _noteController.text.isNotEmpty ? _noteController.text.trim() : null,
     );
 
     Navigator.pop(context, mood);

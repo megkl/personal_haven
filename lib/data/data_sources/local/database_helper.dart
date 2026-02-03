@@ -97,6 +97,7 @@ class DatabaseHelper {
         user_id TEXT NOT NULL,
         mood_level INTEGER NOT NULL,
         mood_label_id TEXT,
+        mood_emoji TEXT,
         timestamp TEXT NOT NULL,
         notes TEXT,
         FOREIGN KEY (user_id) REFERENCES users (user_id) ON DELETE CASCADE
