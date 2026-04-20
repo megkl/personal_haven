@@ -41,6 +41,12 @@ dependencies:
   # Biometric Authentication
   local_auth: ^2.1.8
 
+  # HTTP
+  http: ^1.2.0
+
+  # In-App Purchases (App Store / Play Store)
+  flutter_inapp_purchase: ^5.5.0
+
   # Social Authentication
   google_sign_in: ^6.2.1
   sign_in_with_apple: ^6.1.3

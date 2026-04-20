@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:personal_haven/presentation/screens/auth/login_screen.dart';
+import 'package:personal_haven/presentation/screens/legal/terms_screen.dart';
 import 'package:personal_haven/presentation/screens/profile/main_navigation_screen.dart';
 import 'package:personal_haven/providers/auth_provider.dart';
 import 'package:personal_haven/services/social_auth_service.dart';
@@ -118,11 +119,31 @@ class _SignUpScreenState extends ConsumerState<SignUpScreen> {
                     style: TextStyle(color: Color(0xFF2D3E40), fontSize: 12),
                   ),
                   TextButton(
-                    onPressed: () {},
-                    style:
-                        TextButton.styleFrom(padding: EdgeInsets.zero),
+                    onPressed: () => Navigator.push(
+                      context,
+                      MaterialPageRoute(builder: (_) => const TermsScreen()),
+                    ),
+                    style: TextButton.styleFrom(padding: EdgeInsets.zero),
                     child: const Text(
-                      'Terms & Privacy',
+                      'Terms',
+                      style: TextStyle(
+                          color: Color(0xFF4ECDC4),
+                          fontSize: 12,
+                          fontWeight: FontWeight.bold),
+                    ),
+                  ),
+                  const Text(' & ',
+                      style:
+                          TextStyle(color: Color(0xFF2D3E40), fontSize: 12)),
+                  TextButton(
+                    onPressed: () => Navigator.push(
+                      context,
+                      MaterialPageRoute(
+                          builder: (_) => const PrivacyPolicyScreen()),
+                    ),
+                    style: TextButton.styleFrom(padding: EdgeInsets.zero),
+                    child: const Text(
+                      'Privacy Policy',
                       style: TextStyle(
                           color: Color(0xFF4ECDC4),
                           fontSize: 12,

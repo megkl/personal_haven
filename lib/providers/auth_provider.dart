@@ -1,5 +1,6 @@
 import 'package:firebase_auth/firebase_auth.dart' as fb;
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:personal_haven/data/repositories/subscription_repository.dart';
 import 'package:personal_haven/data/repositories/user_repository.dart';
 import 'package:personal_haven/services/social_auth_service.dart';
 import 'package:shared_preferences/shared_preferences.dart';
@@ -62,6 +63,13 @@ class AuthNotifier extends StateNotifier<AuthState> {
       // Persist / update Firestore profile
       await UserRepository().createOrUpdateFromAuth(fbUser,
           displayName: result.displayName);
+
+      // Activate free trial on first sign-up (no-op if already used)
+      try {
+        final subRepo = SubscriptionRepository();
+        final hasUsed = await subRepo.hasUsedTrial(fbUser.uid);
+        if (!hasUsed) await subRepo.createTrial(fbUser.uid);
+      } catch (_) {}
 
       // Cache minimal info for offline display
       final prefs = await SharedPreferences.getInstance();
