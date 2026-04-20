@@ -186,8 +186,7 @@ class GoalNotifier extends StateNotifier<GoalState> {
 
   Future<void> deleteGoal(String goalId) async {
     try {
-      await _repository.deleteGoal(goalId);
-
+      await _repository.deleteGoal(_userId, goalId);
       final updated = state.goals.where((g) => g.id != goalId).toList();
       state = state.copyWith(goals: updated);
     } catch (e) {

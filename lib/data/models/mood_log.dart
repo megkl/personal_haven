@@ -19,6 +19,29 @@ class MoodLog {
     this.notes,
   });
 
+  Map<String, dynamic> toFirestore() => {
+        'id': id,
+        'userId': userId,
+        'moodLevel': moodLevel,
+        'moodLabel': moodLabel,
+        'moodEmoji': moodEmoji,
+        'timestamp': timestamp.toIso8601String(),
+        'notes': notes,
+      };
+
+  static MoodLog fromFirestore(dynamic doc) {
+    final d = doc.data() as Map<String, dynamic>;
+    return MoodLog(
+      id: doc.id,
+      userId: d['userId'] as String,
+      moodLevel: d['moodLevel'] as int,
+      moodLabel: d['moodLabel'] as String?,
+      moodEmoji: d['moodEmoji'] as String,
+      timestamp: DateTime.parse(d['timestamp'] as String),
+      notes: d['notes'] as String?,
+    );
+  }
+
   Map<String, dynamic> toMap() {
     return {
       'mood_log_id': id,

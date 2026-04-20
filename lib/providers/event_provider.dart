@@ -1,90 +1,298 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:personal_haven/data/models/event.dart';
-import 'package:personal_haven/data/models/journal_entry.dart';
+import 'package:personal_haven/data/repositories/event_repository.dart';
+import 'package:personal_haven/providers/auth_provider.dart';
 
-final journalEntriesProvider = StateNotifierProvider<JournalNotifier, List<JournalEntry>>((ref) {
-  return JournalNotifier();
+/// Provider for EventRepository
+final eventRepositoryProvider = Provider<EventRepository>((ref) {
+  return EventRepository();
 });
 
-class JournalNotifier extends StateNotifier<List<JournalEntry>> {
-  JournalNotifier() : super([]) {
-    _loadMockData();
+/// Event state
+class EventState {
+  final List<Event> events;
+  final List<Event> todayEvents;
+  final List<Event> upcomingEvents;
+  final bool isLoading;
+  final String? error;
+  final DateTime selectedDate;
+
+  EventState({
+    this.events = const [],
+    this.todayEvents = const [],
+    this.upcomingEvents = const [],
+    this.isLoading = false,
+    this.error,
+    DateTime? selectedDate,
+  }) : selectedDate = selectedDate ?? DateTime.now();
+
+  EventState copyWith({
+    List<Event>? events,
+    List<Event>? todayEvents,
+    List<Event>? upcomingEvents,
+    bool? isLoading,
+    String? error,
+    DateTime? selectedDate,
+  }) {
+    return EventState(
+      events: events ?? this.events,
+      todayEvents: todayEvents ?? this.todayEvents,
+      upcomingEvents: upcomingEvents ?? this.upcomingEvents,
+      isLoading: isLoading ?? this.isLoading,
+      error: error,
+      selectedDate: selectedDate ?? this.selectedDate,
+    );
   }
 
-  void _loadMockData() {
-    state = [
-      JournalEntry(
-        id: '1',
-        userId: '1',
-        title: 'Morning Reflections',
-        content: 'Gratitude for a new day and setting intentions. 😊',
-        createdAt: DateTime.now(),
-        updatedAt: DateTime.now(),
-        category: 'All',
-        emoji: '😊',
-      ),
-      JournalEntry(
-        id: '2',
-        userId: '1',
-        title: 'Project Brainstorm',
-        content: 'Gratitude for a new day and',
-        createdAt: DateTime.now().subtract(const Duration(hours: 2)),
-        updatedAt: DateTime.now(),
-        category: 'Notes',
-        emoji: '💡',
-      ),
-      JournalEntry(
-        id: '3',
-        userId: '1',
-        title: 'Project Goal Updarm',
-        content: 'Gratitude for a new day',
-        createdAt: DateTime.now(),
-        updatedAt: DateTime.now(),
-        category: 'Notes',
-        tags: ['Health'],
-      ),
-      JournalEntry(
-        id: '4',
-        userId: '1',
-        title: 'Fitness Goal Update',
-        content: 'Gratitude for a new day and intentions.',
-        createdAt: DateTime.now(),
-        updatedAt: DateTime.now(),
-        category: 'Goals',
-        emoji: '😁',
-      ),
-    ];
-  }
+  // Computed properties
+  int get totalCount => events.length;
+  int get todayCount => todayEvents.length;
+  int get upcomingCount => upcomingEvents.length;
 
-  void addEntry(JournalEntry entry) {
-    state = [entry, ...state];
-  }
-
-  void updateEntry(JournalEntry entry) {
-    state = [
-      for (final e in state)
-        if (e.id == entry.id) entry else e,
-    ];
-  }
-
-  void deleteEntry(String id) {
-    state = state.where((e) => e.id != id).toList();
+  /// Get events for selected date
+  List<Event> get selectedDateEvents {
+    return events.where((e) {
+      return e.eventDate.year == selectedDate.year &&
+          e.eventDate.month == selectedDate.month &&
+          e.eventDate.day == selectedDate.day;
+    }).toList();
   }
 }
 
-final userNameProvider = StateProvider<String>((ref) => 'Meg');
+/// Event Notifier
+class EventNotifier extends StateNotifier<EventState> {
+  final EventRepository _repository;
+  final String _userId;
 
-final eventsProvider = StateProvider<List<Event>>((ref) {
-  return [
-    Event(
-      id: '1',
-      title: 'Yoga Class',
-      time: DateTime.now().add(const Duration(hours: 2)),
-    ),
-    Event(
-      id: '2',
-      title: 'Creative Writing',
-      time: DateTime.now().add(const Duration(hours: 4)),
-    ),
-  ];
+  EventNotifier(this._repository, this._userId) : super(EventState()) {
+    loadEvents();
+  }
+
+  // ─────────────────────────────────────────────────────────────
+  // LOAD
+  // ─────────────────────────────────────────────────────────────
+
+  /// Load all events and today's events
+  Future<void> loadEvents() async {
+    state = state.copyWith(isLoading: true, error: null);
+
+    try {
+      final events = await _repository.getAllEvents(_userId);
+      final todayEvents = await _repository.getTodayEvents(_userId);
+      final upcomingEvents = await _repository.getUpcomingEvents(_userId, days: 7);
+
+      state = state.copyWith(
+        events: events,
+        todayEvents: todayEvents,
+        upcomingEvents: upcomingEvents,
+        isLoading: false,
+      );
+    } catch (e) {
+      state = state.copyWith(
+        isLoading: false,
+        error: 'Failed to load events: ${e.toString()}',
+      );
+    }
+  }
+
+  /// Load events for a specific month
+  Future<List<Event>> loadMonthEvents(int year, int month) async {
+    try {
+      return await _repository.getEventsByMonth(_userId, year, month);
+    } catch (e) {
+      state = state.copyWith(error: 'Failed to load month events: ${e.toString()}');
+      return [];
+    }
+  }
+
+  // ─────────────────────────────────────────────────────────────
+  // CREATE
+  // ─────────────────────────────────────────────────────────────
+
+  /// Add a new event
+  Future<void> addEvent({
+    required String title,
+    String? description,
+    required DateTime eventDate,
+    DateTime? startTime,
+    DateTime? endTime,
+    bool isAllDay = false,
+    String? location,
+    String category = 'personal',
+    String? color,
+    String? reminder,
+  }) async {
+    try {
+      final newEvent = await _repository.createEvent(
+        userId: _userId,
+        title: title,
+        description: description,
+        eventDate: eventDate,
+        startTime: startTime,
+        endTime: endTime,
+        isAllDay: isAllDay,
+        location: location,
+        category: category,
+        color: color,
+        reminder: reminder,
+      );
+
+      // Update state
+      final updatedEvents = [...state.events, newEvent]
+        ..sort((a, b) => a.eventDate.compareTo(b.eventDate));
+
+      // Update today's events if applicable
+      List<Event> updatedTodayEvents = state.todayEvents;
+      if (newEvent.isToday) {
+        updatedTodayEvents = [...state.todayEvents, newEvent]
+          ..sort((a, b) => (a.startTime ?? a.eventDate)
+              .compareTo(b.startTime ?? b.eventDate));
+      }
+
+      // Update upcoming events if applicable
+      List<Event> updatedUpcomingEvents = state.upcomingEvents;
+      if (newEvent.isUpcoming || newEvent.isToday) {
+        updatedUpcomingEvents = [...state.upcomingEvents, newEvent]
+          ..sort((a, b) => a.eventDate.compareTo(b.eventDate));
+      }
+
+      state = state.copyWith(
+        events: updatedEvents,
+        todayEvents: updatedTodayEvents,
+        upcomingEvents: updatedUpcomingEvents,
+      );
+    } catch (e) {
+      state = state.copyWith(error: 'Failed to add event: ${e.toString()}');
+    }
+  }
+
+  // ─────────────────────────────────────────────────────────────
+  // UPDATE
+  // ─────────────────────────────────────────────────────────────
+
+  /// Update an event
+  Future<void> updateEvent(Event event) async {
+    try {
+      final updatedEvent = await _repository.updateEvent(event);
+
+      final updatedEvents = state.events.map((e) {
+        return e.id == updatedEvent.id ? updatedEvent : e;
+      }).toList()
+        ..sort((a, b) => a.eventDate.compareTo(b.eventDate));
+
+      state = state.copyWith(events: updatedEvents);
+
+      // Reload today and upcoming to ensure accuracy
+      await _reloadTodayAndUpcoming();
+    } catch (e) {
+      state = state.copyWith(error: 'Failed to update event: ${e.toString()}');
+    }
+  }
+
+  /// Change selected date
+  void setSelectedDate(DateTime date) {
+    state = state.copyWith(selectedDate: date);
+  }
+
+  // ─────────────────────────────────────────────────────────────
+  // DELETE
+  // ─────────────────────────────────────────────────────────────
+
+  /// Delete an event
+  Future<void> deleteEvent(String eventId) async {
+    try {
+      await _repository.deleteEvent(_userId, eventId);
+      state = state.copyWith(
+        events: state.events.where((e) => e.id != eventId).toList(),
+        todayEvents: state.todayEvents.where((e) => e.id != eventId).toList(),
+        upcomingEvents:
+            state.upcomingEvents.where((e) => e.id != eventId).toList(),
+      );
+    } catch (e) {
+      state = state.copyWith(error: 'Failed to delete event: ${e.toString()}');
+    }
+  }
+
+  /// Delete past events
+  Future<void> deletePastEvents() async {
+    try {
+      await _repository.deletePastEvents(_userId);
+      await loadEvents();
+    } catch (e) {
+      state = state.copyWith(error: 'Failed to delete past events: ${e.toString()}');
+    }
+  }
+
+  // ─────────────────────────────────────────────────────────────
+  // HELPERS
+  // ─────────────────────────────────────────────────────────────
+
+  Future<void> _reloadTodayAndUpcoming() async {
+    try {
+      final todayEvents = await _repository.getTodayEvents(_userId);
+      final upcomingEvents = await _repository.getUpcomingEvents(_userId, days: 7);
+
+      state = state.copyWith(
+        todayEvents: todayEvents,
+        upcomingEvents: upcomingEvents,
+      );
+    } catch (_) {}
+  }
+
+  /// Clear error
+  void clearError() {
+    state = state.copyWith(error: null);
+  }
+
+  /// Refresh events
+  Future<void> refresh() async {
+    await loadEvents();
+  }
+}
+
+// ─────────────────────────────────────────────────────────────
+// PROVIDERS
+// ─────────────────────────────────────────────────────────────
+
+/// Main event provider
+final eventProvider = StateNotifierProvider<EventNotifier, EventState>((ref) {
+  final repository = ref.watch(eventRepositoryProvider);
+  final userId = ref.watch(currentUserIdProvider);
+
+  return EventNotifier(repository, userId);
+});
+
+/// Provider for today's events
+final todayEventsProvider = Provider<List<Event>>((ref) {
+  return ref.watch(eventProvider).todayEvents;
+});
+
+/// Provider for upcoming events
+final upcomingEventsProvider = Provider<List<Event>>((ref) {
+  return ref.watch(eventProvider).upcomingEvents;
+});
+
+/// Provider for selected date events
+final selectedDateEventsProvider = Provider<List<Event>>((ref) {
+  return ref.watch(eventProvider).selectedDateEvents;
+});
+
+/// Provider for event count today
+final todayEventCountProvider = Provider<int>((ref) {
+  return ref.watch(eventProvider).todayCount;
+});
+
+/// Provider for this week's event count
+final weekEventCountProvider = Provider<int>((ref) {
+  return ref.watch(eventProvider).upcomingCount;
+});
+
+/// Provider for dates with events (for calendar)
+final datesWithEventsProvider =
+    FutureProvider.family<Set<String>, ({int year, int month})>(
+        (ref, params) async {
+  final repository = ref.watch(eventRepositoryProvider);
+  final userId = ref.watch(currentUserIdProvider);
+
+  return await repository.getDatesWithEvents(userId, params.year, params.month);
 });

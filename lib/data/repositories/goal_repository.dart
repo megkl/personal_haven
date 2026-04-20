@@ -1,12 +1,12 @@
-import 'package:personal_haven/data/data_sources/local/dao/goal_dao.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:personal_haven/data/models/goal.dart';
+import 'package:personal_haven/services/firestore_service.dart';
 import 'package:uuid/uuid.dart';
 
 class GoalRepository {
-  final GoalDao _goalDao;
-  final Uuid _uuid = const Uuid();
-
-  GoalRepository({GoalDao? goalDao}) : _goalDao = goalDao ?? GoalDao();
+  final _fs = FirestoreService.instance;
+  final _uuid = const Uuid();
+  static const _col = 'goals';
 
   Future<Goal> createGoal({
     required String userId,
@@ -32,38 +32,47 @@ class GoalRepository {
       createdAt: now,
       updatedAt: now,
     );
-
-    await _goalDao.insert(goal);
+    await _fs.set(userId, _col, goal.id, goal.toFirestore());
     return goal;
   }
 
   Future<List<Goal>> getAllGoals(String userId) async {
-    return await _goalDao.getAllByUserId(userId);
+    final snap = await _fs.query(userId, _col,
+        (c) => c.orderBy('createdAt', descending: true));
+    return snap.docs.map((d) => Goal.fromFirestore(d)).toList();
   }
 
   Future<List<Goal>> getActiveGoals(String userId) async {
-    return await _goalDao.getActiveGoals(userId);
+    final snap = await _fs.query(userId, _col,
+        (c) => c.where('status', isEqualTo: 'active'));
+    return snap.docs.map((d) => Goal.fromFirestore(d)).toList();
   }
 
   Future<Map<String, int>> getGoalStats(String userId) async {
-    return await _goalDao.getGoalStats(userId);
+    final all = await getAllGoals(userId);
+    return {
+      'total': all.length,
+      'active': all.where((g) => g.status == 'active').length,
+      'completed': all.where((g) => g.isCompleted).length,
+      'paused': all.where((g) => g.status == 'paused').length,
+    };
   }
 
   Future<Goal> updateProgress(Goal goal, double newProgress) async {
-    final updatedGoal = goal.copyWith(
+    final updated = goal.copyWith(
       currentValue: newProgress,
       updatedAt: DateTime.now(),
       status: newProgress >= goal.targetValue ? 'completed' : goal.status,
     );
-    await _goalDao.update(updatedGoal);
-    return updatedGoal;
+    await _fs.set(goal.userId, _col, goal.id, updated.toFirestore());
+    return updated;
   }
 
   Future<void> updateGoal(Goal goal) async {
-    await _goalDao.update(goal);
+    await _fs.set(goal.userId, _col, goal.id, goal.toFirestore());
   }
 
-  Future<void> deleteGoal(String goalId) async {
-    await _goalDao.delete(goalId);
+  Future<void> deleteGoal(String userId, String goalId) async {
+    await _fs.delete(userId, _col, goalId);
   }
 }

@@ -6,12 +6,16 @@ import 'package:personal_haven/core/utils/affirmations_helper.dart';
 import 'package:personal_haven/data/data_sources/local/shared_prefs_helper.dart';
 import 'package:personal_haven/data/models/food_entry.dart';
 import 'package:personal_haven/data/models/goal.dart';
+import 'package:personal_haven/data/models/journal_entry.dart';
 import 'package:personal_haven/data/models/mood_log.dart';
+import 'package:personal_haven/data/models/task.dart';
 import 'package:personal_haven/presentation/widgets/cards/mood_selection_dialog.dart';
 import 'package:personal_haven/providers/event_provider.dart';
 import 'package:personal_haven/providers/food_provider.dart';
 import 'package:personal_haven/providers/goal_provider.dart';
+import 'package:personal_haven/providers/journal_provider.dart';
 import 'package:personal_haven/providers/mood_provider.dart';
+import 'package:personal_haven/providers/task_provider.dart';
 
 class HomeScreen extends ConsumerStatefulWidget {
   const HomeScreen({super.key});
@@ -86,8 +90,12 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
     final weeklyMoodStats = ref.watch(weekMoodStatsProvider);
     final foodState = ref.watch(foodProvider);
     final goalState = ref.watch(goalProvider);
-    final events = ref.watch(eventsProvider);
+    final taskState = ref.watch(taskProvider);
+    final eventState = ref.watch(eventProvider);
+    final journalState = ref.watch(journalProvider);
     final greeting = _getGreeting();
+
+
 
     if (_isLoading || moodState.isLoading) {
       return const Scaffold(
@@ -170,9 +178,20 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                         error: (_, __) => const SizedBox.shrink(),
                       ),
 
-                      // Upcoming Events
-                      _buildEventsCard(events),
-                      const SizedBox(height: 20),
+                      // Tasks Section
+                      if (taskState.tasks.isNotEmpty)
+                        _buildTasksCard(taskState),
+                      if (taskState.tasks.isNotEmpty) const SizedBox(height: 16),
+
+                      // Events Section
+                      _buildEventsCard(eventState.events),
+                      const SizedBox(height: 16),
+
+                      // Journal Entries Section
+                      if (journalState.entries.isNotEmpty)
+                        _buildJournalCard(journalState),
+                      if (journalState.entries.isNotEmpty)
+                        const SizedBox(height: 16),
                     ],
                   ),
                 ),
@@ -574,6 +593,134 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
     );
   }
 
+Widget _buildJournalCard(JournalState journalState) {
+    final recentEntries = journalState.entries.take(2).toList();
+    final todayCount = journalState.todayEntries.length;
+
+    return Container(
+      padding: const EdgeInsets.all(20),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(20),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              const Row(
+                children: [
+                  Text('📝', style: TextStyle(fontSize: 20)),
+                  SizedBox(width: 8),
+                  Text(
+                    'Journal',
+                    style: TextStyle(
+                      fontSize: 18,
+                      fontWeight: FontWeight.bold,
+                      color: Color(0xFF2D3E40),
+                    ),
+                  ),
+                ],
+              ),
+              Row(
+                children: [
+                  if (todayCount > 0)
+                    Container(
+                      padding: const EdgeInsets.symmetric(
+                          horizontal: 8, vertical: 4),
+                      decoration: BoxDecoration(
+                        color: const Color(0xFF4ECDC4).withOpacity(0.2),
+                        borderRadius: BorderRadius.circular(12),
+                      ),
+                      child: Text(
+                        '$todayCount today',
+                        style: const TextStyle(
+                          fontSize: 11,
+                          fontWeight: FontWeight.bold,
+                          color: Color(0xFF4ECDC4),
+                        ),
+                      ),
+                    ),
+                  const SizedBox(width: 6),
+                  Text(
+                    '${journalState.entries.length} total',
+                    style: TextStyle(
+                      fontSize: 12,
+                      color: Colors.grey.shade500,
+                    ),
+                  ),
+                ],
+              ),
+            ],
+          ),
+          const SizedBox(height: 12),
+
+          ...recentEntries.map((entry) => _buildJournalEntryItem(entry)),
+
+          Center(
+            child: TextButton(
+              onPressed: () {},
+              child: const Text(
+                'View all entries →',
+                style: TextStyle(color: AppColors.primary),
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+Widget _buildJournalEntryItem(JournalEntry entry) {
+    final categoryData = JournalCategories.getByName(entry.category);
+
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 10),
+      child: Row(
+        children: [
+          if (entry.emoji != null)
+            Text(entry.emoji!, style: const TextStyle(fontSize: 24))
+          else
+            Text(categoryData?.emoji ?? '📝',
+                style: const TextStyle(fontSize: 24)),
+          const SizedBox(width: 12),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  entry.title,
+                  style: const TextStyle(
+                    fontSize: 14,
+                    fontWeight: FontWeight.w500,
+                  ),
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                ),
+                Text(
+                  entry.content,
+                  style: TextStyle(
+                    fontSize: 12,
+                    color: Colors.grey.shade600,
+                  ),
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                ),
+              ],
+            ),
+          ),
+          Text(
+            DateFormat('MMM d').format(entry.entryDate),
+            style: TextStyle(
+              fontSize: 11,
+              color: Colors.grey.shade500,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
   // ─────────────────────────────────────────────────────────────
   // GOALS CARD
   // ─────────────────────────────────────────────────────────────
@@ -725,6 +872,198 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                   ),
                 ),
             ],
+          ),
+        ],
+      ),
+    );
+  }
+
+// ─────────────────────────────────────────────────────────────
+  // TASKS CARD
+  // ─────────────────────────────────────────────────────────────
+
+  Widget _buildTasksCard(TaskState taskState) {
+    final pendingTasks =
+        taskState.tasks.where((t) => !t.isCompleted).take(3).toList();
+    final urgentTasks = pendingTasks.where((t) => t.isUrgent).toList();
+
+    return Container(
+      padding: const EdgeInsets.all(20),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(20),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              Row(
+                children: [
+                  const Text('✅', style: TextStyle(fontSize: 20)),
+                  const SizedBox(width: 8),
+                  const Text(
+                    'Tasks',
+                    style: TextStyle(
+                      fontSize: 18,
+                      fontWeight: FontWeight.bold,
+                      color: Color(0xFF2D3E40),
+                    ),
+                  ),
+                  if (urgentTasks.isNotEmpty) ...[
+                    const SizedBox(width: 8),
+                    Container(
+                      padding: const EdgeInsets.symmetric(
+                          horizontal: 6, vertical: 2),
+                      decoration: BoxDecoration(
+                        color: Colors.red,
+                        borderRadius: BorderRadius.circular(8),
+                      ),
+                      child: Text(
+                        '${urgentTasks.length} urgent',
+                        style: const TextStyle(
+                          fontSize: 10,
+                          color: Colors.white,
+                          fontWeight: FontWeight.bold,
+                        ),
+                      ),
+                    ),
+                  ],
+                ],
+              ),
+              Container(
+                padding:
+                    const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                decoration: BoxDecoration(
+                  color: const Color(0xFF6BCB77).withOpacity(0.2),
+                  borderRadius: BorderRadius.circular(12),
+                ),
+                child: Text(
+                  '${taskState.completedCount}/${taskState.tasks.length}',
+                  style: const TextStyle(
+                    fontSize: 12,
+                    fontWeight: FontWeight.bold,
+                    color: Color(0xFF6BCB77),
+                  ),
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 12),
+
+          // Progress bar
+          ClipRRect(
+            borderRadius: BorderRadius.circular(8),
+            child: LinearProgressIndicator(
+              value: taskState.completionPercentage / 100,
+              minHeight: 8,
+              backgroundColor: Colors.grey.shade200,
+              valueColor:
+                  const AlwaysStoppedAnimation<Color>(Color(0xFF6BCB77)),
+            ),
+          ),
+          const SizedBox(height: 12),
+
+          // Task items
+          if (pendingTasks.isEmpty)
+            Center(
+              child: Padding(
+                padding: const EdgeInsets.all(16),
+                child: Text(
+                  '🎉 All tasks completed!',
+                  style: TextStyle(color: Colors.grey.shade600),
+                ),
+              ),
+            )
+          else
+            ...pendingTasks.map((task) => _buildTaskItem(task)),
+
+          if (taskState.pendingCount > 3)
+            Center(
+              child: TextButton(
+                onPressed: () {},
+                child: Text(
+                  'View all ${taskState.pendingCount} tasks →',
+                  style: const TextStyle(color: AppColors.primary),
+                ),
+              ),
+            ),
+        ],
+      ),
+    );
+  }
+
+Widget _buildTaskItem(Task task) {
+    final priorityColors = {
+      'urgent': Colors.red,
+      'high': Colors.orange,
+      'medium': Colors.blue,
+      'low': Colors.grey,
+    };
+
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 8),
+      child: Row(
+        children: [
+          GestureDetector(
+            onTap: () => ref.read(taskProvider.notifier).toggleTask(task),
+            child: Container(
+              width: 22,
+              height: 22,
+              decoration: BoxDecoration(
+                shape: BoxShape.circle,
+                border: Border.all(
+                  color: task.isCompleted
+                      ? AppColors.primary
+                      : priorityColors[task.priority] ?? Colors.grey,
+                  width: 2,
+                ),
+                color:
+                    task.isCompleted ? AppColors.primary : Colors.transparent,
+              ),
+              child: task.isCompleted
+                  ? const Icon(Icons.check, size: 14, color: Colors.white)
+                  : null,
+            ),
+          ),
+          const SizedBox(width: 12),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  task.title,
+                  style: TextStyle(
+                    fontSize: 14,
+                    fontWeight: FontWeight.w500,
+                    decoration:
+                        task.isCompleted ? TextDecoration.lineThrough : null,
+                    color: task.isCompleted ? Colors.grey : Colors.black87,
+                  ),
+                ),
+                if (task.dueDate != null)
+                  Text(
+                    task.isOverdue
+                        ? 'Overdue'
+                        : task.isDueToday
+                            ? 'Due today'
+                            : DateFormat('MMM d').format(task.dueDate!),
+                    style: TextStyle(
+                      fontSize: 11,
+                      color: task.isOverdue ? Colors.red : Colors.grey.shade500,
+                    ),
+                  ),
+              ],
+            ),
+          ),
+          Container(
+            width: 4,
+            height: 24,
+            decoration: BoxDecoration(
+              color: priorityColors[task.priority] ?? Colors.grey,
+              borderRadius: BorderRadius.circular(2),
+            ),
           ),
         ],
       ),

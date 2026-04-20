@@ -158,8 +158,7 @@ class FoodNotifier extends StateNotifier<FoodState> {
 
   Future<void> deleteEntry(String entryId) async {
     try {
-      await _repository.deleteEntry(entryId);
-      
+      await _repository.deleteEntry(_userId, entryId);
       final updatedEntries = state.entries.where((e) => e.id != entryId).toList();
       state = state.copyWith(entries: updatedEntries);
     } catch (e) {

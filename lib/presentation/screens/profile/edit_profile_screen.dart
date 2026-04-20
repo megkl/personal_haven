@@ -15,7 +15,6 @@ class _EditProfileScreenState extends ConsumerState<EditProfileScreen> {
   late TextEditingController _nameController;
   late TextEditingController _emailController;
   late TextEditingController _bioController;
-  late TextEditingController _passwordController;
 
   @override
   void initState() {
@@ -24,7 +23,6 @@ class _EditProfileScreenState extends ConsumerState<EditProfileScreen> {
     _nameController = TextEditingController(text: user?.displayName ?? '');
     _emailController = TextEditingController(text: user?.email ?? '');
     _bioController = TextEditingController(text: user?.bio ?? '');
-    _passwordController = TextEditingController();
   }
 
   @override
@@ -32,7 +30,6 @@ class _EditProfileScreenState extends ConsumerState<EditProfileScreen> {
     _nameController.dispose();
     _emailController.dispose();
     _bioController.dispose();
-    _passwordController.dispose();
     super.dispose();
   }
 
@@ -46,7 +43,7 @@ class _EditProfileScreenState extends ConsumerState<EditProfileScreen> {
     if (mounted) {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
-          content: Text('Profile updated successfully'),
+          content: Text('Profile updated successfully'), 
           backgroundColor: AppColors.success,
         ),
       );
@@ -200,23 +197,6 @@ class _EditProfileScreenState extends ConsumerState<EditProfileScreen> {
                   borderSide: BorderSide.none,
                 ),
                 suffixIcon: const Icon(Icons.edit, color: Colors.grey),
-              ),
-            ),
-            const SizedBox(height: 16),
-            // Password Field
-            TextField(
-              controller: _passwordController,
-              obscureText: true,
-              decoration: InputDecoration(
-                labelText: 'Password',
-                hintText: '• • • • • •',
-                filled: true,
-                fillColor: Colors.white,
-                border: OutlineInputBorder(
-                  borderRadius: BorderRadius.circular(12),
-                  borderSide: BorderSide.none,
-                ),
-                suffixIcon: const Icon(Icons.lock, color: Colors.grey),
               ),
             ),
             const SizedBox(height: 32),

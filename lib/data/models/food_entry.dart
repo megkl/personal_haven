@@ -25,6 +25,37 @@ class FoodEntry extends Equatable {
     required this.consumedAt,
   });
 
+  Map<String, dynamic> toFirestore() {
+    return {
+      'id': id,
+      'userId': userId,
+      'mealType': mealType,
+      'foodName': foodName,
+      'description': description,
+      'calories': calories,
+      'protein': protein,
+      'carbs': carbs,
+      'fat': fat,
+      'consumedAt': consumedAt.toIso8601String(),
+    };
+  }
+
+  static FoodEntry fromFirestore(dynamic doc) {
+    final d = doc.data() as Map<String, dynamic>;
+    return FoodEntry(
+      id: doc.id,
+      userId: d['userId'] as String,
+      mealType: d['mealType'] as String,
+      foodName: d['foodName'] as String,
+      description: d['description'] as String?,
+      calories: d['calories'] as int?,
+      protein: d['protein'] as int?,
+      carbs: d['carbs'] as int?,
+      fat: d['fat'] as int?,
+      consumedAt: DateTime.parse(d['consumedAt'] as String),
+    );
+  }
+
   FoodEntry copyWith({
     String? id,
     String? userId,

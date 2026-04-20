@@ -205,38 +205,30 @@ class TransactionNotifier extends StateNotifier<TransactionState> {
   /// Delete a transaction
   Future<void> deleteTransaction(String transactionId) async {
     try {
-      // Find transaction before deleting
       final transaction = state.transactions.firstWhere(
         (t) => t.id == transactionId,
         orElse: () => throw Exception('Transaction not found'),
       );
-
-      await _repository.deleteTransaction(transactionId);
-
-      // Update transactions list
+      await _repository.deleteTransaction(_userId, transactionId);
       final updatedTransactions =
           state.transactions.where((t) => t.id != transactionId).toList();
-
-      // Update category totals if expense
-      Map<String, double> updatedCategories = Map.from(state.expensesByCategory);
+      Map<String, double> updatedCategories =
+          Map.from(state.expensesByCategory);
       if (transaction.isExpense) {
-        final currentAmount = updatedCategories[transaction.category] ?? 0;
-        final newAmount = currentAmount - transaction.amount;
+        final newAmount =
+            (updatedCategories[transaction.category] ?? 0) - transaction.amount;
         if (newAmount <= 0) {
           updatedCategories.remove(transaction.category);
         } else {
           updatedCategories[transaction.category] = newAmount;
         }
       }
-
       state = state.copyWith(
         transactions: updatedTransactions,
         expensesByCategory: updatedCategories,
       );
     } catch (e) {
-      state = state.copyWith(
-        error: 'Failed to delete transaction: ${e.toString()}',
-      );
+      state = state.copyWith(error: 'Failed to delete transaction: ${e.toString()}');
     }
   }
 
@@ -244,14 +236,9 @@ class TransactionNotifier extends StateNotifier<TransactionState> {
   Future<void> clearAllTransactions() async {
     try {
       await _repository.deleteAllTransactions(_userId);
-      state = state.copyWith(
-        transactions: [],
-        expensesByCategory: {},
-      );
+      state = state.copyWith(transactions: [], expensesByCategory: {});
     } catch (e) {
-      state = state.copyWith(
-        error: 'Failed to clear transactions: ${e.toString()}',
-      );
+      state = state.copyWith(error: 'Failed to clear transactions: ${e.toString()}');
     }
   }
 
