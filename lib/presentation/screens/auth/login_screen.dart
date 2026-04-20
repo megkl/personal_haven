@@ -3,7 +3,10 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:personal_haven/presentation/screens/auth/signup_screen.dart';
 import 'package:personal_haven/presentation/screens/profile/main_navigation_screen.dart';
 import 'package:personal_haven/providers/auth_provider.dart';
+import 'package:personal_haven/providers/biometric_provider.dart';
+import 'package:personal_haven/services/biometric_service.dart';
 import 'package:personal_haven/services/social_auth_service.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 
 class LoginScreen extends ConsumerStatefulWidget {
   const LoginScreen({super.key});
@@ -14,6 +17,55 @@ class LoginScreen extends ConsumerStatefulWidget {
 
 class _LoginScreenState extends ConsumerState<LoginScreen> {
   bool _isLoading = false;
+  bool _biometricAvailable = false;
+  String _biometricLabel = 'Biometric';
+
+  @override
+  void initState() {
+    super.initState();
+    _checkBiometric();
+  }
+
+  Future<void> _checkBiometric() async {
+    // Only show biometric on login if user was previously logged in
+    final prefs = await SharedPreferences.getInstance();
+    final wasLoggedIn = prefs.getBool('isLoggedIn') ?? false;
+    if (!wasLoggedIn) return;
+
+    final available = await BiometricService.instance.isAvailable();
+    final enabled = await BiometricService.instance.isEnabled();
+    final label = await BiometricService.instance.getBiometricLabel();
+
+    if (mounted) {
+      setState(() {
+        _biometricAvailable = available && enabled;
+        _biometricLabel = label;
+      });
+      // Auto-prompt if available
+      if (_biometricAvailable) _loginWithBiometric();
+    }
+  }
+
+  Future<void> _loginWithBiometric() async {
+    setState(() => _isLoading = true);
+    final ok = await BiometricService.instance.authenticate(
+      reason: 'Log in to Personal Haven',
+    );
+    if (!mounted) return;
+    if (ok) {
+      // Biometric passed — restore the existing Firebase session
+      await ref.read(authProvider.notifier).checkAuthStatus();
+      if (!mounted) return;
+      if (ref.read(authProvider).isAuthenticated) {
+        Navigator.pushReplacement(
+          context,
+          MaterialPageRoute(builder: (_) => const MainNavigationScreen()),
+        );
+        return;
+      }
+    }
+    setState(() => _isLoading = false);
+  }
 
   Future<void> _handleSocialLogin(
       Future<SocialAuthResult> Function() signIn) async {
@@ -108,6 +160,31 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                   onTap: () => _handleSocialLogin(
                       SocialAuthService.instance.signInWithApple),
                 ),
+                if (_biometricAvailable) ...[
+                  const SizedBox(height: 24),
+                  Row(
+                    children: const [
+                      Expanded(child: Divider(color: Color(0xFF2D3E40))),
+                      Padding(
+                        padding: EdgeInsets.symmetric(horizontal: 12),
+                        child: Text('or', style: TextStyle(color: Color(0xFF2D3E40))),
+                      ),
+                      Expanded(child: Divider(color: Color(0xFF2D3E40))),
+                    ],
+                  ),
+                  const SizedBox(height: 24),
+                  _SocialButton(
+                    label: 'Use $_biometricLabel',
+                    icon: Icon(
+                      _biometricLabel == 'Face ID'
+                          ? Icons.face_unlock_rounded
+                          : Icons.fingerprint,
+                      size: 24,
+                      color: const Color(0xFF4ECDC4),
+                    ),
+                    onTap: _loginWithBiometric,
+                  ),
+                ],
               ],
               const Spacer(),
               Row(
