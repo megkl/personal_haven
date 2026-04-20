@@ -2,6 +2,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:personal_haven/data/models/goal.dart';
 import 'package:personal_haven/data/repositories/goal_repository.dart';
 import 'package:personal_haven/providers/auth_provider.dart';
+import 'package:personal_haven/services/notification_service.dart';
 
 final goalRepositoryProvider = Provider<GoalRepository>((ref) {
   return GoalRepository();
@@ -139,6 +140,18 @@ class GoalNotifier extends StateNotifier<GoalState> {
       }).toList();
 
       state = state.copyWith(goals: updated);
+
+      // Notify on completion
+      if (updatedGoal.isCompleted && !goal.isCompleted) {
+        await NotificationService.instance
+            .notifyGoalCompleted(updatedGoal.title);
+      }
+      // Notify if deadline approaching
+      final days = updatedGoal.daysRemaining;
+      if (!updatedGoal.isCompleted && (days == 3 || days == 1)) {
+        await NotificationService.instance.notifyGoalDeadlineApproaching(
+            updatedGoal.id, updatedGoal.title, days);
+      }
     } catch (e) {
       state = state.copyWith(error: 'Failed to update progress: ${e.toString()}');
     }

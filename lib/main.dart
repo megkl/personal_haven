@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:personal_haven/app_initializer.dart';
 import 'package:personal_haven/core/constants/app_colors.dart';
+import 'package:personal_haven/services/notification_service.dart';
 import 'firebase_options.dart';
 
 void main() async {
@@ -10,6 +11,7 @@ void main() async {
   await Firebase.initializeApp(
     options: DefaultFirebaseOptions.currentPlatform,
   );
+  await NotificationService.instance.initialize();
   runApp(const ProviderScope(child: PersonalHavenApp()));
 }
 

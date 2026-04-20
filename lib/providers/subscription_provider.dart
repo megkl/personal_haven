@@ -2,6 +2,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:personal_haven/data/models/subscription.dart';
 import 'package:personal_haven/data/repositories/subscription_repository.dart';
 import 'package:personal_haven/providers/auth_provider.dart';
+import 'package:personal_haven/services/notification_service.dart';
 
 class SubscriptionState {
   final Subscription? active;
@@ -45,6 +46,15 @@ class SubscriptionNotifier extends StateNotifier<SubscriptionState> {
     try {
       final active = await _repo.getActive(_userId);
       state = SubscriptionState(active: active, isLoading: false);
+
+      // Schedule expiry reminders whenever we load an active subscription
+      if (active != null && active.isActive) {
+        await NotificationService.instance
+            .scheduleSubscriptionReminders(active.expiryDate);
+      } else if (active == null && state.active != null) {
+        // Was active, now expired
+        await NotificationService.instance.notifySubscriptionExpired();
+      }
     } catch (e) {
       state = SubscriptionState(isLoading: false, error: e.toString());
     }
@@ -79,6 +89,9 @@ class SubscriptionNotifier extends StateNotifier<SubscriptionState> {
         transactionRef: transactionRef,
       );
       state = SubscriptionState(active: sub, isLoading: false);
+      // Schedule expiry reminders for the new subscription
+      await NotificationService.instance
+          .scheduleSubscriptionReminders(sub.expiryDate);
     } catch (e) {
       state = state.copyWith(isLoading: false, error: e.toString());
     }

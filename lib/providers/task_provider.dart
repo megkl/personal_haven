@@ -2,6 +2,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:personal_haven/data/models/task.dart';
 import 'package:personal_haven/data/repositories/task_repository.dart';
 import 'package:personal_haven/providers/auth_provider.dart';
+import 'package:personal_haven/services/notification_service.dart';
 
 /// Provider for TaskRepository
 final taskRepositoryProvider = Provider<TaskRepository>((ref) {
@@ -192,14 +193,18 @@ class TaskNotifier extends StateNotifier<TaskState> {
         category: category,
       );
 
-      // Add to beginning of list
-      state = state.copyWith(
-        tasks: [newTask, ...state.tasks],
-      );
+      state = state.copyWith(tasks: [newTask, ...state.tasks]);
+
+      // Notify if due today or overdue
+      if (newTask.isDueToday) {
+        await NotificationService.instance
+            .notifyTaskDueToday(newTask.id, newTask.title);
+      } else if (newTask.isOverdue) {
+        await NotificationService.instance
+            .notifyTaskOverdue(newTask.id, newTask.title);
+      }
     } catch (e) {
-      state = state.copyWith(
-        error: 'Failed to add task: ${e.toString()}',
-      );
+      state = state.copyWith(error: 'Failed to add task: ${e.toString()}');
     }
   }
 

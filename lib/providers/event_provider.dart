@@ -2,6 +2,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:personal_haven/data/models/event.dart';
 import 'package:personal_haven/data/repositories/event_repository.dart';
 import 'package:personal_haven/providers/auth_provider.dart';
+import 'package:personal_haven/services/notification_service.dart';
 
 /// Provider for EventRepository
 final eventRepositoryProvider = Provider<EventRepository>((ref) {
@@ -161,6 +162,10 @@ class EventNotifier extends StateNotifier<EventState> {
         todayEvents: updatedTodayEvents,
         upcomingEvents: updatedUpcomingEvents,
       );
+
+      // Schedule a 1-hour-before reminder
+      await NotificationService.instance.scheduleEventReminder(
+          newEvent.id, newEvent.title, newEvent.startTime ?? newEvent.eventDate);
     } catch (e) {
       state = state.copyWith(error: 'Failed to add event: ${e.toString()}');
     }
@@ -202,6 +207,8 @@ class EventNotifier extends StateNotifier<EventState> {
   Future<void> deleteEvent(String eventId) async {
     try {
       await _repository.deleteEvent(_userId, eventId);
+      // Cancel its reminder too
+      await NotificationService.instance.cancelEventReminder(eventId);
       state = state.copyWith(
         events: state.events.where((e) => e.id != eventId).toList(),
         todayEvents: state.todayEvents.where((e) => e.id != eventId).toList(),
