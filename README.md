@@ -195,6 +195,95 @@ flutter run -d <device-id>
 
 ---
 
+## Docker
+
+The project includes a `Dockerfile` for building and running the app in a containerised environment (e.g. CI pipelines or cloud build systems).
+
+### Base image
+
+```
+ghcr.io/cirruslabs/flutter:3.38.7
+```
+
+### What it does
+
+1. Installs system dependencies — `git`, `curl`, `unzip`, `xz-utils`, `python3`
+2. Copies the full repository into `/app`
+3. Disables Flutter analytics and runs `flutter pub get`
+
+### Build & run
+
+```bash
+# Build the image
+docker build -t personal_haven .
+
+# Open a shell inside the container
+docker run --rm -it personal_haven bash
+
+# Run Flutter tests inside the container
+docker run --rm personal_haven flutter test
+```
+
+> The `.git` directory is intentionally **not** excluded from the Docker build context — the build system requires full git history at runtime.
+
+---
+
+## Scripts
+
+### `ios/patch_firebase.sh`
+
+Patches Firebase CocoaPods sources so the project compiles on **Xcode 15.2 / Swift 5.9**. Firebase 11.x introduced Swift 5.10-only syntax (`nonisolated(unsafe)`, `sending`, `internal import`, `package import`) that causes build failures on older toolchains.
+
+**Runs automatically** via the `post_install` hook in `ios/Podfile` after `pod install`. You can also run it manually:
+
+```bash
+bash ios/patch_firebase.sh
+```
+
+Files patched:
+- `FirebaseSharedSwift` — `FirebaseDataEncoder.swift`
+- `FirebaseCoreInternal` — `FIRAllocatedUnfairLock.swift`, `HeartbeatsPayload.swift`
+- `FirebaseAuth` — multiple Swift source files
+- `FirebaseFirestore` — `DocumentID.swift`
+- `FirebaseStorage` — `Storage.swift`, `StorageTokenAuthorizer.swift`, `StorageUploadTask.swift`
+
+> Only needed on Xcode 15.2. Xcode 15.4+ compiles Firebase 11.x without patching.
+
+---
+
+### `silver/tests/run_script.sh`
+
+Runs the full Dart/Flutter test suite using the JSON reporter:
+
+```bash
+bash silver/tests/run_script.sh
+```
+
+Equivalent to:
+
+```bash
+flutter test --reporter json --no-pub
+```
+
+Must be run from inside the Docker container (working directory `/app`).
+
+---
+
+### `silver/tests/test.sh`
+
+The Silver evaluation harness entrypoint — **do not modify**. It:
+
+1. Applies a `test_patch` from `silver/tests/config.json` via `git apply`
+2. Runs `run_script.sh` and pipes output through `silver/tests/parser.py`
+3. Checks each test listed under `fail_to_pass` and `pass_to_pass` in `config.json`
+4. Writes a reward score (`0` or `1`) to `/logs/verifier/reward.txt`
+
+```bash
+bash silver/tests/test.sh
+```
+
+---
+
 ## Platform Permissions
 
 ### iOS (`Info.plist`)
@@ -211,4 +300,4 @@ flutter run -d <device-id>
 
 ## License
 
-Private — all rights reserved.
+Private — all rights reserved(2026, Meg).

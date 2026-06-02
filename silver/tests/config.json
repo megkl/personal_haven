@@ -1,0 +1,11 @@
+{
+  "base_commit": "REPLACE_WITH_7_TO_40_HEX_COMMIT",
+  "fail_to_pass": [
+    "REPLACE with exact test name as output by flutter test --reporter json"
+  ],
+  "pass_to_pass": [],
+  "test_patch": "",
+  "selected_test_files_to_run": [
+    "test/REPLACE_test.dart"
+  ]
+}
