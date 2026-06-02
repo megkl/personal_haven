@@ -1251,7 +1251,7 @@ class _AddEditGoalSheetState extends State<_AddEditGoalSheet> {
                   const SizedBox(width: 12),
                   Expanded(
                     child: DropdownButtonFormField<String>(
-                      value: _selectedUnit,
+                      initialValue: _selectedUnit,
                       decoration: InputDecoration(
                         labelText: 'Unit',
                         border: OutlineInputBorder(
@@ -1274,7 +1274,7 @@ class _AddEditGoalSheetState extends State<_AddEditGoalSheet> {
 
               // Category
               DropdownButtonFormField<String>(
-                value: _selectedCategory,
+                initialValue: _selectedCategory,
                 decoration: InputDecoration(
                   labelText: 'Category',
                   border: OutlineInputBorder(

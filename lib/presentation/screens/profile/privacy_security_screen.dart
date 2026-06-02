@@ -1,184 +1,169 @@
 import 'package:flutter/material.dart';
-import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:personal_haven/core/constants/app_colors.dart';
-import 'package:personal_haven/providers/biometric_provider.dart';
 
-class PrivacySecurityScreen extends ConsumerWidget {
+class PrivacySecurityScreen extends StatefulWidget {
   const PrivacySecurityScreen({super.key});
 
   @override
-  Widget build(BuildContext context, WidgetRef ref) {
-    final bio = ref.watch(biometricProvider);
+  State<PrivacySecurityScreen> createState() => _PrivacySecurityScreenState();
+}
 
+class _PrivacySecurityScreenState extends State<PrivacySecurityScreen> {
+
+  bool _biometricLock = false;
+  bool _cloudSync = true;
+
+  @override
+  Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: AppColors.background,
       appBar: AppBar(
         title: const Text('Privacy & Security'),
         backgroundColor: AppColors.primary,
-        foregroundColor: Colors.white,
       ),
-      body: bio.isLoading
-          ? const Center(child: CircularProgressIndicator())
-          : ListView(
-              padding: const EdgeInsets.all(20),
+      body: ListView(
+        padding: const EdgeInsets.all(20),
+        children: [
+          Container(
+            padding: const EdgeInsets.all(20),
+            decoration: BoxDecoration(
+              color: Colors.white,
+              borderRadius: BorderRadius.circular(16),
+            ),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                // ── Security ──────────────────────────────────────────────
-                _Card(
-                  children: [
-                    _SectionTitle('Security'),
-                    const SizedBox(height: 16),
-                    _SecurityRow(
-                      title: bio.isAvailable
-                          ? 'Biometric Lock (${bio.label})'
-                          : 'Biometric Lock',
-                      subtitle: bio.isAvailable
-                          ? 'Use ${bio.label} to unlock the app'
-                          : 'Not available on this device',
-                      icon: bio.label == 'Face ID'
-                          ? Icons.face_unlock_rounded
-                          : Icons.fingerprint,
-                      trailing: Switch(
-                        value: bio.isEnabled,
-                        activeColor: AppColors.primary,
-                        onChanged: bio.isAvailable
-                            ? (value) async {
-                                final ok = await ref
-                                    .read(biometricProvider.notifier)
-                                    .toggle(value);
-                                if (!ok && context.mounted) {
-                                  ScaffoldMessenger.of(context).showSnackBar(
-                                    const SnackBar(
-                                      content: Text(
-                                          'Biometric authentication failed or unavailable'),
-                                      backgroundColor: Colors.red,
-                                    ),
-                                  );
-                                }
-                              }
-                            : null,
-                      ),
-                    ),
-                    if (bio.isEnabled)
-                      Padding(
-                        padding: const EdgeInsets.only(left: 40, top: 4),
-                        child: Text(
-                          '${bio.label} will be required each time you open the app',
-                          style: TextStyle(
-                            fontSize: 12,
-                            color: AppColors.primary.withOpacity(0.8),
-                          ),
-                        ),
-                      ),
-                  ],
+                const Text(
+                  'Security',
+                  style: TextStyle(
+                    fontSize: 18,
+                    fontWeight: FontWeight.bold,
+                    color: AppColors.textPrimary,
+                  ),
                 ),
-
-                const SizedBox(height: 20),
-
-                // ── Data Management ───────────────────────────────────────
-                _Card(
-                  children: [
-                    _SectionTitle('Data Management'),
-                    const SizedBox(height: 16),
-                    _ActionRow(
-                      title: 'Export All Data',
-                      subtitle: 'Download your data as a file',
-                      icon: Icons.download,
-                      onTap: () => ScaffoldMessenger.of(context).showSnackBar(
-                        const SnackBar(
-                            content: Text('Export feature coming soon')),
+                const SizedBox(height: 16),
+                _buildSecurityRow(
+                  'Biometric Lock',
+                  'Use Face ID / Touch ID to unlock app',
+                  Icons.fingerprint,
+                  Switch(
+                    value: _biometricLock,
+                    onChanged: (value) {
+                      setState(() => _biometricLock = value);
+                    },
+                    activeThumbColor: AppColors.primary,
+                  ),
+                ),
+                const Divider(height: 32),
+                _buildSecurityRow(
+                  'Cloud Sync',
+                  'Sync your data across devices',
+                  Icons.cloud,
+                  Switch(
+                    value: _cloudSync,
+                    onChanged: (value) {
+                      setState(() => _cloudSync = value);
+                    },
+                    activeThumbColor: AppColors.primary,
+                  ),
+                ),
+                if (!_cloudSync)
+                  Padding(
+                    padding: const EdgeInsets.only(left: 40, top: 8),
+                    child: Text(
+                      'All data will be stored only on this device',
+                      style: TextStyle(
+                        fontSize: 12,
+                        color: Colors.orange.shade700,
                       ),
                     ),
-                    const Divider(height: 32),
-                    _ActionRow(
-                      title: 'Clear Cache',
-                      subtitle: 'Free up storage space',
-                      icon: Icons.cleaning_services,
-                      onTap: () => ScaffoldMessenger.of(context).showSnackBar(
-                        const SnackBar(
-                          content: Text('Cache cleared'),
-                          backgroundColor: AppColors.success,
-                        ),
+                  ),
+              ],
+            ),
+          ),
+          const SizedBox(height: 20),
+          Container(
+            padding: const EdgeInsets.all(20),
+            decoration: BoxDecoration(
+              color: Colors.white,
+              borderRadius: BorderRadius.circular(16),
+            ),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                const Text(
+                  'Data Management',
+                  style: TextStyle(
+                    fontSize: 18,
+                    fontWeight: FontWeight.bold,
+                    color: AppColors.textPrimary,
+                  ),
+                ),
+                const SizedBox(height: 16),
+                _buildActionButton(
+                  'Export All Data',
+                  'Download your data as ZIP file',
+                  Icons.download,
+                  () {
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      const SnackBar(
+                        content: Text('Export feature coming soon'),
                       ),
-                    ),
-                  ],
+                    );
+                  },
+                ),
+                const Divider(height: 32),
+                _buildActionButton(
+                  'Clear Cache',
+                  'Free up storage space',
+                  Icons.cleaning_services,
+                  () {
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      const SnackBar(
+                        content: Text('Cache cleared successfully'),
+                        backgroundColor: AppColors.success,
+                      ),
+                    );
+                  },
                 ),
               ],
             ),
-    );
-  }
-}
-
-// ── Shared widgets ────────────────────────────────────────────────────────────
-
-class _Card extends StatelessWidget {
-  final List<Widget> children;
-  const _Card({required this.children});
-
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      padding: const EdgeInsets.all(20),
-      decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(16),
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: children,
+          ),
+        ],
       ),
     );
   }
-}
 
-class _SectionTitle extends StatelessWidget {
-  final String text;
-  const _SectionTitle(this.text);
-
-  @override
-  Widget build(BuildContext context) {
-    return Text(
-      text,
-      style: const TextStyle(
-        fontSize: 18,
-        fontWeight: FontWeight.bold,
-        color: AppColors.textPrimary,
-      ),
-    );
-  }
-}
-
-class _SecurityRow extends StatelessWidget {
-  final String title;
-  final String subtitle;
-  final IconData icon;
-  final Widget trailing;
-
-  const _SecurityRow({
-    required this.title,
-    required this.subtitle,
-    required this.icon,
-    required this.trailing,
-  });
-
-  @override
-  Widget build(BuildContext context) {
+  Widget _buildSecurityRow(
+    String title,
+    String subtitle,
+    IconData icon,
+    Widget trailing,
+  ) {
     return Row(
       children: [
-        Icon(icon, color: AppColors.primary, size: 28),
+        Icon(icon, color: AppColors.primary),
         const SizedBox(width: 16),
         Expanded(
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              Text(title,
-                  style: const TextStyle(
-                      fontSize: 16,
-                      fontWeight: FontWeight.w500,
-                      color: AppColors.textPrimary)),
-              const SizedBox(height: 2),
-              Text(subtitle,
-                  style: const TextStyle(
-                      fontSize: 12, color: AppColors.textSecondary)),
+              Text(
+                title,
+                style: const TextStyle(
+                  fontSize: 16,
+                  fontWeight: FontWeight.w500,
+                  color: AppColors.textPrimary,
+                ),
+              ),
+              const SizedBox(height: 4),
+              Text(
+                subtitle,
+                style: const TextStyle(
+                  fontSize: 12,
+                  color: AppColors.textSecondary,
+                ),
+              ),
             ],
           ),
         ),
@@ -186,26 +171,15 @@ class _SecurityRow extends StatelessWidget {
       ],
     );
   }
-}
 
-class _ActionRow extends StatelessWidget {
-  final String title;
-  final String subtitle;
-  final IconData icon;
-  final VoidCallback onTap;
-
-  const _ActionRow({
-    required this.title,
-    required this.subtitle,
-    required this.icon,
-    required this.onTap,
-  });
-
-  @override
-  Widget build(BuildContext context) {
+  Widget _buildActionButton(
+    String title,
+    String subtitle,
+    IconData icon,
+    VoidCallback onTap,
+  ) {
     return InkWell(
       onTap: onTap,
-      borderRadius: BorderRadius.circular(8),
       child: Row(
         children: [
           Icon(icon, color: AppColors.primary),
@@ -214,15 +188,22 @@ class _ActionRow extends StatelessWidget {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Text(title,
-                    style: const TextStyle(
-                        fontSize: 16,
-                        fontWeight: FontWeight.w500,
-                        color: AppColors.textPrimary)),
-                const SizedBox(height: 2),
-                Text(subtitle,
-                    style: const TextStyle(
-                        fontSize: 12, color: AppColors.textSecondary)),
+                Text(
+                  title,
+                  style: const TextStyle(
+                    fontSize: 16,
+                    fontWeight: FontWeight.w500,
+                    color: AppColors.textPrimary,
+                  ),
+                ),
+                const SizedBox(height: 4),
+                Text(
+                  subtitle,
+                  style: const TextStyle(
+                    fontSize: 12,
+                    color: AppColors.textSecondary,
+                  ),
+                ),
               ],
             ),
           ),

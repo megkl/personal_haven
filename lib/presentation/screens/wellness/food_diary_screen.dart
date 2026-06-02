@@ -12,7 +12,7 @@ class FoodDiaryScreen extends ConsumerStatefulWidget {
 }
 
 class _FoodDiaryScreenState extends ConsumerState<FoodDiaryScreen> {
-  int _calorieGoal = 2000;
+  final int _calorieGoal = 2000;
 
   @override
   Widget build(BuildContext context) {
@@ -792,7 +792,7 @@ class _FoodDiaryScreenState extends ConsumerState<FoodDiaryScreen> {
                 const SizedBox(height: 12),
                 if (mealType == null)
                   DropdownButtonFormField<String>(
-                    value: selectedMealType,
+                    initialValue: selectedMealType,
                     decoration: InputDecoration(
                       labelText: 'Meal type',
                       border: OutlineInputBorder(

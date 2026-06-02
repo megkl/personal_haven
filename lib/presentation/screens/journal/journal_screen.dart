@@ -994,7 +994,7 @@ class _AddEditEntrySheetState extends State<_AddEditEntrySheet> {
 
                       // Category
                       DropdownButtonFormField<String>(
-                        value: _selectedCategory,
+                        initialValue: _selectedCategory,
                         decoration: InputDecoration(
                           labelText: 'Category',
                           border: OutlineInputBorder(

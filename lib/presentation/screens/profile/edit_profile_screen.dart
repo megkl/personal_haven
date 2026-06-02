@@ -35,15 +35,16 @@ class _EditProfileScreenState extends ConsumerState<EditProfileScreen> {
 
   Future<void> _saveChanges() async {
     await ref.read(userProvider.notifier).updateProfile(
-          firstName: _nameController.text,
-          email: _emailController.text,
+          firstName: _nameController.text.trim().isNotEmpty
+              ? _nameController.text.trim()
+              : null,
           bio: _bioController.text.isNotEmpty ? _bioController.text : null,
         );
 
     if (mounted) {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
-          content: Text('Profile updated successfully'), 
+          content: Text('Profile updated successfully'),
           backgroundColor: AppColors.success,
         ),
       );
@@ -169,18 +170,20 @@ class _EditProfileScreenState extends ConsumerState<EditProfileScreen> {
               ),
             ),
             const SizedBox(height: 16),
-            // Email Field
+            // Email Field (read-only — managed by Firebase Auth)
             TextField(
               controller: _emailController,
+              readOnly: true,
               decoration: InputDecoration(
                 labelText: 'Email Address',
                 filled: true,
-                fillColor: Colors.white,
+                fillColor: Colors.grey.shade100,
                 border: OutlineInputBorder(
                   borderRadius: BorderRadius.circular(12),
                   borderSide: BorderSide.none,
                 ),
-                suffixIcon: const Icon(Icons.check_circle, color: Colors.grey),
+                suffixIcon: const Icon(Icons.lock_outline, color: Colors.grey),
+                helperText: 'Email is managed by your sign-in provider',
               ),
             ),
             const SizedBox(height: 16),

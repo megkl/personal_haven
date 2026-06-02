@@ -1324,7 +1324,7 @@ class _AddEditTaskSheetState extends State<_AddEditTaskSheet> {
 
               // Category
               DropdownButtonFormField<String>(
-                value: _selectedCategory,
+                initialValue: _selectedCategory,
                 decoration: InputDecoration(
                   labelText: 'Category',
                   border: OutlineInputBorder(

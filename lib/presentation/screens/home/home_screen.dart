@@ -1271,7 +1271,7 @@ Widget _buildTaskItem(Task task) {
                 ],
               ),
             );
-          }).toList(),
+          }),
       ],
     ),
   );

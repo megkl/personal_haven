@@ -63,16 +63,16 @@ class FoodRepository {
 
   Future<int> getTodayCalories(String userId) async {
     final entries = await getTodayEntries(userId);
-    return entries.fold(0, (s, e) => s + (e.calories ?? 0));
+    return entries.fold<int>(0, (s, e) => s + (e.calories ?? 0));
   }
 
   Future<Map<String, int>> getTodayMacros(String userId) async {
     final entries = await getTodayEntries(userId);
     return {
-      'calories': entries.fold(0, (s, e) => s + (e.calories ?? 0)),
-      'protein': entries.fold(0, (s, e) => s + (e.protein ?? 0)),
-      'carbs': entries.fold(0, (s, e) => s + (e.carbs ?? 0)),
-      'fat': entries.fold(0, (s, e) => s + (e.fat ?? 0)),
+      'calories': entries.fold<int>(0, (s, e) => s + (e.calories ?? 0)),
+      'protein': entries.fold<int>(0, (s, e) => s + (e.protein ?? 0)),
+      'carbs': entries.fold<int>(0, (s, e) => s + (e.carbs ?? 0)),
+      'fat': entries.fold<int>(0, (s, e) => s + (e.fat ?? 0)),
     };
   }
 

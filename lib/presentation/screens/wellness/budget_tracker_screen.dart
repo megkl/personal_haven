@@ -713,7 +713,7 @@ class BudgetScreen extends ConsumerWidget {
 
                 // Category dropdown
                 DropdownButtonFormField<String>(
-                  value: selectedCategory,
+                  initialValue: selectedCategory,
                   decoration: InputDecoration(
                     labelText: 'Category',
                     border: OutlineInputBorder(
