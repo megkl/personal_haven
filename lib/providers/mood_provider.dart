@@ -2,6 +2,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:personal_haven/data/models/mood_log.dart';
 import 'package:personal_haven/data/repositories/mood_repository.dart';
 import 'package:personal_haven/providers/auth_provider.dart';
+import 'package:personal_haven/services/notification_service.dart';
 
 final moodRepositoryProvider = Provider<MoodRepository>((ref) {
   return MoodRepository();
@@ -61,16 +62,19 @@ class MoodNotifier extends StateNotifier<MoodState> {
     }
   }
 
-  Future<void> logMood(int moodLevel, String moodEmoji, {String? notes}) async {
+  Future<void> logMood(int moodLevel, String moodEmoji, {String? moodLabel, String? notes}) async {
     try {
       final log = await _repository.logMood(
         userId: _userId,
         moodLevel: moodLevel,
+        moodLabel: moodLabel ?? '',
         moodEmoji: moodEmoji,
         notes: notes,
       );
       state = state.copyWith(todayMood: log);
-      await loadTodayMood(); // Refresh week moods
+      await loadTodayMood();
+      // Notify after logging mood
+      await NotificationService.instance.notifyMoodLogged(moodEmoji);
     } catch (e) {
       state = state.copyWith(error: 'Failed to log mood: ${e.toString()}');
     }

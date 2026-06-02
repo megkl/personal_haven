@@ -15,7 +15,6 @@ class _EditProfileScreenState extends ConsumerState<EditProfileScreen> {
   late TextEditingController _nameController;
   late TextEditingController _emailController;
   late TextEditingController _bioController;
-  late TextEditingController _passwordController;
 
   @override
   void initState() {
@@ -24,7 +23,6 @@ class _EditProfileScreenState extends ConsumerState<EditProfileScreen> {
     _nameController = TextEditingController(text: user?.displayName ?? '');
     _emailController = TextEditingController(text: user?.email ?? '');
     _bioController = TextEditingController(text: user?.bio ?? '');
-    _passwordController = TextEditingController();
   }
 
   @override
@@ -32,14 +30,14 @@ class _EditProfileScreenState extends ConsumerState<EditProfileScreen> {
     _nameController.dispose();
     _emailController.dispose();
     _bioController.dispose();
-    _passwordController.dispose();
     super.dispose();
   }
 
   Future<void> _saveChanges() async {
     await ref.read(userProvider.notifier).updateProfile(
-          firstName: _nameController.text,
-          email: _emailController.text,
+          firstName: _nameController.text.trim().isNotEmpty
+              ? _nameController.text.trim()
+              : null,
           bio: _bioController.text.isNotEmpty ? _bioController.text : null,
         );
 
@@ -172,18 +170,20 @@ class _EditProfileScreenState extends ConsumerState<EditProfileScreen> {
               ),
             ),
             const SizedBox(height: 16),
-            // Email Field
+            // Email Field (read-only — managed by Firebase Auth)
             TextField(
               controller: _emailController,
+              readOnly: true,
               decoration: InputDecoration(
                 labelText: 'Email Address',
                 filled: true,
-                fillColor: Colors.white,
+                fillColor: Colors.grey.shade100,
                 border: OutlineInputBorder(
                   borderRadius: BorderRadius.circular(12),
                   borderSide: BorderSide.none,
                 ),
-                suffixIcon: const Icon(Icons.check_circle, color: Colors.grey),
+                suffixIcon: const Icon(Icons.lock_outline, color: Colors.grey),
+                helperText: 'Email is managed by your sign-in provider',
               ),
             ),
             const SizedBox(height: 16),
@@ -200,23 +200,6 @@ class _EditProfileScreenState extends ConsumerState<EditProfileScreen> {
                   borderSide: BorderSide.none,
                 ),
                 suffixIcon: const Icon(Icons.edit, color: Colors.grey),
-              ),
-            ),
-            const SizedBox(height: 16),
-            // Password Field
-            TextField(
-              controller: _passwordController,
-              obscureText: true,
-              decoration: InputDecoration(
-                labelText: 'Password',
-                hintText: '• • • • • •',
-                filled: true,
-                fillColor: Colors.white,
-                border: OutlineInputBorder(
-                  borderRadius: BorderRadius.circular(12),
-                  borderSide: BorderSide.none,
-                ),
-                suffixIcon: const Icon(Icons.lock, color: Colors.grey),
               ),
             ),
             const SizedBox(height: 32),

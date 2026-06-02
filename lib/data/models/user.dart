@@ -105,7 +105,7 @@ class User extends Equatable {
 
   Map<String, dynamic> toJson() {
     return {
-      'id': id,
+      'user_id': id,
       'email': email,
       'username': username,
       'firstName': firstName,
@@ -121,7 +121,7 @@ class User extends Equatable {
 
   factory User.fromJson(Map<String, dynamic> json) {
     return User(
-      id: json['id'] as String,
+      id: json['user_id'] as String,
       email: json['email'] as String,
       username: json['username'] as String?,
       firstName: json['firstName'] as String?,
@@ -155,5 +155,43 @@ class User extends Equatable {
   @override
   String toString() {
     return 'User(id: $id, email: $email, name: $fullName)';
+  }
+}
+
+class UserCredentials {
+  final String userId;
+  final String passwordHash;
+  final String salt;
+  final DateTime createdAt;
+  final DateTime? updatedAt;
+
+  const UserCredentials({
+    required this.userId,
+    required this.passwordHash,
+    required this.salt,
+    required this.createdAt,
+    this.updatedAt,
+  });
+
+  Map<String, dynamic> toMap() {
+    return {
+      'user_id': userId,
+      'password_hash': passwordHash,
+      'salt': salt,
+      'created_at': createdAt.toIso8601String(),
+      'updated_at': updatedAt?.toIso8601String(),
+    };
+  }
+
+  factory UserCredentials.fromMap(Map<String, dynamic> map) {
+    return UserCredentials(
+      userId: map['user_id'] as String,
+      passwordHash: map['password_hash'] as String,
+      salt: map['salt'] as String,
+      createdAt: DateTime.parse(map['created_at'] as String),
+      updatedAt: map['updated_at'] != null 
+          ? DateTime.parse(map['updated_at'] as String) 
+          : null,
+    );
   }
 }

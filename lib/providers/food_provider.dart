@@ -30,14 +30,61 @@ class FoodState {
     );
   }
 
-  int get todayCalories {
+  // ─────────────────────────────────────────────────────────────
+  // Computed Properties - Today's Stats
+  // ─────────────────────────────────────────────────────────────
+
+  List<FoodEntry> get todayEntries {
     final now = DateTime.now();
-    return entries
-        .where((e) =>
-            e.consumedAt.year == now.year &&
-            e.consumedAt.month == now.month &&
-            e.consumedAt.day == now.day)
-        .fold(0, (sum, entry) => sum + (entry.calories ?? 0));
+    return entries.where((e) =>
+        e.consumedAt.year == now.year &&
+        e.consumedAt.month == now.month &&
+        e.consumedAt.day == now.day).toList();
+  }
+
+  int get todayCalories {
+    int total = 0;
+    for (final entry in todayEntries) {
+      total += entry.calories ?? 0;
+    }
+    return total;
+  }
+
+  int get todayProtein {
+    int total = 0;
+    for (final entry in todayEntries) {
+      total += entry.protein ?? 0;
+    }
+    return total;
+  }
+
+  int get todayCarbs {
+    int total = 0;
+    for (final entry in todayEntries) {
+      total += entry.carbs ?? 0;
+    }
+    return total;
+  }
+
+  int get todayFat {
+    int total = 0;
+    for (final entry in todayEntries) {
+      total += entry.fat ?? 0;
+    }
+    return total;
+  }
+
+  // Meal type specific
+  List<FoodEntry> getEntriesByMealType(String mealType) {
+    return todayEntries.where((e) => e.mealType == mealType).toList();
+  }
+
+  int getCaloriesByMealType(String mealType) {
+    int total = 0;
+    for (final entry in getEntriesByMealType(mealType)) {
+      total += entry.calories ?? 0;
+    }
+    return total;
   }
 }
 
@@ -51,6 +98,7 @@ class FoodNotifier extends StateNotifier<FoodState> {
 
   Future<void> loadEntries() async {
     state = state.copyWith(isLoading: true, error: null);
+
     try {
       final entries = await _repository.getTodayEntries(_userId);
       state = state.copyWith(entries: entries, isLoading: false);
@@ -67,6 +115,9 @@ class FoodNotifier extends StateNotifier<FoodState> {
     required String foodName,
     String? description,
     int? calories,
+    int? protein,
+    int? carbs,
+    int? fat,
   }) async {
     try {
       final newEntry = await _repository.createEntry(
@@ -75,21 +126,48 @@ class FoodNotifier extends StateNotifier<FoodState> {
         foodName: foodName,
         description: description,
         calories: calories,
+        protein: protein,
+        carbs: carbs,
+        fat: fat,
       );
-      state = state.copyWith(entries: [newEntry, ...state.entries]);
+
+      // Add to beginning of list (most recent first in meals, but we sort by time)
+      final updatedEntries = [...state.entries, newEntry];
+      // Sort by consumed time
+      updatedEntries.sort((a, b) => a.consumedAt.compareTo(b.consumedAt));
+      
+      state = state.copyWith(entries: updatedEntries);
     } catch (e) {
       state = state.copyWith(error: 'Failed to add entry: ${e.toString()}');
     }
   }
 
+  Future<void> updateEntry(FoodEntry entry) async {
+    try {
+      await _repository.updateEntry(entry);
+      
+      final updatedEntries = state.entries.map((e) {
+        return e.id == entry.id ? entry : e;
+      }).toList();
+      
+      state = state.copyWith(entries: updatedEntries);
+    } catch (e) {
+      state = state.copyWith(error: 'Failed to update entry: ${e.toString()}');
+    }
+  }
+
   Future<void> deleteEntry(String entryId) async {
     try {
-      await _repository.deleteEntry(entryId);
+      await _repository.deleteEntry(_userId, entryId);
       final updatedEntries = state.entries.where((e) => e.id != entryId).toList();
       state = state.copyWith(entries: updatedEntries);
     } catch (e) {
       state = state.copyWith(error: 'Failed to delete entry: ${e.toString()}');
     }
+  }
+
+  void clearError() {
+    state = state.copyWith(error: null);
   }
 }
 
@@ -97,4 +175,19 @@ final foodProvider = StateNotifierProvider<FoodNotifier, FoodState>((ref) {
   final repository = ref.watch(foodRepositoryProvider);
   final userId = ref.watch(currentUserIdProvider);
   return FoodNotifier(repository, userId);
+});
+
+// Additional providers for specific data
+final todayCaloriesProvider = Provider<int>((ref) {
+  return ref.watch(foodProvider).todayCalories;
+});
+
+final todayMacrosProvider = Provider<Map<String, int>>((ref) {
+  final foodState = ref.watch(foodProvider);
+  return {
+    'calories': foodState.todayCalories,
+    'protein': foodState.todayProtein,
+    'carbs': foodState.todayCarbs,
+    'fat': foodState.todayFat,
+  };
 });

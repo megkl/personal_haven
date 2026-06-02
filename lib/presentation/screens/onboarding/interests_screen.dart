@@ -13,10 +13,8 @@ class _InterestsScreenState extends State<InterestsScreen> {
 
   final List<Map<String, dynamic>> _interests = [
     {'icon': Icons.edit, 'label': 'Journaling &\nSelf-Reflection'},
-    {'icon': Icons.psychology, 'label': 'Mental'},
     {'icon': Icons.self_improvement, 'label': 'Mental Wellness'},
     {'icon': Icons.bolt, 'label': 'Building New Habits'},
-    {'icon': Icons.spa, 'label': 'Stress & Calm'},
     {'icon': Icons.spa, 'label': 'Stress & Calm'},
     {'icon': Icons.eco, 'label': 'Personal Growth'},
     {'icon': Icons.bar_chart, 'label': 'Finance & Goals'},

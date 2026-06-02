@@ -1,0 +1,73 @@
+import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:personal_haven/services/biometric_service.dart';
+
+class BiometricState {
+  final bool isAvailable;
+  final bool isEnabled;
+  final String label;
+  final bool isLoading;
+
+  const BiometricState({
+    this.isAvailable = false,
+    this.isEnabled = false,
+    this.label = 'Biometric',
+    this.isLoading = true,
+  });
+
+  BiometricState copyWith({
+    bool? isAvailable,
+    bool? isEnabled,
+    String? label,
+    bool? isLoading,
+  }) {
+    return BiometricState(
+      isAvailable: isAvailable ?? this.isAvailable,
+      isEnabled: isEnabled ?? this.isEnabled,
+      label: label ?? this.label,
+      isLoading: isLoading ?? this.isLoading,
+    );
+  }
+}
+
+class BiometricNotifier extends StateNotifier<BiometricState> {
+  final _service = BiometricService.instance;
+
+  BiometricNotifier() : super(const BiometricState()) {
+    _load();
+  }
+
+  Future<void> _load() async {
+    final available = await _service.isAvailable();
+    final enabled = await _service.isEnabled();
+    final label = await _service.getBiometricLabel();
+    state = BiometricState(
+      isAvailable: available,
+      isEnabled: available && enabled,
+      label: label,
+      isLoading: false,
+    );
+  }
+
+  /// Toggle biometric lock on/off. Returns false if hardware unavailable.
+  Future<bool> toggle(bool value) async {
+    if (value && !state.isAvailable) return false;
+
+    // When enabling, verify once first so the user knows it works
+    if (value) {
+      final ok = await _service.authenticate(
+        reason: 'Confirm your identity to enable biometric lock',
+      );
+      if (!ok) return false;
+    }
+
+    await _service.setEnabled(value);
+    state = state.copyWith(isEnabled: value);
+    return true;
+  }
+
+  Future<void> refresh() => _load();
+}
+
+final biometricProvider =
+    StateNotifierProvider<BiometricNotifier, BiometricState>(
+        (ref) => BiometricNotifier());

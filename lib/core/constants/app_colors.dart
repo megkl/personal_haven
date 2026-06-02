@@ -34,9 +34,12 @@ class AppColors {
   static const Color info = Color(0xFF42A5F5);
 
   // Mood Colors
-  static const Color moodHappy = Color(0xFFFFD700);
+  static const Color moodHappy = Color.fromARGB(255, 182, 156, 5);
   static const Color moodNeutral = Color(0xFFB0B0B0);
-  static const Color moodSad = Color(0xFF6495ED);
+  static const Color moodSad = Color.fromARGB(255, 46, 47, 48);
+  static const Color moodCalm = Color(0xFF6495ED);
+  static const Color moodFrustrated = Color.fromARGB(255, 166, 196, 251);
+  static const Color moodTired = Color.fromARGB(255, 68, 72, 79);
 
   // Category Colors
   static const Color categoryNotes = Color(0xFFFFE082);

@@ -3,7 +3,6 @@ import 'package:personal_haven/core/constants/app_colors.dart';
 import 'package:personal_haven/presentation/screens/rituals/add_tasks_screen.dart';
 import 'package:personal_haven/presentation/screens/rituals/tasks_screen.dart';
 import 'package:personal_haven/presentation/screens/rituals/calendar_screen.dart';
-import 'package:personal_haven/presentation/screens/rituals/affirmations_screen.dart';
 
 /// Rituals Screen - Tab view for Tasks, Calendar, and Affirmations
 class RitualsScreen extends StatefulWidget {
@@ -105,15 +104,7 @@ class _RitualsScreenState extends State<RitualsScreen>
                       ),
                       text: 'Calendar',
                     ),
-                    Tab(
-                      icon: Icon(
-                        Icons.auto_awesome,
-                        color: _currentIndex == 2
-                            ? Colors.white
-                            : Colors.white70,
-                      ),
-                      text: 'Affirmations',
-                    ),
+                    
                   ],
                 ),
               ),
@@ -125,7 +116,7 @@ class _RitualsScreenState extends State<RitualsScreen>
           children: const [
             TasksTabContent(),
             CalendarScreen(),
-            AffirmationsScreen(),
+            //AffirmationsScreen(),
           ],
         ),
       ),
@@ -180,7 +171,6 @@ class TasksTabContent extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    // Return TasksScreen without AppBar since it's in the parent
-    return const TasksScreenContent();
+    return const TasksScreen();
   }
 }

@@ -1,15 +1,13 @@
-import 'package:personal_haven/data/data_sources/local/dao/task_dao.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:personal_haven/data/models/task.dart';
+import 'package:personal_haven/services/firestore_service.dart';
 import 'package:uuid/uuid.dart';
 
-/// Repository for Task operations
 class TaskRepository {
-  final TaskDao _taskDao;
-  final Uuid _uuid = const Uuid();
+  final _fs = FirestoreService.instance;
+  final _uuid = const Uuid();
+  static const _col = 'tasks';
 
-  TaskRepository({TaskDao? taskDao}) : _taskDao = taskDao ?? TaskDao();
-
-  /// Create a new task
   Future<Task> createTask({
     required String userId,
     required String title,
@@ -28,98 +26,119 @@ class TaskRepository {
       category: category,
       createdAt: DateTime.now(),
     );
-
-    await _taskDao.insert(task);
+    await _fs.set(userId, _col, task.id, task.toFirestore());
     return task;
   }
 
-  /// Get all tasks for a user
   Future<List<Task>> getAllTasks(String userId) async {
-    return await _taskDao.getAllByUserId(userId);
+    final snap = await _fs.query(userId, _col,
+        (c) => c.orderBy('createdAt', descending: true));
+    return snap.docs.map((d) => Task.fromFirestore(d)).toList();
   }
 
-  /// Get task by ID
-  Future<Task?> getTaskById(String taskId) async {
-    return await _taskDao.getById(taskId);
-  }
-
-  /// Get pending tasks
   Future<List<Task>> getPendingTasks(String userId) async {
-    return await _taskDao.getPendingTasks(userId);
+    final snap = await _fs.query(userId, _col,
+        (c) => c.where('isCompleted', isEqualTo: false)
+            .orderBy('createdAt', descending: true));
+    return snap.docs.map((d) => Task.fromFirestore(d)).toList();
   }
 
-  /// Get completed tasks
   Future<List<Task>> getCompletedTasks(String userId) async {
-    return await _taskDao.getCompletedTasks(userId);
+    final snap = await _fs.query(userId, _col,
+        (c) => c.where('isCompleted', isEqualTo: true)
+            .orderBy('createdAt', descending: true));
+    return snap.docs.map((d) => Task.fromFirestore(d)).toList();
   }
 
-  /// Get urgent tasks
-  Future<List<Task>> getUrgentTasks(String userId) async {
-    return await _taskDao.getUrgentTasks(userId);
-  }
-
-  /// Get today's tasks
   Future<List<Task>> getTodayTasks(String userId) async {
-    return await _taskDao.getTodayTasks(userId);
+    final all = await getPendingTasks(userId);
+    return all.where((t) => t.isDueToday).toList();
   }
 
-  /// Get tasks by category
-  Future<List<Task>> getTasksByCategory(String userId, String category) async {
-    return await _taskDao.getByCategory(userId, category);
+  Future<List<Task>> getOverdueTasks(String userId) async {
+    final all = await getPendingTasks(userId);
+    return all.where((t) => t.isOverdue).toList();
   }
 
-  /// Get tasks by priority
-  Future<List<Task>> getTasksByPriority(String userId, String priority) async {
-    return await _taskDao.getByPriority(userId, priority);
+  Future<List<Task>> getUrgentTasks(String userId) async {
+    final all = await getPendingTasks(userId);
+    return all.where((t) => t.isUrgent).toList();
   }
 
-  /// Toggle task completion
-  Future<Task> toggleTask(Task task) async {
-    final updatedTask = task.copyWith(
-      isCompleted: !task.isCompleted,
-      completedAt: !task.isCompleted ? DateTime.now() : null,
-    );
-    
-    await _taskDao.update(updatedTask);
-    return updatedTask;
+  Future<List<Task>> getThisWeekTasks(String userId) async {
+    final all = await getPendingTasks(userId);
+    final weekFromNow = DateTime.now().add(const Duration(days: 7));
+    return all
+        .where((t) => t.dueDate != null && t.dueDate!.isBefore(weekFromNow))
+        .toList();
   }
 
-  /// Update a task
-  Future<Task> updateTask(Task task) async {
-    await _taskDao.update(task);
-    return task;
+  Future<List<Task>> searchTasks(String userId, String query) async {
+    final all = await getAllTasks(userId);
+    final q = query.toLowerCase();
+    return all
+        .where((t) =>
+            t.title.toLowerCase().contains(q) ||
+            (t.description?.toLowerCase().contains(q) ?? false))
+        .toList();
   }
 
-  /// Delete a task
-  Future<void> deleteTask(String taskId) async {
-    await _taskDao.delete(taskId);
-  }
-
-  /// Get task statistics
   Future<Map<String, int>> getTaskStats(String userId) async {
-    return await _taskDao.getTaskStats(userId);
-  }
-
-  /// Get completion percentage
-  Future<double> getCompletionPercentage(String userId) async {
-    return await _taskDao.getCompletionPercentage(userId);
-  }
-
-  /// Get tasks grouped by priority
-  Future<Map<String, List<Task>>> getTasksByPriorityGrouped(String userId) async {
-    final tasks = await getPendingTasks(userId);
-    
+    final all = await getAllTasks(userId);
     return {
-      'urgent': tasks.where((t) => t.priority == 'urgent').toList(),
-      'high': tasks.where((t) => t.priority == 'high').toList(),
-      'medium': tasks.where((t) => t.priority == 'medium').toList(),
-      'low': tasks.where((t) => t.priority == 'low').toList(),
+      'total': all.length,
+      'pending': all.where((t) => !t.isCompleted).length,
+      'completed': all.where((t) => t.isCompleted).length,
+      'overdue': all.where((t) => t.isOverdue).length,
     };
   }
 
-  /// Get overdue tasks
-  Future<List<Task>> getOverdueTasks(String userId) async {
-    final tasks = await getPendingTasks(userId);
-    return tasks.where((task) => task.isOverdue).toList();
+  Future<double> getCompletionPercentage(String userId) async {
+    final all = await getAllTasks(userId);
+    if (all.isEmpty) return 0.0;
+    return all.where((t) => t.isCompleted).length / all.length * 100;
+  }
+
+  Future<Task> toggleTask(Task task) async {
+    final updated = task.copyWith(
+      isCompleted: !task.isCompleted,
+      completedAt: !task.isCompleted ? DateTime.now() : null,
+    );
+    await _fs.set(task.userId, _col, task.id, updated.toFirestore());
+    return updated;
+  }
+
+  Future<Task> updateTask(Task task) async {
+    await _fs.set(task.userId, _col, task.id, task.toFirestore());
+    return task;
+  }
+
+  Future<Task> updatePriority(Task task, String newPriority) async {
+    final updated = task.copyWith(priority: newPriority);
+    await _fs.set(task.userId, _col, task.id, updated.toFirestore());
+    return updated;
+  }
+
+  Future<void> deleteTask(String userId, String taskId) async {
+    await _fs.delete(userId, _col, taskId);
+  }
+
+  Future<void> deleteCompletedTasks(String userId) async {
+    final snap = await _fs.query(userId, _col,
+        (c) => c.where('isCompleted', isEqualTo: true));
+    final batch = FirebaseFirestore.instance.batch();
+    for (final doc in snap.docs) {
+      batch.delete(doc.reference);
+    }
+    await batch.commit();
+  }
+
+  Future<void> deleteAllTasks(String userId) async {
+    final snap = await _fs.getAll(userId, _col);
+    final batch = FirebaseFirestore.instance.batch();
+    for (final doc in snap.docs) {
+      batch.delete(doc.reference);
+    }
+    await batch.commit();
   }
 }

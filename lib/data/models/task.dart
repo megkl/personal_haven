@@ -72,6 +72,13 @@ class Task extends Equatable {
     );
   }
 
+  Map<String, dynamic> toFirestore() => toJson();
+
+  static Task fromFirestore(dynamic doc) {
+    final d = doc.data() as Map<String, dynamic>;
+    return Task.fromJson({...d, 'id': doc.id});
+  }
+
   Map<String, dynamic> toMap() {
     return {
       'task_id': id,

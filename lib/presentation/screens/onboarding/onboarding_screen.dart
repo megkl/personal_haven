@@ -15,16 +15,16 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
 
   final List<Map<String, String>> _pages = [
     {
-      'title': 'Cultivate Well-being',
-      'subtitle': 'Track your habits, moods & goals with ease',
-    },
-    {
       'title': 'Your Personal Space',
       'subtitle': 'Journal your thoughts in a safe, private environment',
     },
     {
+      'title': 'Cultivate Well-being',
+      'subtitle': 'Track your tasks, moods & goals with ease',
+    },
+    {
       'title': 'Build Better Habits',
-      'subtitle': 'Set goals and track your progress daily',
+      'subtitle': 'Set goals, budgets and track your progress daily',
     },
   ];
 

@@ -1,17 +1,15 @@
-import 'package:personal_haven/data/data_sources/local/dao/journal_dao.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:personal_haven/data/models/journal_entry.dart';
+import 'package:personal_haven/services/firestore_service.dart';
 import 'package:uuid/uuid.dart';
 
-/// Repository for Journal Entry operations
-/// Abstracts data sources and provides business logic
 class JournalRepository {
-  final JournalDao _journalDao;
-  final Uuid _uuid = const Uuid();
+  final _fs = FirestoreService.instance;
+  final _uuid = const Uuid();
+  static const _col = 'journal_entries';
 
-  JournalRepository({JournalDao? journalDao}) 
-      : _journalDao = journalDao ?? JournalDao();
+  // ── CREATE ───────────────────────────────────────────────────────────────────
 
-  /// Create a new journal entry
   Future<JournalEntry> createEntry({
     required String userId,
     required String title,
@@ -19,6 +17,7 @@ class JournalRepository {
     required String category,
     String? emoji,
     List<String> tags = const [],
+    DateTime? entryDate,
   }) async {
     final now = DateTime.now();
     final entry = JournalEntry(
@@ -26,122 +25,125 @@ class JournalRepository {
       userId: userId,
       title: title,
       content: content,
+      entryDate: entryDate ?? now,
       createdAt: now,
       updatedAt: now,
       category: category,
       emoji: emoji,
       tags: tags,
     );
-
-    await _journalDao.insert(entry);
+    await _fs.set(userId, _col, entry.id, entry.toFirestore());
     return entry;
   }
 
-  /// Get all entries for a user
+  // ── READ ─────────────────────────────────────────────────────────────────────
+
   Future<List<JournalEntry>> getAllEntries(String userId) async {
-    return await _journalDao.getAllByUserId(userId);
+    final snap = await _fs.query(userId, _col,
+        (c) => c.orderBy('entryDate', descending: true));
+    return snap.docs.map((d) => JournalEntry.fromFirestore(d)).toList();
   }
 
-  /// Get entry by ID
-  Future<JournalEntry?> getEntryById(String entryId) async {
-    return await _journalDao.getById(entryId);
+  Future<JournalEntry?> getEntryById(String userId, String entryId) async {
+    final doc = await _fs.get(userId, _col, entryId);
+    if (!doc.exists) return null;
+    return JournalEntry.fromFirestore(doc);
   }
 
-  /// Get entries by category
   Future<List<JournalEntry>> getEntriesByCategory(
-    String userId,
-    String category,
-  ) async {
-    if (category == 'All') {
-      return await getAllEntries(userId);
-    }
-    return await _journalDao.getByCategory(userId, category);
+      String userId, String category) async {
+    if (category == 'All') return getAllEntries(userId);
+    final snap = await _fs.query(userId, _col,
+        (c) => c.where('category', isEqualTo: category)
+            .orderBy('entryDate', descending: true));
+    return snap.docs.map((d) => JournalEntry.fromFirestore(d)).toList();
   }
 
-  /// Search entries
-  Future<List<JournalEntry>> searchEntries(
-    String userId,
-    String query,
-  ) async {
-    if (query.isEmpty) {
-      return await getAllEntries(userId);
-    }
-    return await _journalDao.search(userId, query);
+  Future<List<JournalEntry>> getRecentEntries(String userId,
+      {int limit = 10}) async {
+    final snap = await _fs.query(userId, _col,
+        (c) => c.orderBy('entryDate', descending: true).limit(limit));
+    return snap.docs.map((d) => JournalEntry.fromFirestore(d)).toList();
   }
 
-  /// Get today's entries
   Future<List<JournalEntry>> getTodayEntries(String userId) async {
-    return await _journalDao.getTodayEntries(userId);
+    final now = DateTime.now();
+    final start = DateTime(now.year, now.month, now.day);
+    final end = start.add(const Duration(days: 1));
+    final snap = await _fs.query(
+        userId,
+        _col,
+        (c) => c
+            .where('entryDate',
+                isGreaterThanOrEqualTo: start.toIso8601String())
+            .where('entryDate', isLessThan: end.toIso8601String()));
+    return snap.docs.map((d) => JournalEntry.fromFirestore(d)).toList();
   }
 
-  /// Get entries for date range
-  Future<List<JournalEntry>> getEntriesByDateRange(
-    String userId,
-    DateTime startDate,
-    DateTime endDate,
-  ) async {
-    return await _journalDao.getByDateRange(userId, startDate, endDate);
-  }
-
-  /// Update an entry
-  Future<JournalEntry> updateEntry(JournalEntry entry) async {
-    final updatedEntry = entry.copyWith(
-      updatedAt: DateTime.now(),
-    );
-    
-    await _journalDao.update(updatedEntry);
-    return updatedEntry;
-  }
-
-  /// Delete an entry
-  Future<void> deleteEntry(String entryId) async {
-    await _journalDao.delete(entryId);
-  }
-
-  /// Delete all entries for a user
-  Future<void> deleteAllEntries(String userId) async {
-    await _journalDao.deleteAllByUserId(userId);
-  }
-
-  /// Get entry count
-  Future<int> getEntryCount(String userId) async {
-    return await _journalDao.getCount(userId);
-  }
-
-  /// Get entries by tags
-  Future<List<JournalEntry>> getEntriesByTags(
-    String userId,
-    List<String> tags,
-  ) async {
-    return await _journalDao.getByTags(userId, tags);
-  }
-
-  /// Get category statistics
-  Future<Map<String, int>> getCategoryStats(String userId) async {
-    return await _journalDao.getCountByCategory(userId);
-  }
-
-  /// Get this week's entries
   Future<List<JournalEntry>> getThisWeekEntries(String userId) async {
-    final now = DateTime.now();
-    final startOfWeek = now.subtract(Duration(days: now.weekday - 1));
-    final endOfWeek = startOfWeek.add(const Duration(days: 6, hours: 23, minutes: 59));
-    
-    return await getEntriesByDateRange(userId, startOfWeek, endOfWeek);
+    final weekAgo =
+        DateTime.now().subtract(const Duration(days: 7)).toIso8601String();
+    final snap = await _fs.query(userId, _col,
+        (c) => c.where('entryDate', isGreaterThanOrEqualTo: weekAgo)
+            .orderBy('entryDate', descending: true));
+    return snap.docs.map((d) => JournalEntry.fromFirestore(d)).toList();
   }
 
-  /// Get this month's entries
-  Future<List<JournalEntry>> getThisMonthEntries(String userId) async {
-    final now = DateTime.now();
-    final startOfMonth = DateTime(now.year, now.month, 1);
-    final endOfMonth = DateTime(now.year, now.month + 1, 0, 23, 59, 59);
-    
-    return await getEntriesByDateRange(userId, startOfMonth, endOfMonth);
+  Future<List<JournalEntry>> searchEntries(
+      String userId, String query) async {
+    // Client-side search (Firestore doesn't support full-text natively)
+    final all = await getAllEntries(userId);
+    final q = query.toLowerCase();
+    return all
+        .where((e) =>
+            e.title.toLowerCase().contains(q) ||
+            e.content.toLowerCase().contains(q))
+        .toList();
   }
 
-  /// Export entries as JSON
-  Future<List<Map<String, dynamic>>> exportEntries(String userId) async {
-    final entries = await getAllEntries(userId);
-    return entries.map((e) => e.toJson()).toList();
+  Future<int> getEntryCount(String userId) async {
+    final snap = await _fs.getAll(userId, _col);
+    return snap.size;
+  }
+
+  Future<Map<String, int>> getCategoryStats(String userId) async {
+    final all = await getAllEntries(userId);
+    final stats = <String, int>{};
+    for (final e in all) {
+      stats[e.category] = (stats[e.category] ?? 0) + 1;
+    }
+    return stats;
+  }
+
+  Future<List<String>> getAllTags(String userId) async {
+    final all = await getAllEntries(userId);
+    final tags = <String>{};
+    for (final e in all) {
+      tags.addAll(e.tags);
+    }
+    return tags.toList();
+  }
+
+  // ── UPDATE ───────────────────────────────────────────────────────────────────
+
+  Future<JournalEntry> updateEntry(JournalEntry entry) async {
+    final updated = entry.copyWith(updatedAt: DateTime.now());
+    await _fs.set(entry.userId, _col, entry.id, updated.toFirestore());
+    return updated;
+  }
+
+  // ── DELETE ───────────────────────────────────────────────────────────────────
+
+  Future<void> deleteEntry(String userId, String entryId) async {
+    await _fs.delete(userId, _col, entryId);
+  }
+
+  Future<void> deleteAllEntries(String userId) async {
+    final snap = await _fs.getAll(userId, _col);
+    final batch = FirebaseFirestore.instance.batch();
+    for (final doc in snap.docs) {
+      batch.delete(doc.reference);
+    }
+    await batch.commit();
   }
 }

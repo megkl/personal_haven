@@ -51,7 +51,7 @@ class _PrivacySecurityScreenState extends State<PrivacySecurityScreen> {
                     onChanged: (value) {
                       setState(() => _biometricLock = value);
                     },
-                    activeColor: AppColors.primary,
+                    activeThumbColor: AppColors.primary,
                   ),
                 ),
                 const Divider(height: 32),
@@ -64,7 +64,7 @@ class _PrivacySecurityScreenState extends State<PrivacySecurityScreen> {
                     onChanged: (value) {
                       setState(() => _cloudSync = value);
                     },
-                    activeColor: AppColors.primary,
+                    activeThumbColor: AppColors.primary,
                   ),
                 ),
                 if (!_cloudSync)

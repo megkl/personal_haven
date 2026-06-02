@@ -1,7 +1,10 @@
+import 'package:firebase_auth/firebase_auth.dart' as fb;
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:personal_haven/data/repositories/subscription_repository.dart';
+import 'package:personal_haven/data/repositories/user_repository.dart';
+import 'package:personal_haven/services/social_auth_service.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
-/// Authentication state
 class AuthState {
   final bool isAuthenticated;
   final bool isLoading;
@@ -30,139 +33,102 @@ class AuthState {
   }
 }
 
-/// Authentication Notifier
 class AuthNotifier extends StateNotifier<AuthState> {
   AuthNotifier() : super(AuthState()) {
     checkAuthStatus();
   }
 
-  /// Check if user is already logged in
+  /// Check Firebase Auth session on startup
   Future<void> checkAuthStatus() async {
     state = state.copyWith(isLoading: true);
-    
-    final prefs = await SharedPreferences.getInstance();
-    final isLoggedIn = prefs.getBool('isLoggedIn') ?? false;
-    final userId = prefs.getString('userId');
-
+    final fbUser = fb.FirebaseAuth.instance.currentUser;
     state = state.copyWith(
-      isAuthenticated: isLoggedIn,
-      userId: userId,
+      isAuthenticated: fbUser != null,
+      userId: fbUser?.uid,
       isLoading: false,
     );
   }
 
-  /// Sign up a new user
-  Future<bool> signUp({
-    required String name,
-    required String email,
-    required String password,
-    bool enableBiometric = false,
-  }) async {
+  /// Social login (Google / Apple / Microsoft) — backed by Firebase Auth
+  Future<bool> socialLogin(SocialAuthResult result) async {
     state = state.copyWith(isLoading: true, error: null);
-
     try {
-      // In production, this would call an API
-      // For now, simulate network delay
-      await Future.delayed(const Duration(seconds: 1));
+      final fbUser = fb.FirebaseAuth.instance.currentUser;
+      if (fbUser == null) {
+        state = state.copyWith(
+            isLoading: false, error: 'Authentication failed');
+        return false;
+      }
 
-      // Generate a simple user ID (in production, this comes from backend)
-      final userId = 'user_${DateTime.now().millisecondsSinceEpoch}';
+      // Persist / update Firestore profile
+      await UserRepository().createOrUpdateFromAuth(fbUser,
+          displayName: result.displayName);
 
-      // Save to SharedPreferences
+      // Activate free trial on first sign-up (no-op if already used)
+      try {
+        final subRepo = SubscriptionRepository();
+        final hasUsed = await subRepo.hasUsedTrial(fbUser.uid);
+        if (!hasUsed) await subRepo.createTrial(fbUser.uid);
+      } catch (_) {}
+
+      // Cache minimal info for offline display
       final prefs = await SharedPreferences.getInstance();
       await prefs.setBool('isLoggedIn', true);
-      await prefs.setString('userId', userId);
-      await prefs.setString('userName', name);
-      await prefs.setString('userEmail', email);
-      await prefs.setBool('biometricEnabled', enableBiometric);
+      await prefs.setString('userId', fbUser.uid);
+      if (result.email != null) {
+        await prefs.setString('userEmail', result.email!);
+      }
+      if (result.displayName != null) {
+        await prefs.setString('userName', result.displayName!);
+      }
+      if (result.avatarUrl != null) {
+        await prefs.setString('avatarUrl', result.avatarUrl!);
+      }
+      if (result.provider != null) {
+        await prefs.setString('authProvider', result.provider!);
+      }
 
       state = state.copyWith(
         isAuthenticated: true,
-        userId: userId,
+        userId: fbUser.uid,
         isLoading: false,
       );
-
       return true;
     } catch (e) {
       state = state.copyWith(
-        isLoading: false,
-        error: 'Sign up failed: ${e.toString()}',
-      );
+          isLoading: false, error: 'Social login failed: $e');
       return false;
     }
   }
 
-  /// Log in an existing user
-  Future<bool> login({
-    required String email,
-    required String password,
-  }) async {
-    state = state.copyWith(isLoading: true, error: null);
-
-    try {
-      // Simulate network delay
-      await Future.delayed(const Duration(seconds: 1));
-
-      // In production, verify credentials with backend
-      // For now, accept any credentials
-      final userId = 'user_demo';
-
-      final prefs = await SharedPreferences.getInstance();
-      await prefs.setBool('isLoggedIn', true);
-      await prefs.setString('userId', userId);
-      await prefs.setString('userEmail', email);
-
-      state = state.copyWith(
-        isAuthenticated: true,
-        userId: userId,
-        isLoading: false,
-      );
-
-      return true;
-    } catch (e) {
-      state = state.copyWith(
-        isLoading: false,
-        error: 'Login failed: ${e.toString()}',
-      );
-      return false;
-    }
-  }
-
-  /// Log out the current user
+  /// Log out
   Future<void> logout() async {
+    try {
+      await SocialAuthService.instance.signOutGoogle();
+    } catch (_) {}
     final prefs = await SharedPreferences.getInstance();
     await prefs.clear();
-
-    state = AuthState(
-      isAuthenticated: false,
-      isLoading: false,
-    );
+    state = AuthState(isAuthenticated: false, isLoading: false);
   }
 
-  /// Clear error message
-  void clearError() {
-    state = state.copyWith(error: null);
-  }
+  void clearError() => state = state.copyWith(error: null);
 }
 
-/// Auth provider
-final authProvider = StateNotifierProvider<AuthNotifier, AuthState>((ref) {
-  return AuthNotifier();
-});
+final authProvider =
+    StateNotifierProvider<AuthNotifier, AuthState>((ref) => AuthNotifier());
 
-/// Provider for current user ID
+/// Current Firebase UID — used by all feature providers
 final currentUserIdProvider = Provider<String>((ref) {
-  final authState = ref.watch(authProvider);
-  return authState.userId ?? 'user_demo';
+  return ref.watch(authProvider).userId ??
+      fb.FirebaseAuth.instance.currentUser?.uid ??
+      '';
 });
 
-/// Provider for checking if user has seen onboarding
 final hasSeenOnboardingProvider = FutureProvider<bool>((ref) async {
   final prefs = await SharedPreferences.getInstance();
   return prefs.getBool('hasSeenOnboarding') ?? false;
 });
 
-/// Provider to mark onboarding as seen
 final markOnboardingSeenProvider = Provider<Future<void> Function()>((ref) {
   return () async {
     final prefs = await SharedPreferences.getInstance();

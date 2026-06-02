@@ -8,7 +8,7 @@ class Goal extends Equatable {
   final String? description;
   final double targetValue;
   final double currentValue;
-  final String unit; // 'USD', 'kg', 'minutes', 'count', etc.
+  final String unit; // 'KES', 'kg', 'minutes', 'count', etc.
   final DateTime startDate;
   final DateTime? targetDate;
   final String status; // 'active', 'completed', 'paused', 'archived'
@@ -73,6 +73,45 @@ class Goal extends Equatable {
       category: category ?? this.category,
       createdAt: createdAt ?? this.createdAt,
       updatedAt: updatedAt ?? this.updatedAt,
+    );
+  }
+
+  Map<String, dynamic> toFirestore() {
+    return {
+      'id': id,
+      'userId': userId,
+      'title': title,
+      'description': description,
+      'targetValue': targetValue,
+      'currentValue': currentValue,
+      'unit': unit,
+      'startDate': startDate.toIso8601String(),
+      'targetDate': targetDate?.toIso8601String(),
+      'status': status,
+      'category': category,
+      'createdAt': createdAt.toIso8601String(),
+      'updatedAt': updatedAt.toIso8601String(),
+    };
+  }
+
+  static Goal fromFirestore(dynamic doc) {
+    final d = doc.data() as Map<String, dynamic>;
+    return Goal(
+      id: doc.id,
+      userId: d['userId'] as String,
+      title: d['title'] as String,
+      description: d['description'] as String?,
+      targetValue: (d['targetValue'] as num).toDouble(),
+      currentValue: (d['currentValue'] as num?)?.toDouble() ?? 0.0,
+      unit: d['unit'] as String,
+      startDate: DateTime.parse(d['startDate'] as String),
+      targetDate: d['targetDate'] != null
+          ? DateTime.parse(d['targetDate'] as String)
+          : null,
+      status: d['status'] as String? ?? 'active',
+      category: d['category'] as String? ?? 'personal',
+      createdAt: DateTime.parse(d['createdAt'] as String),
+      updatedAt: DateTime.parse(d['updatedAt'] as String),
     );
   }
 

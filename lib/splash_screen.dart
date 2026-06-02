@@ -72,7 +72,6 @@ class _SplashScreenState extends ConsumerState<SplashScreen>
       // Returning user not logged in - show onboarding (which leads to login/signup)
       nextScreen = const OnboardingScreen();
     }
-
     // Navigate with fade transition
     Navigator.pushReplacement(
       context,
@@ -146,7 +145,6 @@ class _SplashScreenState extends ConsumerState<SplashScreen>
                     Text(
                       'Personal Haven',
                       style: TextStyle(
-                        fontFamily: 'Outfit',
                         fontSize: 36,
                         fontWeight: FontWeight.bold,
                         color: Colors.white,
