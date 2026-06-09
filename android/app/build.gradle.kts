@@ -10,7 +10,7 @@ plugins {
 
 android {
     namespace = "com.example.personal_haven"
-    compileSdk = flutter.compileSdkVersion
+    compileSdk = 36
     ndkVersion = flutter.ndkVersion
 
     compileOptions {

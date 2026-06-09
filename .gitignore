@@ -46,3 +46,23 @@ app.*.map.json
 /android/app/debug
 /android/app/profile
 /android/app/release
+
+# iOS / Xcode
+# CocoaPods artifacts and support files
+ios/Pods/
+ios/.symlinks/
+
+# Flutter iOS build artifacts
+ios/Flutter/ephemeral/
+ios/Flutter/Flutter.framework
+ios/Flutter/Flutter.podspec
+ios/Flutter/Flutter.xcframework
+
+# Xcode build and derived data
+ios/Build/
+ios/DerivedData/
+ios/Runner/Debug-*/
+ios/Runner/Release-*/
+
+# Generated plugin registrant
+ios/Runner/GeneratedPluginRegistrant.*

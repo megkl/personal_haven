@@ -1,4 +1,4 @@
-\{
+{
   "project_info": {
     "project_number": "748102487039",
     "project_id": "personal-haven-405b9",
@@ -13,6 +13,14 @@
         }
       },
       "oauth_client": [
+        {
+          "client_id": "748102487039-sgm8chbvglgmh8h2vj7t44ifpi4tgu7g.apps.googleusercontent.com",
+          "client_type": 1,
+          "android_info": {
+            "package_name": "com.example.personal_haven",
+            "certificate_hash": "aa520c078532f6cbf243d7566e33bd927c4bcbfb"
+          }
+        },
         {
           "client_id": "748102487039-m0nncvs7te5o8viq3s28vdru5hb4j3re.apps.googleusercontent.com",
           "client_type": 3
