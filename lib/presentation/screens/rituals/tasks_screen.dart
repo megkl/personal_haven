@@ -182,7 +182,7 @@ class _TasksScreenState extends ConsumerState<TasksScreen>
         boxShadow: [
           BoxShadow(
             color: (taskState.urgentCount > 0 ? Colors.orange : const Color(0xFF6BCB77))
-                .withOpacity(0.4),
+                .withValues(alpha: 0.4),
             blurRadius: 15,
             offset: const Offset(0, 8),
           ),
@@ -237,7 +237,7 @@ class _TasksScreenState extends ConsumerState<TasksScreen>
                         child: CircularProgressIndicator(
                           value: percentage / 100,
                           strokeWidth: 10,
-                          backgroundColor: Colors.white.withOpacity(0.2),
+                          backgroundColor: Colors.white.withValues(alpha: 0.2),
                           valueColor:
                               const AlwaysStoppedAnimation<Color>(Colors.white),
                           strokeCap: StrokeCap.round,
@@ -264,7 +264,7 @@ class _TasksScreenState extends ConsumerState<TasksScreen>
             Container(
               padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
               decoration: BoxDecoration(
-                color: Colors.white.withOpacity(0.2),
+                color: Colors.white.withValues(alpha: 0.2),
                 borderRadius: BorderRadius.circular(12),
               ),
               child: Row(
@@ -404,7 +404,7 @@ class _TasksScreenState extends ConsumerState<TasksScreen>
                 : null,
             boxShadow: [
               BoxShadow(
-                color: Colors.black.withOpacity(0.05),
+                color: Colors.black.withValues(alpha: 0.05),
                 blurRadius: 10,
                 offset: const Offset(0, 2),
               ),
@@ -527,7 +527,7 @@ class _TasksScreenState extends ConsumerState<TasksScreen>
                                 padding: const EdgeInsets.symmetric(
                                     horizontal: 8, vertical: 2),
                                 decoration: BoxDecoration(
-                                  color: color.withOpacity(0.1),
+                                  color: color.withValues(alpha: 0.1),
                                   borderRadius: BorderRadius.circular(8),
                                 ),
                                 child: Row(
@@ -965,7 +965,7 @@ class _TaskDetailsSheet extends StatelessWidget {
                           padding: const EdgeInsets.symmetric(
                               horizontal: 8, vertical: 2),
                           decoration: BoxDecoration(
-                            color: color.withOpacity(0.1),
+                            color: color.withValues(alpha: 0.1),
                             borderRadius: BorderRadius.circular(8),
                           ),
                           child: Text(
@@ -983,7 +983,7 @@ class _TaskDetailsSheet extends StatelessWidget {
                             padding: const EdgeInsets.symmetric(
                                 horizontal: 8, vertical: 2),
                             decoration: BoxDecoration(
-                              color: Colors.green.withOpacity(0.1),
+                              color: Colors.green.withValues(alpha: 0.1),
                               borderRadius: BorderRadius.circular(8),
                             ),
                             child: const Text(
@@ -1287,7 +1287,7 @@ class _AddEditTaskSheetState extends State<_AddEditTaskSheet> {
                         padding: const EdgeInsets.symmetric(vertical: 12),
                         decoration: BoxDecoration(
                           color: isSelected
-                              ? AppColors.primary.withOpacity(0.1)
+                              ? AppColors.primary.withValues(alpha: 0.1)
                               : Colors.grey.shade100,
                           borderRadius: BorderRadius.circular(12),
                           border: isSelected

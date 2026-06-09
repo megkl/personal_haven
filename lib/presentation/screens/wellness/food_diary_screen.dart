@@ -113,7 +113,7 @@ class _FoodDiaryScreenState extends ConsumerState<FoodDiaryScreen> {
         borderRadius: BorderRadius.circular(20),
         boxShadow: [
           BoxShadow(
-            color: const Color(0xFF4ECDC4).withOpacity(0.3),
+            color: const Color(0xFF4ECDC4).withValues(alpha: 0.3),
             blurRadius: 15,
             offset: const Offset(0, 8),
           ),
@@ -184,7 +184,7 @@ class _FoodDiaryScreenState extends ConsumerState<FoodDiaryScreen> {
                         child: CircularProgressIndicator(
                           value: percentage / 100,
                           strokeWidth: 10,
-                          backgroundColor: Colors.white.withOpacity(0.2),
+                          backgroundColor: Colors.white.withValues(alpha: 0.2),
                           valueColor:
                               const AlwaysStoppedAnimation<Color>(Colors.white),
                           strokeCap: StrokeCap.round,
@@ -257,7 +257,7 @@ class _FoodDiaryScreenState extends ConsumerState<FoodDiaryScreen> {
         borderRadius: BorderRadius.circular(16),
         boxShadow: [
           BoxShadow(
-            color: Colors.black.withOpacity(0.05),
+            color: Colors.black.withValues(alpha: 0.05),
             blurRadius: 10,
             offset: const Offset(0, 2),
           ),
@@ -337,15 +337,15 @@ class _FoodDiaryScreenState extends ConsumerState<FoodDiaryScreen> {
         decoration: BoxDecoration(
           gradient: LinearGradient(
             colors: [
-              _getMealTypeColor(suggestion.mealType).withOpacity(0.1),
-              _getMealTypeColor(suggestion.mealType).withOpacity(0.05),
+              _getMealTypeColor(suggestion.mealType).withValues(alpha: 0.1),
+              _getMealTypeColor(suggestion.mealType).withValues(alpha: 0.05),
             ],
             begin: Alignment.topLeft,
             end: Alignment.bottomRight,
           ),
           borderRadius: BorderRadius.circular(12),
           border: Border.all(
-            color: _getMealTypeColor(suggestion.mealType).withOpacity(0.3),
+            color: _getMealTypeColor(suggestion.mealType).withValues(alpha: 0.3),
           ),
         ),
         child: Column(
@@ -536,7 +536,7 @@ class _FoodDiaryScreenState extends ConsumerState<FoodDiaryScreen> {
         borderRadius: BorderRadius.circular(16),
         boxShadow: [
           BoxShadow(
-            color: Colors.black.withOpacity(0.03),
+            color: Colors.black.withValues(alpha: 0.03),
             blurRadius: 8,
             offset: const Offset(0, 2),
           ),
@@ -560,7 +560,7 @@ class _FoodDiaryScreenState extends ConsumerState<FoodDiaryScreen> {
                 padding:
                     const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
                 decoration: BoxDecoration(
-                  color: _getMealTypeColor(mealType).withOpacity(0.1),
+                  color: _getMealTypeColor(mealType).withValues(alpha: 0.1),
                   borderRadius: BorderRadius.circular(12),
                 ),
                 child: Text(
@@ -622,10 +622,10 @@ class _FoodDiaryScreenState extends ConsumerState<FoodDiaryScreen> {
       child: Container(
         padding: const EdgeInsets.all(12),
         decoration: BoxDecoration(
-          color: _getMealTypeColor(mealType).withOpacity(0.08),
+          color: _getMealTypeColor(mealType).withValues(alpha: 0.08),
           borderRadius: BorderRadius.circular(12),
           border: Border.all(
-            color: _getMealTypeColor(mealType).withOpacity(0.2),
+            color: _getMealTypeColor(mealType).withValues(alpha: 0.2),
             style: BorderStyle.solid,
           ),
         ),
@@ -680,7 +680,7 @@ class _FoodDiaryScreenState extends ConsumerState<FoodDiaryScreen> {
         alignment: Alignment.centerRight,
         padding: const EdgeInsets.only(right: 20),
         decoration: BoxDecoration(
-          color: Colors.red.withOpacity(0.1),
+          color: Colors.red.withValues(alpha: 0.1),
           borderRadius: BorderRadius.circular(8),
         ),
         child: const Icon(Icons.delete, color: Colors.red),
@@ -696,7 +696,7 @@ class _FoodDiaryScreenState extends ConsumerState<FoodDiaryScreen> {
               width: 40,
               height: 40,
               decoration: BoxDecoration(
-                color: _getMealTypeColor(entry.mealType).withOpacity(0.1),
+                color: _getMealTypeColor(entry.mealType).withValues(alpha: 0.1),
                 borderRadius: BorderRadius.circular(10),
               ),
               child: const Center(

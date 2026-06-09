@@ -210,7 +210,7 @@ class _JournalScreenState extends ConsumerState<JournalScreen> {
                           horizontal: 6, vertical: 2),
                       decoration: BoxDecoration(
                         color: isSelected
-                            ? Colors.white.withOpacity(0.3)
+                            ? Colors.white.withValues(alpha: 0.3)
                             : Colors.grey.shade300,
                         borderRadius: BorderRadius.circular(10),
                       ),
@@ -300,7 +300,7 @@ class _JournalScreenState extends ConsumerState<JournalScreen> {
     return Container(
       width: 1,
       height: 40,
-      color: Colors.white.withOpacity(0.3),
+      color: Colors.white.withValues(alpha: 0.3),
     );
   }
 
@@ -369,7 +369,7 @@ class _JournalScreenState extends ConsumerState<JournalScreen> {
           borderRadius: BorderRadius.circular(16),
           boxShadow: [
             BoxShadow(
-              color: Colors.black.withOpacity(0.05),
+              color: Colors.black.withValues(alpha: 0.05),
               blurRadius: 10,
               offset: const Offset(0, 2),
             ),
@@ -450,7 +450,7 @@ class _JournalScreenState extends ConsumerState<JournalScreen> {
                         padding: const EdgeInsets.symmetric(
                             horizontal: 8, vertical: 4),
                         decoration: BoxDecoration(
-                          color: categoryColor.withOpacity(0.15),
+                          color: categoryColor.withValues(alpha: 0.15),
                           borderRadius: BorderRadius.circular(12),
                         ),
                         child: Row(
@@ -720,7 +720,7 @@ class _EntryDetailsSheet extends StatelessWidget {
                       padding: const EdgeInsets.symmetric(
                           horizontal: 12, vertical: 6),
                       decoration: BoxDecoration(
-                        color: categoryColor.withOpacity(0.15),
+                        color: categoryColor.withValues(alpha: 0.15),
                         borderRadius: BorderRadius.circular(16),
                       ),
                       child: Row(
@@ -959,7 +959,7 @@ class _AddEditEntrySheetState extends State<_AddEditEntrySheet> {
                                 margin: const EdgeInsets.only(right: 8),
                                 decoration: BoxDecoration(
                                   color: isSelected
-                                      ? AppColors.primary.withOpacity(0.2)
+                                      ? AppColors.primary.withValues(alpha: 0.2)
                                       : Colors.grey.shade100,
                                   borderRadius: BorderRadius.circular(12),
                                   border: isSelected

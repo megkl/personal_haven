@@ -1,4 +1,3 @@
-import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:personal_haven/data/models/goal.dart';
 import 'package:personal_haven/services/firestore_service.dart';
 import 'package:uuid/uuid.dart';

@@ -110,7 +110,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                 mainAxisAlignment: MainAxisAlignment.center,
                 children: [
                   Icon(Icons.spa,
-                      color: Colors.white.withOpacity(0.9), size: 32),
+                      color: Colors.white.withValues(alpha: 0.9), size: 32),
                   const SizedBox(width: 12),
                   const Text(
                     'Personal Haven',
@@ -222,7 +222,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
       'https://www.gstatic.com/firebasejs/ui/2.0.0/images/auth/google.svg',
       width: 22,
       height: 22,
-      errorBuilder: (_, __, ___) =>
+      errorBuilder: (_, _, _) =>
           const Icon(Icons.g_mobiledata, size: 22, color: Color(0xFF4285F4)),
     );
   }

@@ -101,8 +101,8 @@ class _MoodSelectionDialogState extends State<MoodSelectionDialog> {
                     duration: const Duration(milliseconds: 200),
                     decoration: BoxDecoration(
                       color: isSelected
-                          ? mood.color.withOpacity(0.3)
-                          : Colors.grey.withOpacity(0.1),
+                          ? mood.color.withValues(alpha: 0.3)
+                          : Colors.grey.withValues(alpha: 0.1),
                       borderRadius: BorderRadius.circular(12),
                       border: Border.all(
                         color: isSelected ? mood.color : Colors.transparent,
@@ -144,7 +144,7 @@ class _MoodSelectionDialogState extends State<MoodSelectionDialog> {
               Container(
                 padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
                 decoration: BoxDecoration(
-                  color: _selectedMood!.color.withOpacity(0.2),
+                  color: _selectedMood!.color.withValues(alpha: 0.2),
                   borderRadius: BorderRadius.circular(20),
                 ),
                 child: Row(
@@ -160,7 +160,7 @@ class _MoodSelectionDialogState extends State<MoodSelectionDialog> {
                       style: TextStyle(
                         fontSize: 14,
                         fontWeight: FontWeight.w600,
-                        color: _selectedMood!.color.withOpacity(1),
+                        color: _selectedMood!.color.withValues(alpha: 1),
                       ),
                     ),
                   ],
@@ -177,7 +177,7 @@ class _MoodSelectionDialogState extends State<MoodSelectionDialog> {
                 hintText: 'Add a note about how you\'re feeling (optional)',
                 hintStyle: const TextStyle(color: Color(0xFF9E9E9E), fontSize: 14),
                 filled: true,
-                fillColor: Colors.grey.withOpacity(0.1),
+                fillColor: Colors.grey.withValues(alpha: 0.1),
                 border: OutlineInputBorder(
                   borderRadius: BorderRadius.circular(12),
                   borderSide: BorderSide.none,
@@ -196,7 +196,7 @@ class _MoodSelectionDialogState extends State<MoodSelectionDialog> {
                 style: ElevatedButton.styleFrom(
                   backgroundColor: const Color(0xFF4ECDC4),
                   disabledBackgroundColor:
-                      const Color(0xFF4ECDC4).withOpacity(0.5),
+                      const Color(0xFF4ECDC4).withValues(alpha: 0.5),
                   padding: const EdgeInsets.symmetric(vertical: 16),
                   shape: RoundedRectangleBorder(
                     borderRadius: BorderRadius.circular(12),

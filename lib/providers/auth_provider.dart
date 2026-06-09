@@ -38,7 +38,6 @@ class AuthNotifier extends StateNotifier<AuthState> {
     checkAuthStatus();
   }
 
-  /// Check Firebase Auth session on startup
   Future<void> checkAuthStatus() async {
     state = state.copyWith(isLoading: true);
     final fbUser = fb.FirebaseAuth.instance.currentUser;
@@ -49,11 +48,20 @@ class AuthNotifier extends StateNotifier<AuthState> {
     );
   }
 
-  /// Social login (Google / Apple / Microsoft) — backed by Firebase Auth
   Future<bool> socialLogin(SocialAuthResult result) async {
     state = state.copyWith(isLoading: true, error: null);
     try {
-      final fbUser = fb.FirebaseAuth.instance.currentUser;
+      // Sign into Firebase with the credential built in SocialAuthService
+      if (result.credential == null) {
+        state = state.copyWith(
+            isLoading: false, error: 'No auth credential received');
+        return false;
+      }
+
+      final userCredential = await fb.FirebaseAuth.instance
+          .signInWithCredential(result.credential!);
+      final fbUser = userCredential.user;
+
       if (fbUser == null) {
         state = state.copyWith(
             isLoading: false, error: 'Authentication failed');
@@ -101,10 +109,10 @@ class AuthNotifier extends StateNotifier<AuthState> {
     }
   }
 
-  /// Log out
   Future<void> logout() async {
     try {
       await SocialAuthService.instance.signOutGoogle();
+      await fb.FirebaseAuth.instance.signOut();
     } catch (_) {}
     final prefs = await SharedPreferences.getInstance();
     await prefs.clear();
@@ -115,9 +123,8 @@ class AuthNotifier extends StateNotifier<AuthState> {
 }
 
 final authProvider =
-    StateNotifierProvider<AuthNotifier, AuthState>((ref) => AuthNotifier());
+StateNotifierProvider<AuthNotifier, AuthState>((ref) => AuthNotifier());
 
-/// Current Firebase UID — used by all feature providers
 final currentUserIdProvider = Provider<String>((ref) {
   return ref.watch(authProvider).userId ??
       fb.FirebaseAuth.instance.currentUser?.uid ??

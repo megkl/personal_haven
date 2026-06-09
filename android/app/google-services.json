@@ -1,4 +1,4 @@
-{
+\{
   "project_info": {
     "project_number": "748102487039",
     "project_id": "personal-haven-405b9",
@@ -29,6 +29,13 @@
             {
               "client_id": "748102487039-m0nncvs7te5o8viq3s28vdru5hb4j3re.apps.googleusercontent.com",
               "client_type": 3
+            },
+            {
+              "client_id": "748102487039-0jikab6pn1sglbq01t9ntn0sorblqmlu.apps.googleusercontent.com",
+              "client_type": 2,
+              "ios_info": {
+                "bundle_id": "com.example.personalHaven"
+              }
             }
           ]
         }

@@ -91,7 +91,7 @@ class _GoalsScreenState extends ConsumerState<GoalsScreen>
         borderRadius: BorderRadius.circular(20),
         boxShadow: [
           BoxShadow(
-            color: const Color(0xFF667eea).withOpacity(0.4),
+            color: const Color(0xFF667eea).withValues(alpha: 0.4),
             blurRadius: 15,
             offset: const Offset(0, 8),
           ),
@@ -126,7 +126,7 @@ class _GoalsScreenState extends ConsumerState<GoalsScreen>
                       'goals completed',
                       style: TextStyle(
                         fontSize: 14,
-                        color: Colors.white.withOpacity(0.8),
+                        color: Colors.white.withValues(alpha: 0.8),
                       ),
                     ),
                   ],
@@ -145,7 +145,7 @@ class _GoalsScreenState extends ConsumerState<GoalsScreen>
                         child: CircularProgressIndicator(
                           value: overallProgress / 100,
                           strokeWidth: 10,
-                          backgroundColor: Colors.white.withOpacity(0.2),
+                          backgroundColor: Colors.white.withValues(alpha: 0.2),
                           valueColor:
                               const AlwaysStoppedAnimation<Color>(Colors.white),
                           strokeCap: StrokeCap.round,
@@ -199,7 +199,7 @@ class _GoalsScreenState extends ConsumerState<GoalsScreen>
       child: Container(
         padding: const EdgeInsets.symmetric(vertical: 12),
         decoration: BoxDecoration(
-          color: Colors.white.withOpacity(0.15),
+          color: Colors.white.withValues(alpha: 0.15),
           borderRadius: BorderRadius.circular(12),
         ),
         child: Column(
@@ -279,7 +279,7 @@ class _GoalsScreenState extends ConsumerState<GoalsScreen>
                         const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
                     decoration: BoxDecoration(
                       color: isSelected
-                          ? Colors.white.withOpacity(0.3)
+                          ? Colors.white.withValues(alpha: 0.3)
                           : Colors.grey.shade200,
                       borderRadius: BorderRadius.circular(10),
                     ),
@@ -383,7 +383,7 @@ class _GoalsScreenState extends ConsumerState<GoalsScreen>
             : null,
         boxShadow: [
           BoxShadow(
-            color: Colors.black.withOpacity(0.05),
+            color: Colors.black.withValues(alpha: 0.05),
             blurRadius: 10,
             offset: const Offset(0, 2),
           ),
@@ -405,7 +405,7 @@ class _GoalsScreenState extends ConsumerState<GoalsScreen>
                     Container(
                       padding: const EdgeInsets.all(10),
                       decoration: BoxDecoration(
-                        color: color.withOpacity(0.1),
+                        color: color.withValues(alpha: 0.1),
                         borderRadius: BorderRadius.circular(12),
                       ),
                       child: Text(

@@ -40,7 +40,7 @@ class _InterestsScreenState extends State<InterestsScreen> {
             Row(
               mainAxisAlignment: MainAxisAlignment.center,
               children: [
-                Icon(Icons.spa, color: Colors.white.withOpacity(0.9)),
+                Icon(Icons.spa, color: Colors.white.withValues(alpha: 0.9)),
                 const SizedBox(width: 8),
                 const Text(
                   'Personal Haven',
@@ -178,7 +178,7 @@ class _InterestsScreenState extends State<InterestsScreen> {
                         width: 10,
                         height: 10,
                         decoration: BoxDecoration(
-                          color: Colors.white.withOpacity(0.5),
+                          color: Colors.white.withValues(alpha: 0.5),
                           borderRadius: BorderRadius.circular(5),
                         ),
                       ),
@@ -187,7 +187,7 @@ class _InterestsScreenState extends State<InterestsScreen> {
                         width: 10,
                         height: 10,
                         decoration: BoxDecoration(
-                          color: Colors.white.withOpacity(0.5),
+                          color: Colors.white.withValues(alpha: 0.5),
                           borderRadius: BorderRadius.circular(5),
                         ),
                       ),

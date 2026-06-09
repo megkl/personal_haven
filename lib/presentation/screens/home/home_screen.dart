@@ -175,7 +175,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                           );
                         },
                         loading: () => const SizedBox.shrink(),
-                        error: (_, __) => const SizedBox.shrink(),
+                        error: (_, _) => const SizedBox.shrink(),
                       ),
 
                       // Tasks Section
@@ -220,7 +220,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
         children: [
           Row(
             children: [
-              Icon(Icons.spa, color: Colors.white.withOpacity(0.9)),
+              Icon(Icons.spa, color: Colors.white.withValues(alpha: 0.9)),
               const SizedBox(width: 8),
               const Text(
                 'Personal Haven',
@@ -243,7 +243,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                   )
                 : CircleAvatar(
                     radius: 18,
-                    backgroundColor: Colors.white.withOpacity(0.3),
+                    backgroundColor: Colors.white.withValues(alpha: 0.3),
                     child: Text(
                       _userName?.isNotEmpty == true
                           ? _userName![0].toUpperCase()
@@ -274,7 +274,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
           borderRadius: BorderRadius.circular(16),
           boxShadow: [
             BoxShadow(
-              color: Colors.black.withOpacity(0.1),
+              color: Colors.black.withValues(alpha: 0.1),
               blurRadius: 10,
               offset: const Offset(0, 4),
             ),
@@ -293,7 +293,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                           "Today's Mood",
                           style: TextStyle(
                             fontSize: 12,
-                            color: Colors.white.withOpacity(0.8),
+                            color: Colors.white.withValues(alpha: 0.8),
                           ),
                         ),
                         Text(
@@ -310,7 +310,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                             style: TextStyle(
                               fontSize: 12,
                               fontStyle: FontStyle.italic,
-                              color: Colors.white.withOpacity(0.9),
+                              color: Colors.white.withValues(alpha: 0.9),
                             ),
                             maxLines: 1,
                             overflow: TextOverflow.ellipsis,
@@ -318,7 +318,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                       ],
                     ),
                   ),
-                  Icon(Icons.edit, color: Colors.white.withOpacity(0.7), size: 20),
+                  Icon(Icons.edit, color: Colors.white.withValues(alpha: 0.7), size: 20),
                 ],
               )
             : const Row(
@@ -436,7 +436,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
       child: Container(
         padding: const EdgeInsets.all(12),
         decoration: BoxDecoration(
-          color: color.withOpacity(0.1),
+          color: color.withValues(alpha: 0.1),
           borderRadius: BorderRadius.circular(12),
         ),
         child: Column(
@@ -502,7 +502,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
               Container(
                 padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
                 decoration: BoxDecoration(
-                  color: const Color(0xFFFFB347).withOpacity(0.2),
+                  color: const Color(0xFFFFB347).withValues(alpha: 0.2),
                   borderRadius: BorderRadius.circular(12),
                 ),
                 child: Text(
@@ -630,7 +630,7 @@ Widget _buildJournalCard(JournalState journalState) {
                       padding: const EdgeInsets.symmetric(
                           horizontal: 8, vertical: 4),
                       decoration: BoxDecoration(
-                        color: const Color(0xFF4ECDC4).withOpacity(0.2),
+                        color: const Color(0xFF4ECDC4).withValues(alpha: 0.2),
                         borderRadius: BorderRadius.circular(12),
                       ),
                       child: Text(
@@ -757,7 +757,7 @@ Widget _buildJournalEntryItem(JournalEntry entry) {
               Container(
                 padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
                 decoration: BoxDecoration(
-                  color: const Color(0xFF667eea).withOpacity(0.2),
+                  color: const Color(0xFF667eea).withValues(alpha: 0.2),
                   borderRadius: BorderRadius.circular(12),
                 ),
                 child: Text(
@@ -936,7 +936,7 @@ Widget _buildJournalEntryItem(JournalEntry entry) {
                 padding:
                     const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
                 decoration: BoxDecoration(
-                  color: const Color(0xFF6BCB77).withOpacity(0.2),
+                  color: const Color(0xFF6BCB77).withValues(alpha: 0.2),
                   borderRadius: BorderRadius.circular(12),
                 ),
                 child: Text(
@@ -1204,7 +1204,7 @@ Widget _buildTaskItem(Task task) {
             Container(
               padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
               decoration: BoxDecoration(
-                color: const Color(0xFF4ECDC4).withOpacity(0.2),
+                color: const Color(0xFF4ECDC4).withValues(alpha: 0.2),
                 borderRadius: BorderRadius.circular(12),
               ),
               child: Text(

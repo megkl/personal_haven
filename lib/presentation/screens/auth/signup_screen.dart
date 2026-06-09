@@ -16,10 +16,10 @@ class SignUpScreen extends ConsumerStatefulWidget {
 class _SignUpScreenState extends ConsumerState<SignUpScreen> {
   bool _isLoading = false;
 
-  Future<void> _handleSocialSignUp(
-      Future<SocialAuthResult> Function() signIn) async {
-    setState(() => _isLoading = true);
-    final result = await signIn();
+  Future<void> _handleSocialSignUp(Future<SocialAuthResult> Function() signIn) async {
+  setState(() => _isLoading = true);
+  final result = await signIn();
+  print('SocialAuthResult: success=${result.success}, error=${result.error}'); 
     if (!mounted) return;
 
     if (result.success) {
@@ -59,7 +59,7 @@ class _SignUpScreenState extends ConsumerState<SignUpScreen> {
                 mainAxisAlignment: MainAxisAlignment.center,
                 children: [
                   Icon(Icons.spa,
-                      color: Colors.white.withOpacity(0.9), size: 28),
+                      color: Colors.white.withValues(alpha: 0.9), size: 28),
                   const SizedBox(width: 8),
                   const Text(
                     'Personal Haven',
@@ -187,7 +187,7 @@ class _SignUpScreenState extends ConsumerState<SignUpScreen> {
       'https://www.gstatic.com/firebasejs/ui/2.0.0/images/auth/google.svg',
       width: 22,
       height: 22,
-      errorBuilder: (_, __, ___) =>
+      errorBuilder: (_, _, _) =>
           const Icon(Icons.g_mobiledata, size: 22, color: Color(0xFF4285F4)),
     );
   }

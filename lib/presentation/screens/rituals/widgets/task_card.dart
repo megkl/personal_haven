@@ -53,8 +53,8 @@ class TasksCard extends ConsumerWidget {
                       ),
                       decoration: BoxDecoration(
                         color: pending > 0
-                            ? Colors.orange.withOpacity(0.2)
-                            : AppColors.primary.withOpacity(0.2),
+                            ? Colors.orange.withValues(alpha: 0.2)
+                            : AppColors.primary.withValues(alpha: 0.2),
                         borderRadius: BorderRadius.circular(12),
                       ),
                       child: Text(
@@ -141,7 +141,7 @@ class TasksCard extends ConsumerWidget {
         ),
         child: const Center(child: CircularProgressIndicator()),
       ),
-      error: (_, __) => Container(
+      error: (_, _) => Container(
         width: double.infinity,
         padding: const EdgeInsets.all(20),
         decoration: BoxDecoration(

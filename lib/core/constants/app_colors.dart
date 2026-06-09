@@ -66,7 +66,7 @@ class AppColors {
   static const Color borderDark = Color(0xFFBDBDBD);
 
   // Shadow Colors
-  static Color shadow = Colors.black.withOpacity(0.1);
-  static Color shadowLight = Colors.black.withOpacity(0.05);
-  static Color shadowDark = Colors.black.withOpacity(0.15);
+  static Color shadow = Colors.black.withValues(alpha: 0.1);
+  static Color shadowLight = Colors.black.withValues(alpha: 0.05);
+  static Color shadowDark = Colors.black.withValues(alpha: 0.15);
 }

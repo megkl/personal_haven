@@ -75,7 +75,7 @@ class BudgetScreen extends ConsumerWidget {
         boxShadow: [
           BoxShadow(
             color: (balance >= 0 ? const Color(0xFF4ECDC4) : Colors.red)
-                .withOpacity(0.3),
+                .withValues(alpha: 0.3),
             blurRadius: 15,
             offset: const Offset(0, 8),
           ),
@@ -96,7 +96,7 @@ class BudgetScreen extends ConsumerWidget {
                   vertical: 4,
                 ),
                 decoration: BoxDecoration(
-                  color: Colors.white.withOpacity(0.2),
+                  color: Colors.white.withValues(alpha: 0.2),
                   borderRadius: BorderRadius.circular(12),
                 ),
                 child: Text(
@@ -139,7 +139,7 @@ class BudgetScreen extends ConsumerWidget {
               Container(
                 width: 1,
                 height: 50,
-                color: Colors.white.withOpacity(0.2),
+                color: Colors.white.withValues(alpha: 0.2),
               ),
               Expanded(
                 child: _buildOverviewItem(
@@ -278,7 +278,7 @@ class BudgetScreen extends ConsumerWidget {
               borderRadius: BorderRadius.circular(12),
               boxShadow: [
                 BoxShadow(
-                  color: Colors.black.withOpacity(0.05),
+                  color: Colors.black.withValues(alpha: 0.05),
                   blurRadius: 5,
                   offset: const Offset(0, 2),
                 ),
@@ -430,7 +430,7 @@ class BudgetScreen extends ConsumerWidget {
           borderRadius: BorderRadius.circular(12),
           boxShadow: [
             BoxShadow(
-              color: Colors.black.withOpacity(0.03),
+              color: Colors.black.withValues(alpha: 0.03),
               blurRadius: 8,
               offset: const Offset(0, 2),
             ),
@@ -443,7 +443,7 @@ class BudgetScreen extends ConsumerWidget {
               width: 48,
               height: 48,
               decoration: BoxDecoration(
-                color: (isIncome ? Colors.green : Colors.red).withOpacity(0.1),
+                color: (isIncome ? Colors.green : Colors.red).withValues(alpha: 0.1),
                 borderRadius: BorderRadius.circular(12),
               ),
               child: Center(
@@ -613,7 +613,7 @@ class BudgetScreen extends ConsumerWidget {
     required VoidCallback onTap,
   }) {
     return Material(
-      color: color.withOpacity(0.1),
+      color: color.withValues(alpha: 0.1),
       borderRadius: BorderRadius.circular(16),
       child: InkWell(
         onTap: onTap,
@@ -667,8 +667,8 @@ class BudgetScreen extends ConsumerWidget {
               Container(
                 padding: const EdgeInsets.all(8),
                 decoration: BoxDecoration(
-                  color: (isIncome ? Colors.green : Colors.red).withOpacity(
-                    0.1,
+                  color: (isIncome ? Colors.green : Colors.red).withValues(
+                    alpha: 0.1,
                   ),
                   borderRadius: BorderRadius.circular(8),
                 ),
