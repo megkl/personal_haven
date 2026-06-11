@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'dart:ui' as ui;
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:intl/intl.dart';
 import 'package:personal_haven/core/constants/app_colors.dart';
@@ -16,6 +17,7 @@ import 'package:personal_haven/providers/goal_provider.dart';
 import 'package:personal_haven/providers/journal_provider.dart';
 import 'package:personal_haven/providers/mood_provider.dart';
 import 'package:personal_haven/providers/task_provider.dart';
+import 'package:personal_haven/presentation/screens/profile/main_navigation_screen.dart';
 
 class HomeScreen extends ConsumerStatefulWidget {
   const HomeScreen({super.key});
@@ -47,7 +49,11 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
   Future<void> _loadUserData() async {
     final prefs = await SharedPrefsHelper.getInstance();
     setState(() {
-      _userName = prefs.getFirstName() ?? prefs.getUsername() ?? 'Friend';
+      _userName = prefs.getUsername() ??
+          prefs.getFullName() ??
+          prefs.getFirstName() ??
+          prefs.getUserEmail() ??
+          'Friend';
       _avatarUrl = prefs.getAvatarUrl();
     });
   }
@@ -139,18 +145,20 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                       _buildMoodCard(moodState.todayMood),
                       const SizedBox(height: 16),
 
-                      // Today's Progress Summary
-                      _buildTodayProgressCard(
-                        moodState.todayMood,
-                        foodState,
-                        goalState,
-                      ),
-                      const SizedBox(height: 16),
-
                       // Affirmation
                       _buildAffirmationCard(),
+
                       const SizedBox(height: 16),
-                   
+
+                      // Today's Progress Summary
+                      _buildTodayProgressCard(
+                        journalState,
+                        taskState,
+                        goalState,
+                      ),
+
+                      const SizedBox(height: 16),
+
                       // Active Goals Section
                       if (goalState.activeGoals.isNotEmpty) ...[
                         _buildGoalsCard(goalState),
@@ -261,88 +269,116 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
   }
 
   Widget _buildMoodCard(MoodLog? todayMood) {
+    final baseColor = todayMood != null
+        ? MoodOptions.getByEmoji(todayMood.moodEmoji)?.color ?? AppColors.primary
+        : AppColors.primary;
+
     return GestureDetector(
       onTap: _showMoodSelector,
-      child: Container(
-        width: double.infinity,
-        padding: const EdgeInsets.all(20),
-        decoration: BoxDecoration(
-          color: todayMood != null
-              ? MoodOptions.getByEmoji(todayMood.moodEmoji)?.color ??
-                  AppColors.primary
-              : AppColors.primary,
-          borderRadius: BorderRadius.circular(16),
-          boxShadow: [
-            BoxShadow(
-              color: Colors.black.withValues(alpha: 0.1),
-              blurRadius: 10,
-              offset: const Offset(0, 4),
+      child: ClipRRect(
+        borderRadius: BorderRadius.circular(16),
+        child: Stack(
+          children: [
+            // Frosted blur backdrop
+            Positioned.fill(
+              child: BackdropFilter(
+                filter: ui.ImageFilter.blur(sigmaX: 14, sigmaY: 14),
+                child: Container(color: Colors.transparent),
+              ),
             ),
-          ],
-        ),
-        child: todayMood != null
-            ? Row(
-                children: [
-                  Text(todayMood.moodEmoji, style: const TextStyle(fontSize: 40)),
-                  const SizedBox(width: 16),
-                  Expanded(
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
+
+            // Glass card
+            Container(
+              width: double.infinity,
+              padding: const EdgeInsets.all(20),
+              decoration: BoxDecoration(
+                gradient: LinearGradient(
+                  colors: [
+                    baseColor.withOpacity(0.22),
+                    baseColor.withOpacity(0.10),
+                  ],
+                  begin: Alignment.topLeft,
+                  end: Alignment.bottomRight,
+                ),
+                borderRadius: BorderRadius.circular(16),
+                border: Border.all(color: Colors.white.withOpacity(0.12)),
+                boxShadow: [
+                  BoxShadow(
+                    color: Colors.black.withOpacity(0.08),
+                    blurRadius: 20,
+                    offset: const Offset(0, 8),
+                  ),
+                ],
+              ),
+              child: todayMood != null
+                  ? Row(
                       children: [
-                        Text(
-                          "Today's Mood",
-                          style: TextStyle(
-                            fontSize: 12,
-                            color: Colors.white.withValues(alpha: 0.8),
+                        Text(todayMood.moodEmoji,
+                            style: const TextStyle(fontSize: 40)),
+                        const SizedBox(width: 16),
+                        Expanded(
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Text(
+                                "Today's Mood",
+                                style: TextStyle(
+                                  fontSize: 12,
+                                  color: Colors.white.withOpacity(0.9),
+                                ),
+                              ),
+                              Text(
+                                todayMood.moodLabel ?? '',
+                                style: const TextStyle(
+                                  fontSize: 20,
+                                  fontWeight: FontWeight.bold,
+                                  color: Colors.white,
+                                ),
+                              ),
+                              if (todayMood.notes != null &&
+                                  todayMood.notes!.isNotEmpty)
+                                Text(
+                                  '"${todayMood.notes}"',
+                                  style: TextStyle(
+                                    fontSize: 12,
+                                    fontStyle: FontStyle.italic,
+                                    color: Colors.white.withOpacity(0.9),
+                                  ),
+                                  maxLines: 1,
+                                  overflow: TextOverflow.ellipsis,
+                                ),
+                            ],
                           ),
                         ),
+                        Icon(Icons.edit,
+                            color: Colors.white.withOpacity(0.85), size: 20),
+                      ],
+                    )
+                  : Row(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
                         Text(
-                          todayMood.moodLabel ?? '',
-                          style: const TextStyle(
-                            fontSize: 20,
-                            fontWeight: FontWeight.bold,
+                          'How are you feeling?',
+                          style: TextStyle(
+                            fontSize: 18,
+                            fontWeight: FontWeight.w600,
                             color: Colors.white,
                           ),
                         ),
-                        if (todayMood.notes != null && todayMood.notes!.isNotEmpty)
-                          Text(
-                            '"${todayMood.notes}"',
-                            style: TextStyle(
-                              fontSize: 12,
-                              fontStyle: FontStyle.italic,
-                              color: Colors.white.withValues(alpha: 0.9),
-                            ),
-                            maxLines: 1,
-                            overflow: TextOverflow.ellipsis,
-                          ),
+                        const SizedBox(width: 12),
+                        const Text('😊', style: TextStyle(fontSize: 28)),
                       ],
                     ),
-                  ),
-                  Icon(Icons.edit, color: Colors.white.withValues(alpha: 0.7), size: 20),
-                ],
-              )
-            : const Row(
-                mainAxisAlignment: MainAxisAlignment.center,
-                children: [
-                  Text(
-                    'How are you feeling?',
-                    style: TextStyle(
-                      fontSize: 18,
-                      fontWeight: FontWeight.w600,
-                      color: Colors.white,
-                    ),
-                  ),
-                  SizedBox(width: 12),
-                  Text('😊', style: TextStyle(fontSize: 28)),
-                ],
-              ),
+            ),
+          ],
+        ),
       ),
     );
   }
 
   Widget _buildTodayProgressCard(
-    MoodLog? todayMood,
-    FoodState foodState,
+    JournalState? journalState,
+    TaskState taskState,
     GoalState goalState,
   ) {
     return Container(
@@ -378,38 +414,62 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
           Row(
             children: [
               _buildStatItem(
-                emoji: todayMood?.moodEmoji ?? '😐',
-                label: 'Mood',
-                value: todayMood?.moodLabel ?? 'Not set',
+                emoji: '🌱',
+                label: 'Tasks',
+                value: '${taskState.completedCount}' ?? '0',
                 color: const Color(0xFFFF9A9E),
+                onTap: () {
+                  Navigator.pushReplacement(
+                    context,
+                    MaterialPageRoute(
+                      builder: (_) => const MainNavigationScreen(currentIndex: 3),
+                    ),
+                  );
+                },
               ),
               const SizedBox(width: 12),
               _buildStatItem(
-                emoji: '🍽️',
-                label: 'Calories',
-                value: '${foodState.todayCalories}',
+                emoji: '✍️',
+                label: 'Journals',
+                value: '${journalState?.todayEntries.length}' ?? '0',
                 color: const Color(0xFFFFB347),
+                onTap: () {
+                  Navigator.pushReplacement(
+                    context,
+                    MaterialPageRoute(
+                      builder: (_) => const MainNavigationScreen(currentIndex: 1),
+                    ),
+                  );
+                },
               ),
               const SizedBox(width: 12),
               _buildStatItem(
-                emoji: '🎯',
+                emoji: '💪',
                 label: 'Goals',
                 value: '${goalState.activeCount} active',
                 color: const Color(0xFF667eea),
+                onTap: () {
+                  Navigator.pushReplacement(
+                    context,
+                    MaterialPageRoute(
+                      builder: (_) => const MainNavigationScreen(currentIndex: 2),
+                    ),
+                  );
+                },
               ),
             ],
           ),
-          if (foodState.todayEntries.isNotEmpty ||
+          if (taskState.pendingCount > 0 ||
               goalState.activeGoals.isNotEmpty) ...[
             const SizedBox(height: 16),
             const Divider(),
             const SizedBox(height: 8),
             Row(
               children: [
-                if (foodState.todayEntries.isNotEmpty)
+                if (taskState.pendingCount > 0)
                   Expanded(
                     child: Text(
-                      '${foodState.todayEntries.length} meals logged',
+                      '${taskState.pendingCount} tasks pending',
                       style: TextStyle(fontSize: 12, color: Colors.grey.shade600),
                     ),
                   ),
@@ -431,16 +491,22 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
     required String label,
     required String value,
     required Color color,
+    VoidCallback? onTap,
   }) {
     return Expanded(
-      child: Container(
-        padding: const EdgeInsets.all(12),
-        decoration: BoxDecoration(
-          color: color.withValues(alpha: 0.1),
+      child: Material(
+        color: Colors.transparent,
+        child: InkWell(
+          onTap: onTap,
           borderRadius: BorderRadius.circular(12),
-        ),
-        child: Column(
-          children: [
+          child: Container(
+            padding: const EdgeInsets.all(12),
+            decoration: BoxDecoration(
+              color: color.withValues(alpha: 0.1),
+              borderRadius: BorderRadius.circular(12),
+            ),
+            child: Column(
+              children: [
             Text(emoji, style: const TextStyle(fontSize: 24)),
             const SizedBox(height: 4),
             Text(
@@ -463,6 +529,8 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
           ],
         ),
       ),
+    )
+      )
     );
   }
 
@@ -526,9 +594,14 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
             Center(
               child: TextButton(
                 onPressed: () {
-                  // Navigate to food diary
+                  Navigator.pushReplacement(
+                    context,
+                    MaterialPageRoute(
+                      builder: (_) => const MainNavigationScreen(currentIndex: 3),
+                    ),
+                  );
                 },
-                child: Text(
+                child: Text(                     
                   'View all ${foodState.todayEntries.length} entries →',
                   style: const TextStyle(color: AppColors.primary),
                 ),

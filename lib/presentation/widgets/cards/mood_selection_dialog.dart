@@ -92,10 +92,13 @@ class _MoodSelectionDialogState extends State<MoodSelectionDialog> {
                 final isSelected = _selectedMood?.emoji == mood.emoji;
 
                 return GestureDetector(
-                  onTap: () {
+                  onTap: () async {
                     setState(() {
                       _selectedMood = mood;
                     });
+                    if (_noteController.text.trim().isEmpty) {
+                      await _saveMood();
+                    }
                   },
                   child: AnimatedContainer(
                     duration: const Duration(milliseconds: 200),
