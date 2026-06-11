@@ -2,6 +2,8 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:personal_haven/data/models/food_entry.dart';
 import 'package:personal_haven/data/repositories/food_repository.dart';
 import 'package:personal_haven/providers/auth_provider.dart';
+import 'package:riverpod_annotation/riverpod_annotation.dart';
+part 'food_provider.g.dart';
 
 final foodRepositoryProvider = Provider<FoodRepository>((ref) {
   return FoodRepository();
@@ -88,12 +90,18 @@ class FoodState {
   }
 }
 
-class FoodNotifier extends StateNotifier<FoodState> {
-  final FoodRepository _repository;
-  final String _userId;
 
-  FoodNotifier(this._repository, this._userId) : super(FoodState()) {
-    loadEntries();
+
+@riverpod
+class FoodNotifier extends _$FoodNotifier {
+  final FoodRepository _repository = FoodRepository();
+  late final String _userId;
+
+  @override
+  FoodState build() {
+    // replaces the constructor — runs on first use
+    Future.microtask(loadEntries);
+    return FoodState();
   }
 
   Future<void> loadEntries() async {
@@ -170,12 +178,6 @@ class FoodNotifier extends StateNotifier<FoodState> {
     state = state.copyWith(error: null);
   }
 }
-
-final foodProvider = StateNotifierProvider<FoodNotifier, FoodState>((ref) {
-  final repository = ref.watch(foodRepositoryProvider);
-  final userId = ref.watch(currentUserIdProvider);
-  return FoodNotifier(repository, userId);
-});
 
 // Additional providers for specific data
 final todayCaloriesProvider = Provider<int>((ref) {

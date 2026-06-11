@@ -3,7 +3,8 @@ import 'package:personal_haven/data/models/goal.dart';
 import 'package:personal_haven/data/repositories/goal_repository.dart';
 import 'package:personal_haven/providers/auth_provider.dart';
 import 'package:personal_haven/services/notification_service.dart';
-
+import 'package:riverpod_annotation/riverpod_annotation.dart';
+part 'goal_provider.g.dart';
 final goalRepositoryProvider = Provider<GoalRepository>((ref) {
   return GoalRepository();
 });
@@ -70,12 +71,18 @@ class GoalState {
   }
 }
 
-class GoalNotifier extends StateNotifier<GoalState> {
-  final GoalRepository _repository;
-  final String _userId;
 
-  GoalNotifier(this._repository, this._userId) : super(GoalState()) {
-    loadGoals();
+
+@riverpod
+class GoalNotifier extends _$GoalNotifier {
+  final GoalRepository _repository = GoalRepository();
+  late final String _userId;
+
+  @override
+  GoalState build() {
+    // replaces the constructor — runs on first use
+    Future.microtask(loadGoals);
+    return GoalState();
   }
 
   Future<void> loadGoals() async {
@@ -211,12 +218,6 @@ class GoalNotifier extends StateNotifier<GoalState> {
     state = state.copyWith(error: null);
   }
 }
-
-final goalProvider = StateNotifierProvider<GoalNotifier, GoalState>((ref) {
-  final repository = ref.watch(goalRepositoryProvider);
-  final userId = ref.watch(currentUserIdProvider);
-  return GoalNotifier(repository, userId);
-});
 
 // Additional providers
 final activeGoalsProvider = Provider<List<Goal>>((ref) {

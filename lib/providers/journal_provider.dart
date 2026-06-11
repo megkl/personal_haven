@@ -2,7 +2,8 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:personal_haven/data/models/journal_entry.dart';
 import 'package:personal_haven/data/repositories/journal_repository.dart';
 import 'package:personal_haven/providers/auth_provider.dart';
-
+import 'package:riverpod_annotation/riverpod_annotation.dart';
+part 'journal_provider.g.dart';
 /// Provider for JournalRepository
 final journalRepositoryProvider = Provider<JournalRepository>((ref) {
   return JournalRepository();
@@ -101,13 +102,16 @@ class JournalState {
   }
 }
 
-/// Journal State Notifier
-class JournalNotifier extends StateNotifier<JournalState> {
-  final JournalRepository _repository;
-  final String _userId;
 
-  JournalNotifier(this._repository, this._userId) : super(JournalState()) {
-    loadEntries();
+@riverpod
+class JournalNotifier extends _$JournalNotifier {
+  final JournalRepository _repository = JournalRepository();
+  late final String _userId;
+  @override
+  JournalState build() {
+    // replaces the constructor — runs on first use
+    Future.microtask(loadEntries);
+    return JournalState();
   }
 
   // ─────────────────────────────────────────────────────────────
@@ -298,14 +302,6 @@ class JournalNotifier extends StateNotifier<JournalState> {
 // PROVIDERS
 // ─────────────────────────────────────────────────────────────
 
-/// Main journal provider
-final journalProvider =
-    StateNotifierProvider<JournalNotifier, JournalState>((ref) {
-  final repository = ref.watch(journalRepositoryProvider);
-  final userId = ref.watch(currentUserIdProvider);
-
-  return JournalNotifier(repository, userId);
-});
 
 /// Provider for today's entry count
 final todayEntryCountProvider = FutureProvider<int>((ref) async {

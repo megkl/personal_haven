@@ -601,7 +601,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                     ),
                   );
                 },
-                child: Text(                     
+                child: Text(
                   'View all ${foodState.todayEntries.length} entries →',
                   style: const TextStyle(color: AppColors.primary),
                 ),

@@ -18,8 +18,7 @@ class SubscriptionScreen extends ConsumerStatefulWidget {
 
 class _SubscriptionScreenState extends ConsumerState<SubscriptionScreen> {
   SubscriptionPlan _selectedPlan = SubscriptionPlan.monthly;
-  PaymentMethod _selectedMethod =
-      IAPService.isAvailable ? PaymentMethod.appStore : PaymentMethod.mpesa;
+  PaymentMethod _selectedMethod = PaymentMethod.mpesa;
   final _phoneController = TextEditingController();
   bool _isProcessing = false;
   bool _isRestoring = false;
@@ -46,7 +45,7 @@ class _SubscriptionScreenState extends ConsumerState<SubscriptionScreen> {
           _showUsdtInfo();
           break;
         case PaymentMethod.appStore:
-          await _handleIAP();
+          //await _handleIAP();
           break;
       }
     } finally {
@@ -85,76 +84,76 @@ class _SubscriptionScreenState extends ConsumerState<SubscriptionScreen> {
     }
   }
 
-  Future<void> _handleIAP() async {
-    final productId = _selectedPlan == SubscriptionPlan.monthly
-        ? IAPProducts.monthlyId
-        : IAPProducts.weeklyId;
+  // Future<void> _handleIAP() async {
+  //   final productId = _selectedPlan == SubscriptionPlan.monthly
+  //       ? IAPProducts.monthlyId
+  //       : IAPProducts.weeklyId;
 
-    final result = await IAPService.instance.purchase(productId);
-    if (!mounted) return;
+  //   final result = await IAPService.instance.purchase(productId);
+  //   if (!mounted) return;
 
-    if (result.success) {
-      await ref.read(subscriptionProvider.notifier).activatePaid(
-            plan: _selectedPlan,
-            paymentMethod: PaymentMethod.appStore,
-            transactionRef: result.transactionId ?? productId,
-          );
-      if (mounted) {
-        Navigator.pop(context);
-        _showSuccess();
-      }
-    } else {
-      _showError(result.error ?? 'Purchase failed');
-    }
-  }
+  //   if (result.success) {
+  //     await ref.read(subscriptionProvider.notifier).activatePaid(
+  //           plan: _selectedPlan,
+  //           paymentMethod: PaymentMethod.appStore,
+  //           transactionRef: result.transactionId ?? productId,
+  //         );
+  //     if (mounted) {
+  //       Navigator.pop(context);
+  //       _showSuccess();
+  //     }
+  //   } else {
+  //     _showError(result.error ?? 'Purchase failed');
+  //   }
+  // }
 
-  Future<void> _restorePurchases() async {
-    setState(() => _isRestoring = true);
-    try {
-      final purchases = await IAPService.instance.restorePurchases();
-      if (!mounted) return;
+  // Future<void> _restorePurchases() async {
+  //   setState(() => _isRestoring = true);
+  //   try {
+  //     final purchases = await IAPService.instance.restorePurchases();
+  //     if (!mounted) return;
 
-      if (purchases.isEmpty) {
-        _showError('No previous purchases found');
-        return;
-      }
+  //     if (purchases.isEmpty) {
+  //       _showError('No previous purchases found');
+  //       return;
+  //     }
 
-      // Find the most recent active subscription
-      final monthly = purchases.any(
-          (p) => p.productId == IAPProducts.monthlyId);
-      final weekly =
-          purchases.any((p) => p.productId == IAPProducts.weeklyId);
+  //     // Find the most recent active subscription
+  //     final monthly = purchases.any(
+  //         (p) => p.productId == IAPProducts.monthlyId);
+  //     final weekly =
+  //         purchases.any((p) => p.productId == IAPProducts.weeklyId);
 
-      final plan = monthly
-          ? SubscriptionPlan.monthly
-          : weekly
-              ? SubscriptionPlan.weekly
-              : null;
+  //     final plan = monthly
+  //         ? SubscriptionPlan.monthly
+  //         : weekly
+  //             ? SubscriptionPlan.weekly
+  //             : null;
 
-      if (plan == null) {
-        _showError('No active subscription found to restore');
-        return;
-      }
+  //     if (plan == null) {
+  //       _showError('No active subscription found to restore');
+  //       return;
+  //     }
 
-      final latest = purchases.firstWhere(
-          (p) => p.productId == IAPProducts.monthlyId || p.productId == IAPProducts.weeklyId);
+  //     final latest = purchases.firstWhere(
+  //         (p) => p.productId == IAPProducts.monthlyId || p.productId == IAPProducts.weeklyId);
 
-      await ref.read(subscriptionProvider.notifier).activatePaid(
-            plan: plan,
-            paymentMethod: PaymentMethod.appStore,
-            transactionRef: latest.transactionId ?? 'restored',
-          );
+  //     await ref.read(subscriptionProvider.notifier).activatePaid(
+  //           plan: plan,
+  //           paymentMethod: PaymentMethod.appStore,
+  //           transactionRef: latest.transactionId ?? 'restored',
+  //         );
 
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
-          content: Text('✅ Subscription restored successfully'),
-          backgroundColor: AppColors.primary,
-        ));
-      }
-    } finally {
-      if (mounted) setState(() => _isRestoring = false);
-    }
-  }
+  //     if (mounted) {
+  //       ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
+  //         content: Text('✅ Subscription restored successfully'),
+  //         backgroundColor: AppColors.primary,
+  //       ));
+  //     }
+  //   } finally {
+  //     if (mounted) setState(() => _isRestoring = false);
+  //   }
+  // }
 
   void _showMpesaWaiting(String checkoutRequestId) {    showDialog(
       context: context,
@@ -324,10 +323,10 @@ class _SubscriptionScreenState extends ConsumerState<SubscriptionScreen> {
                       fontWeight: FontWeight.bold,
                       color: AppColors.textPrimary)),
               const SizedBox(height: 12),
-              _PaymentMethodSelector(
-                selected: _selectedMethod,
-                onChanged: (m) => setState(() => _selectedMethod = m),
-              ),
+              // _PaymentMethodSelector(
+              //   selected: _selectedMethod,
+              //   onChanged: (m) => setState(() => _selectedMethod = m),
+              // ),
               const SizedBox(height: 16),
 
               // App Store / Play Store note
@@ -414,22 +413,22 @@ class _SubscriptionScreenState extends ConsumerState<SubscriptionScreen> {
               ),
               const SizedBox(height: 24),
 
-              // Restore purchases (App Store requirement)
-              if (IAPService.isAvailable)
-                Center(
-                  child: TextButton.icon(
-                    onPressed: _isRestoring ? null : _restorePurchases,
-                    icon: _isRestoring
-                        ? const SizedBox(
-                            width: 14,
-                            height: 14,
-                            child: CircularProgressIndicator(strokeWidth: 2))
-                        : const Icon(Icons.restore, size: 18),
-                    label: const Text('Restore Purchases'),
-                    style: TextButton.styleFrom(
-                        foregroundColor: AppColors.textSecondary),
-                  ),
-                ),
+              // // Restore purchases (App Store requirement)
+              // if (IAPService.isAvailable)
+              //   Center(
+              //     child: TextButton.icon(
+              //       onPressed: _isRestoring ? null : _restorePurchases,
+              //       icon: _isRestoring
+              //           ? const SizedBox(
+              //               width: 14,
+              //               height: 14,
+              //               child: CircularProgressIndicator(strokeWidth: 2))
+              //           : const Icon(Icons.restore, size: 18),
+              //       label: const Text('Restore Purchases'),
+              //       style: TextButton.styleFrom(
+              //           foregroundColor: AppColors.textSecondary),
+              //     ),
+              //   ),
 
               const SizedBox(height: 16),
 
@@ -594,7 +593,7 @@ class _PaymentMethodSelector extends StatelessWidget {
       spacing: 10,
       runSpacing: 10,
       children: [
-        if (IAPService.isAvailable)
+        //if (IAPService.isAvailable)
           _MethodChip(
             label: Platform.isIOS ? 'App Store' : 'Play Store',
             icon: Platform.isIOS ? '🍎' : '▶',

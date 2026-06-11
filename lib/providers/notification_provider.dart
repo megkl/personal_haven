@@ -1,7 +1,8 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:personal_haven/services/notification_service.dart';
+import 'package:riverpod_annotation/riverpod_annotation.dart';
 import 'package:shared_preferences/shared_preferences.dart';
-
+part 'notification_provider.g.dart';
 class NotificationPrefs {
   final bool masterEnabled;
   final bool dailyReminders;
@@ -74,11 +75,15 @@ class NotificationPrefs {
       );
 }
 
-class NotificationNotifier extends StateNotifier<NotificationPrefs> {
-  static const _prefix = 'notif_';
 
-  NotificationNotifier() : super(const NotificationPrefs()) {
-    _load();
+@riverpod
+class NotificationNotifier extends _$NotificationNotifier {
+  static const _prefix = 'notif_';
+  @override
+  NotificationPrefs build() {
+    // replaces the constructor — runs on first use
+    Future.microtask(_load);
+    return NotificationPrefs();
   }
 
   Future<void> _load() async {
@@ -153,6 +158,3 @@ class NotificationNotifier extends StateNotifier<NotificationPrefs> {
   }
 }
 
-final notificationProvider =
-    StateNotifierProvider<NotificationNotifier, NotificationPrefs>(
-        (ref) => NotificationNotifier());

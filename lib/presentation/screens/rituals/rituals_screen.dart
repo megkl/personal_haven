@@ -120,17 +120,6 @@ class _RitualsScreenState extends State<RitualsScreen>
           ],
         ),
       ),
-       floatingActionButton: _currentIndex == 0 ? FloatingActionButton(
-        onPressed: () {
-          Navigator.push(
-            context,
-            MaterialPageRoute(builder: (_) => const AddTaskScreen()),
-          );
-        },
-        backgroundColor: AppColors.primary,
-        child: const Icon(Icons.add, color: Colors.white),
-      ):null,
-    
     );
   }
 }

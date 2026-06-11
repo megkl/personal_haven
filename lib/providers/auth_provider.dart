@@ -4,7 +4,9 @@ import 'package:personal_haven/data/repositories/subscription_repository.dart';
 import 'package:personal_haven/data/repositories/user_repository.dart';
 import 'package:personal_haven/data/data_sources/local/shared_prefs_helper.dart';
 import 'package:personal_haven/services/social_auth_service.dart';
+import 'package:riverpod_annotation/riverpod_annotation.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+part 'auth_provider.g.dart';
 
 class AuthState {
   final bool isAuthenticated;
@@ -34,9 +36,13 @@ class AuthState {
   }
 }
 
-class AuthNotifier extends StateNotifier<AuthState> {
-  AuthNotifier() : super(AuthState()) {
-    checkAuthStatus();
+
+@riverpod
+class AuthNotifier extends _$AuthNotifier {
+  @override
+  AuthState build() {
+    Future.microtask(checkAuthStatus);
+    return AuthState();
   }
 
   Future<void> checkAuthStatus() async {
@@ -121,9 +127,6 @@ class AuthNotifier extends StateNotifier<AuthState> {
 
   void clearError() => state = state.copyWith(error: null);
 }
-
-final authProvider =
-StateNotifierProvider<AuthNotifier, AuthState>((ref) => AuthNotifier());
 
 final currentUserIdProvider = Provider<String>((ref) {
   return ref.watch(authProvider).userId ??

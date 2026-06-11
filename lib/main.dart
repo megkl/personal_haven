@@ -4,6 +4,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:personal_haven/app_initializer.dart';
 import 'package:personal_haven/core/constants/app_colors.dart';
 import 'package:personal_haven/services/notification_service.dart';
+import 'package:personal_haven/services/social_auth_service.dart';
 import 'firebase_options.dart';
 
 void main() async {
@@ -12,6 +13,8 @@ void main() async {
     options: DefaultFirebaseOptions.currentPlatform,
   );
   await NotificationService.instance.initialize();
+  // Initialize Google Sign-In for use throughout the app
+  await SocialAuthService.instance.initializeGoogle();
   runApp(const ProviderScope(child: PersonalHavenApp()));
 }
 

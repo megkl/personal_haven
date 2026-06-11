@@ -3,7 +3,8 @@ import 'package:personal_haven/data/models/mood_log.dart';
 import 'package:personal_haven/data/repositories/mood_repository.dart';
 import 'package:personal_haven/providers/auth_provider.dart';
 import 'package:personal_haven/services/notification_service.dart';
-
+import 'package:riverpod_annotation/riverpod_annotation.dart';
+part 'mood_provider.g.dart';
 final moodRepositoryProvider = Provider<MoodRepository>((ref) {
   return MoodRepository();
 });
@@ -36,12 +37,16 @@ class MoodState {
   }
 }
 
-class MoodNotifier extends StateNotifier<MoodState> {
-  final MoodRepository _repository;
-  final String _userId;
+@riverpod
+class MoodNotifier extends _$MoodNotifier {
+  final MoodRepository _repository = MoodRepository();
+  late final String _userId;
 
-  MoodNotifier(this._repository, this._userId) : super(MoodState()) {
-    loadTodayMood();
+  @override
+  MoodState build() {
+    // replaces the constructor — runs on first use
+    Future.microtask(loadTodayMood);
+    return MoodState();
   }
 
   Future<void> loadTodayMood() async {
@@ -80,12 +85,6 @@ class MoodNotifier extends StateNotifier<MoodState> {
     }
   }
 }
-
-final moodProvider = StateNotifierProvider<MoodNotifier, MoodState>((ref) {
-  final repository = ref.watch(moodRepositoryProvider);
-  final userId = ref.watch(currentUserIdProvider);
-  return MoodNotifier(repository, userId);
-});
 
 final weekMoodStatsProvider = FutureProvider<Map<String, int>>((ref) async {
   final repository = ref.watch(moodRepositoryProvider);

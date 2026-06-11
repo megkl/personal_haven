@@ -2,7 +2,8 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:personal_haven/data/models/transaction.dart';
 import 'package:personal_haven/data/repositories/budget_repository.dart';
 import 'package:personal_haven/providers/auth_provider.dart';
-
+import 'package:riverpod_annotation/riverpod_annotation.dart';
+part 'budget_provider.g.dart';
 // ─────────────────────────────────────────────────────────────
 // Repository Provider
 // ─────────────────────────────────────────────────────────────
@@ -78,13 +79,16 @@ class TransactionState {
 // Transaction Notifier
 // ─────────────────────────────────────────────────────────────
 
-class TransactionNotifier extends StateNotifier<TransactionState> {
-  final TransactionRepository _repository;
-  final String _userId;
+@riverpod
+class TransactionNotifier extends _$TransactionNotifier {
+  final TransactionRepository _repository = TransactionRepository();
+  late final String _userId;
 
-  TransactionNotifier(this._repository, this._userId)
-      : super(TransactionState()) {
-    loadTransactions();
+  @override
+  TransactionState build() {
+    // replaces the constructor — runs on first use
+    Future.microtask(loadTransactions);
+    return TransactionState();
   }
 
   /// Load all transactions for current month
@@ -251,13 +255,6 @@ class TransactionNotifier extends StateNotifier<TransactionState> {
 // ─────────────────────────────────────────────────────────────
 // Providers
 // ─────────────────────────────────────────────────────────────
-
-final transactionProvider =
-    StateNotifierProvider<TransactionNotifier, TransactionState>((ref) {
-  final repository = ref.watch(transactionRepositoryProvider);
-  final userId = ref.watch(currentUserIdProvider);
-  return TransactionNotifier(repository, userId);
-});
 
 /// Provider for monthly totals
 final monthlyTotalsProvider = FutureProvider<Map<String, double>>((ref) async {

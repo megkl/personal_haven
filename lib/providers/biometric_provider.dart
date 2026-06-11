@@ -1,5 +1,8 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:personal_haven/services/biometric_service.dart';
+import 'package:riverpod_annotation/riverpod_annotation.dart';
+
+part 'biometric_provider.g.dart';
 
 class BiometricState {
   final bool isAvailable;
@@ -29,14 +32,19 @@ class BiometricState {
   }
 }
 
-class BiometricNotifier extends StateNotifier<BiometricState> {
-  final _service = BiometricService.instance;
+@riverpod
+class BiometricNotifier extends _$BiometricNotifier {
+      final _service = BiometricService.instance;
 
-  BiometricNotifier() : super(const BiometricState()) {
-    _load();
+  @override
+  BiometricState build() {
+    // replaces the constructor — runs on first use
+    Future.microtask(_load);
+    return BiometricState();
   }
 
   Future<void> _load() async {
+
     final available = await _service.isAvailable();
     final enabled = await _service.isEnabled();
     final label = await _service.getBiometricLabel();
@@ -68,6 +76,4 @@ class BiometricNotifier extends StateNotifier<BiometricState> {
   Future<void> refresh() => _load();
 }
 
-final biometricProvider =
-    StateNotifierProvider<BiometricNotifier, BiometricState>(
-        (ref) => BiometricNotifier());
+
