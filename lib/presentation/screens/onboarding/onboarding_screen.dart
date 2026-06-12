@@ -41,7 +41,7 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: const Color(0xFFF0F4F3),
+      backgroundColor: Theme.of(context).scaffoldBackgroundColor,
       body: SafeArea(
         child: Column(
           children: [
@@ -54,9 +54,7 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
                     onPressed: _finishOnboarding,
                     child: const Text(
                       'Skip',
-                      style: TextStyle(
-                        
-                        color: Color(0xFF666666), fontSize: 16),
+                      style: TextStyle(color: Color(0xFF666666), fontSize: 16),
                     ),
                   ),
                 ],

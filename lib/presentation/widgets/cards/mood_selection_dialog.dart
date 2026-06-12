@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:personal_haven/core/theme/app_theme.dart';
 import 'package:personal_haven/data/data_sources/local/shared_prefs_helper.dart';
 import 'package:personal_haven/data/models/mood_log.dart';
 import 'package:uuid/uuid.dart';
@@ -6,10 +7,7 @@ import 'package:uuid/uuid.dart';
 class MoodSelectionDialog extends StatefulWidget {
   final MoodLog? currentMood;
 
-  const MoodSelectionDialog({
-    super.key,
-    this.currentMood,
-  });
+  const MoodSelectionDialog({super.key, this.currentMood});
 
   @override
   State<MoodSelectionDialog> createState() => _MoodSelectionDialogState();
@@ -42,7 +40,7 @@ class _MoodSelectionDialogState extends State<MoodSelectionDialog> {
       child: Container(
         padding: const EdgeInsets.all(24),
         decoration: BoxDecoration(
-          color: Colors.white,
+          color: context.colors.cardColor,
           borderRadius: BorderRadius.circular(24),
         ),
         child: Column(
@@ -52,7 +50,7 @@ class _MoodSelectionDialogState extends State<MoodSelectionDialog> {
             Row(
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
-                const Text(
+                Text(
                   'How are you feeling?',
                   style: TextStyle(
                     fontSize: 20,
@@ -62,17 +60,14 @@ class _MoodSelectionDialogState extends State<MoodSelectionDialog> {
                 ),
                 IconButton(
                   onPressed: () => Navigator.pop(context),
-                  icon: const Icon(Icons.close, color: Color(0xFF9E9E9E)),
+                  icon: Icon(Icons.close, color: Color(0xFF9E9E9E)),
                 ),
               ],
             ),
             const SizedBox(height: 8),
-            const Text(
+            Text(
               'Select the emoji that best describes your mood',
-              style: TextStyle(
-                fontSize: 14,
-                color: Color(0xFF666666),
-              ),
+              style: TextStyle(fontSize: 14, color: Color(0xFF666666)),
             ),
             const SizedBox(height: 24),
 
@@ -105,7 +100,7 @@ class _MoodSelectionDialogState extends State<MoodSelectionDialog> {
                     decoration: BoxDecoration(
                       color: isSelected
                           ? mood.color.withValues(alpha: 0.3)
-                          : Colors.grey.withValues(alpha: 0.1),
+                          : context.colors.cardColor2,
                       borderRadius: BorderRadius.circular(12),
                       border: Border.all(
                         color: isSelected ? mood.color : Colors.transparent,
@@ -115,17 +110,15 @@ class _MoodSelectionDialogState extends State<MoodSelectionDialog> {
                     child: Column(
                       mainAxisAlignment: MainAxisAlignment.center,
                       children: [
-                        Text(
-                          mood.emoji,
-                          style: const TextStyle(fontSize: 24),
-                        ),
+                        Text(mood.emoji, style: TextStyle(fontSize: 24)),
                         const SizedBox(height: 4),
                         Text(
                           mood.label,
                           style: TextStyle(
                             fontSize: 9,
-                            fontWeight:
-                                isSelected ? FontWeight.w600 : FontWeight.normal,
+                            fontWeight: isSelected
+                                ? FontWeight.w600
+                                : FontWeight.normal,
                             color: isSelected
                                 ? const Color(0xFF2D3E40)
                                 : const Color(0xFF9E9E9E),
@@ -145,7 +138,10 @@ class _MoodSelectionDialogState extends State<MoodSelectionDialog> {
             // Selected mood indicator
             if (_selectedMood != null)
               Container(
-                padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 16,
+                  vertical: 8,
+                ),
                 decoration: BoxDecoration(
                   color: _selectedMood!.color.withValues(alpha: 0.2),
                   borderRadius: BorderRadius.circular(20),
@@ -153,10 +149,7 @@ class _MoodSelectionDialogState extends State<MoodSelectionDialog> {
                 child: Row(
                   mainAxisSize: MainAxisSize.min,
                   children: [
-                    Text(
-                      _selectedMood!.emoji,
-                      style: const TextStyle(fontSize: 20),
-                    ),
+                    Text(_selectedMood!.emoji, style: TextStyle(fontSize: 20)),
                     const SizedBox(width: 8),
                     Text(
                       'Feeling ${_selectedMood!.label}',
@@ -178,15 +171,15 @@ class _MoodSelectionDialogState extends State<MoodSelectionDialog> {
               maxLength: 200,
               decoration: InputDecoration(
                 hintText: 'Add a note about how you\'re feeling (optional)',
-                hintStyle: const TextStyle(color: Color(0xFF9E9E9E), fontSize: 14),
+                hintStyle: TextStyle(color: Color(0xFF9E9E9E), fontSize: 14),
                 filled: true,
-                fillColor: Colors.grey.withValues(alpha: 0.1),
+                fillColor: context.colors.cardColor2,
                 border: OutlineInputBorder(
                   borderRadius: BorderRadius.circular(12),
                   borderSide: BorderSide.none,
                 ),
                 contentPadding: const EdgeInsets.all(16),
-                counterStyle: const TextStyle(fontSize: 10),
+                counterStyle: TextStyle(fontSize: 10),
               ),
             ),
             const SizedBox(height: 20),
@@ -198,15 +191,16 @@ class _MoodSelectionDialogState extends State<MoodSelectionDialog> {
                 onPressed: _selectedMood != null ? _saveMood : null,
                 style: ElevatedButton.styleFrom(
                   backgroundColor: const Color(0xFF4ECDC4),
-                  disabledBackgroundColor:
-                      const Color(0xFF4ECDC4).withValues(alpha: 0.5),
+                  disabledBackgroundColor: const Color(
+                    0xFF4ECDC4,
+                  ).withValues(alpha: 0.5),
                   padding: const EdgeInsets.symmetric(vertical: 16),
                   shape: RoundedRectangleBorder(
                     borderRadius: BorderRadius.circular(12),
                   ),
                   elevation: 0,
                 ),
-                child: const Text(
+                child: Text(
                   'Save Mood',
                   style: TextStyle(
                     fontSize: 16,
@@ -240,7 +234,9 @@ class _MoodSelectionDialogState extends State<MoodSelectionDialog> {
       moodLabel: _selectedMood!.label,
       moodEmoji: _selectedMood!.emoji,
       timestamp: DateTime.now(),
-      notes: _noteController.text.isNotEmpty ? _noteController.text.trim() : null,
+      notes: _noteController.text.isNotEmpty
+          ? _noteController.text.trim()
+          : null,
     );
 
     Navigator.pop(context, mood);

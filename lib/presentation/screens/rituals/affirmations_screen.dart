@@ -1,7 +1,8 @@
 import 'package:flutter/material.dart';
+import 'package:personal_haven/core/theme/app_theme.dart';
 import 'package:personal_haven/core/constants/app_colors.dart';
 
-class AffirmationsScreen extends  StatefulWidget {
+class AffirmationsScreen extends StatefulWidget {
   const AffirmationsScreen({super.key});
 
   @override
@@ -45,7 +46,7 @@ class _AffirmationsScreenState extends State<AffirmationsScreen> {
     final filteredAffirmations = _getFilteredAffirmations();
 
     return Scaffold(
-      backgroundColor: AppColors.background,
+      backgroundColor: Theme.of(context).scaffoldBackgroundColor,
       body: Column(
         children: [
           _buildDailyAffirmation(),
@@ -55,7 +56,10 @@ class _AffirmationsScreenState extends State<AffirmationsScreen> {
               padding: const EdgeInsets.all(16),
               itemCount: filteredAffirmations.length,
               itemBuilder: (context, index) {
-                return _buildAffirmationCard(filteredAffirmations[index], index);
+                return _buildAffirmationCard(
+                  filteredAffirmations[index],
+                  index,
+                );
               },
             ),
           ),
@@ -66,7 +70,7 @@ class _AffirmationsScreenState extends State<AffirmationsScreen> {
           _showAddAffirmationDialog();
         },
         backgroundColor: AppColors.primary,
-        child: const Icon(Icons.add, color: Colors.white),
+        child: Icon(Icons.add, color: Colors.white),
       ),
     );
   }
@@ -107,7 +111,7 @@ class _AffirmationsScreenState extends State<AffirmationsScreen> {
             ],
           ),
           const SizedBox(height: 16),
-          const Text(
+          Text(
             '"You are capable of amazing things"',
             style: TextStyle(
               fontSize: 18,
@@ -123,12 +127,12 @@ class _AffirmationsScreenState extends State<AffirmationsScreen> {
             children: [
               IconButton(
                 onPressed: () {},
-                icon: const Icon(Icons.share, color: Colors.white),
+                icon: Icon(Icons.share, color: Colors.white),
               ),
               const SizedBox(width: 8),
               IconButton(
                 onPressed: () {},
-                icon: const Icon(Icons.favorite_border, color: Colors.white),
+                icon: Icon(Icons.favorite_border, color: Colors.white),
               ),
             ],
           ),
@@ -138,7 +142,13 @@ class _AffirmationsScreenState extends State<AffirmationsScreen> {
   }
 
   Widget _buildFilterBar() {
-    final categories = ['All', 'Motivation', 'Positivity', 'Self-Love', 'Wellness'];
+    final categories = [
+      'All',
+      'Motivation',
+      'Positivity',
+      'Self-Love',
+      'Wellness',
+    ];
 
     return Column(
       children: [
@@ -147,28 +157,32 @@ class _AffirmationsScreenState extends State<AffirmationsScreen> {
           child: Row(
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
-              const Text(
+              Text(
                 'Affirmations',
                 style: TextStyle(
                   fontSize: 20,
                   fontWeight: FontWeight.bold,
-                  color: AppColors.textPrimary,
+                  color: context.colors.textPrimary,
                 ),
               ),
               FilterChip(
-                label: const Text('Favorites'),
+                label: Text('Favorites'),
                 selected: _showFavoritesOnly,
                 onSelected: (selected) {
                   setState(() => _showFavoritesOnly = selected);
                 },
                 selectedColor: AppColors.primary,
                 labelStyle: TextStyle(
-                  color: _showFavoritesOnly ? Colors.white : AppColors.textPrimary,
+                  color: _showFavoritesOnly
+                      ? Colors.white
+                      : context.colors.textPrimary,
                 ),
                 avatar: Icon(
                   Icons.favorite,
                   size: 16,
-                  color: _showFavoritesOnly ? Colors.white : Colors.grey,
+                  color: _showFavoritesOnly
+                      ? Colors.white
+                      : context.colors.textSecondary,
                 ),
               ),
             ],
@@ -184,7 +198,7 @@ class _AffirmationsScreenState extends State<AffirmationsScreen> {
             itemBuilder: (context, index) {
               final category = categories[index];
               final isSelected = _selectedCategory == category;
-              
+
               return Padding(
                 padding: const EdgeInsets.only(right: 8),
                 child: ChoiceChip(
@@ -195,11 +209,15 @@ class _AffirmationsScreenState extends State<AffirmationsScreen> {
                       setState(() => _selectedCategory = category);
                     }
                   },
-                  backgroundColor: Colors.white,
+                  backgroundColor: context.colors.cardColor,
                   selectedColor: AppColors.primary,
                   labelStyle: TextStyle(
-                    color: isSelected ? Colors.white : AppColors.textPrimary,
-                    fontWeight: isSelected ? FontWeight.w600 : FontWeight.normal,
+                    color: isSelected
+                        ? Colors.white
+                        : context.colors.textPrimary,
+                    fontWeight: isSelected
+                        ? FontWeight.w600
+                        : FontWeight.normal,
                   ),
                 ),
               );
@@ -216,11 +234,11 @@ class _AffirmationsScreenState extends State<AffirmationsScreen> {
       margin: const EdgeInsets.only(bottom: 12),
       padding: const EdgeInsets.all(20),
       decoration: BoxDecoration(
-        color: Colors.white,
+        color: context.colors.cardColor,
         borderRadius: BorderRadius.circular(16),
         boxShadow: [
           BoxShadow(
-            color: Colors.grey.shade200,
+            color: context.colors.divider,
             blurRadius: 4,
             offset: const Offset(0, 2),
           ),
@@ -232,14 +250,17 @@ class _AffirmationsScreenState extends State<AffirmationsScreen> {
           Row(
             children: [
               Container(
-                padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 12,
+                  vertical: 4,
+                ),
                 decoration: BoxDecoration(
                   color: AppColors.primary.withValues(alpha: 0.1),
                   borderRadius: BorderRadius.circular(12),
                 ),
                 child: Text(
                   affirmation['category'] as String,
-                  style: const TextStyle(
+                  style: TextStyle(
                     fontSize: 12,
                     fontWeight: FontWeight.w600,
                     color: AppColors.primary,
@@ -254,7 +275,7 @@ class _AffirmationsScreenState extends State<AffirmationsScreen> {
                       : Icons.favorite_border,
                   color: affirmation['isFavorite'] as bool
                       ? Colors.red
-                      : Colors.grey,
+                      : context.colors.textSecondary,
                 ),
                 onPressed: () {
                   setState(() {
@@ -267,9 +288,9 @@ class _AffirmationsScreenState extends State<AffirmationsScreen> {
           const SizedBox(height: 12),
           Text(
             affirmation['text'] as String,
-            style: const TextStyle(
+            style: TextStyle(
               fontSize: 16,
-              color: AppColors.textPrimary,
+              color: context.colors.textPrimary,
               height: 1.5,
             ),
           ),
@@ -286,7 +307,9 @@ class _AffirmationsScreenState extends State<AffirmationsScreen> {
     }
 
     if (_selectedCategory != 'All') {
-      filtered = filtered.where((a) => a['category'] == _selectedCategory).toList();
+      filtered = filtered
+          .where((a) => a['category'] == _selectedCategory)
+          .toList();
     }
 
     return filtered;

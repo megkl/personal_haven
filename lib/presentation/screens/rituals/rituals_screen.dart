@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
+import 'package:personal_haven/core/theme/app_theme.dart';
 import 'package:personal_haven/core/constants/app_colors.dart';
-import 'package:personal_haven/presentation/screens/rituals/calendar_screen.dart';
+import 'package:personal_haven/presentation/screens/rituals/events_screen.dart';
 import 'package:personal_haven/presentation/screens/rituals/tasks_screen.dart';
 
 class RitualsScreen extends StatefulWidget {
@@ -12,17 +13,18 @@ class RitualsScreen extends StatefulWidget {
 
 class _RitualsScreenState extends State<RitualsScreen>
     with SingleTickerProviderStateMixin {
-  late TabController _tabController;
-  int _currentIndex = 0;
+  late final TabController _tabController;
+
+  static const _tabs = [_TabData('Tasks'), _TabData('Events')];
 
   @override
   void initState() {
     super.initState();
-    _tabController = TabController(length: 2, vsync: this);
-    _tabController.addListener(() {
-      if (_tabController.indexIsChanging) return;
-      setState(() => _currentIndex = _tabController.index);
-    });
+    _tabController = TabController(
+      length: _tabs.length,
+      vsync: this,
+      animationDuration: const Duration(milliseconds: 280),
+    );
   }
 
   @override
@@ -34,7 +36,7 @@ class _RitualsScreenState extends State<RitualsScreen>
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: AppColors.background,
+      backgroundColor: Theme.of(context).scaffoldBackgroundColor,
       body: Column(
         children: [
           _buildHeader(),
@@ -42,9 +44,10 @@ class _RitualsScreenState extends State<RitualsScreen>
           Expanded(
             child: TabBarView(
               controller: _tabController,
+              physics: const BouncingScrollPhysics(),
               children: const [
-                TasksScreen(),
-                CalendarScreen(),
+                TasksScreen(key: PageStorageKey('rituals-tasks')),
+                EventsScreen(key: PageStorageKey('rituals-events')),
               ],
             ),
           ),
@@ -61,12 +64,10 @@ class _RitualsScreenState extends State<RitualsScreen>
           end: Alignment.bottomRight,
           colors: [AppColors.primary, AppColors.primaryDark],
         ),
-        borderRadius: const BorderRadius.vertical(
-          bottom: Radius.circular(28),
-        ),
+        borderRadius: const BorderRadius.vertical(bottom: Radius.circular(28)),
         boxShadow: [
           BoxShadow(
-            color: AppColors.primary.withOpacity(0.3),
+            color: AppColors.primary.withValues(alpha: 0.3),
             blurRadius: 20,
             offset: const Offset(0, 8),
           ),
@@ -81,7 +82,7 @@ class _RitualsScreenState extends State<RitualsScreen>
               Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  const Text(
+                  Text(
                     'Rituals',
                     style: TextStyle(
                       fontSize: 28,
@@ -93,7 +94,7 @@ class _RitualsScreenState extends State<RitualsScreen>
                     'Build your daily practice',
                     style: TextStyle(
                       fontSize: 13,
-                      color: Colors.white.withOpacity(0.8),
+                      color: Colors.white.withValues(alpha: 0.8),
                     ),
                   ),
                 ],
@@ -102,10 +103,10 @@ class _RitualsScreenState extends State<RitualsScreen>
               Container(
                 padding: const EdgeInsets.all(10),
                 decoration: BoxDecoration(
-                  color: Colors.white.withOpacity(0.2),
+                  color: context.colors.cardColor.withValues(alpha: 0.2),
                   shape: BoxShape.circle,
                 ),
-                child: const Icon(
+                child: Icon(
                   Icons.rice_bowl_outlined,
                   color: Colors.white,
                   size: 22,
@@ -119,68 +120,92 @@ class _RitualsScreenState extends State<RitualsScreen>
   }
 
   Widget _buildTabSelector() {
-    final tabs = [
-      _TabData('Tasks', Icons.check_circle_outline),
-      _TabData('Calendar', Icons.calendar_today_outlined),
-    ];
-
     return Container(
+      height: 52,
       margin: const EdgeInsets.fromLTRB(20, 16, 20, 8),
       padding: const EdgeInsets.all(4),
       decoration: BoxDecoration(
-        color: Colors.white,
+        color: context.colors.cardColor,
         borderRadius: BorderRadius.circular(16),
+        border: Border.all(color: context.colors.divider),
         boxShadow: [
           BoxShadow(
-            color: Colors.black.withOpacity(0.06),
+            color: Colors.black.withValues(alpha: context.isDark ? 0.18 : 0.05),
             blurRadius: 12,
-            offset: const Offset(0, 2),
+            offset: const Offset(0, 3),
           ),
         ],
       ),
-      child: Row(
-        children: tabs.asMap().entries.map((entry) {
-          final i = entry.key;
-          final tab = entry.value;
-          final isSelected = _currentIndex == i;
+      child: LayoutBuilder(
+        builder: (context, constraints) {
+          final tabWidth = constraints.maxWidth / _tabs.length;
 
-          return Expanded(
-            child: GestureDetector(
-              onTap: () => _tabController.animateTo(i),
-              child: AnimatedContainer(
-                duration: const Duration(milliseconds: 250),
-                curve: Curves.easeInOut,
-                padding: const EdgeInsets.symmetric(vertical: 10),
-                decoration: BoxDecoration(
-                  color: isSelected ? AppColors.primary : Colors.transparent,
-                  borderRadius: BorderRadius.circular(12),
-                ),
-                child: Row(
-                  mainAxisAlignment: MainAxisAlignment.center,
-                  children: [
-                    Icon(
-                      tab.icon,
-                      size: 16,
-                      color: isSelected ? Colors.white : Colors.grey.shade500,
-                    ),
-                    const SizedBox(width: 6),
-                    Text(
-                      tab.label,
-                      style: TextStyle(
-                        fontSize: 13,
-                        fontWeight: isSelected
-                            ? FontWeight.bold
-                            : FontWeight.normal,
-                        color:
-                            isSelected ? Colors.white : Colors.grey.shade600,
+          return AnimatedBuilder(
+            animation: _tabController.animation!,
+            builder: (context, _) {
+              final position = _tabController.animation!.value.clamp(
+                0.0,
+                (_tabs.length - 1).toDouble(),
+              );
+              final selectedIndex = position.round();
+
+              return Stack(
+                children: [
+                  Positioned(
+                    left: position * tabWidth,
+                    top: 0,
+                    bottom: 0,
+                    width: tabWidth,
+                    child: DecoratedBox(
+                      decoration: BoxDecoration(
+                        color: AppColors.primary,
+                        borderRadius: BorderRadius.circular(12),
                       ),
                     ),
-                  ],
-                ),
-              ),
-            ),
+                  ),
+                  Row(
+                    children: _tabs.asMap().entries.map((entry) {
+                      final index = entry.key;
+                      final tab = entry.value;
+                      final isSelected = selectedIndex == index;
+
+                      return Expanded(
+                        child: Semantics(
+                          button: true,
+                          selected: isSelected,
+                          label: '${tab.label} rituals tab',
+                          child: InkWell(
+                            borderRadius: BorderRadius.circular(12),
+                            onTap: () => _tabController.animateTo(
+                              index,
+                              duration: const Duration(milliseconds: 280),
+                              curve: Curves.easeOutCubic,
+                            ),
+                            child: Center(
+                              child: Text(
+                                tab.label,
+                                textAlign: TextAlign.center,
+                                style: TextStyle(
+                                  fontSize: 13,
+                                  fontWeight: isSelected
+                                      ? FontWeight.w700
+                                      : FontWeight.w500,
+                                  color: isSelected
+                                      ? Colors.white
+                                      : context.colors.textSecondary,
+                                ),
+                              ),
+                            ),
+                          ),
+                        ),
+                      );
+                    }).toList(),
+                  ),
+                ],
+              );
+            },
           );
-        }).toList(),
+        },
       ),
     );
   }
@@ -188,6 +213,5 @@ class _RitualsScreenState extends State<RitualsScreen>
 
 class _TabData {
   final String label;
-  final IconData icon;
-  const _TabData(this.label, this.icon);
+  const _TabData(this.label);
 }

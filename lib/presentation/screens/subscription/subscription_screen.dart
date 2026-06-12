@@ -2,6 +2,7 @@ import 'dart:async';
 import 'dart:io';
 
 import 'package:flutter/material.dart';
+import 'package:personal_haven/core/theme/app_theme.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:personal_haven/core/constants/app_colors.dart';
 import 'package:personal_haven/data/models/subscription.dart';
@@ -155,14 +156,17 @@ class _SubscriptionScreenState extends ConsumerState<SubscriptionScreen> {
   //   }
   // }
 
-  void _showMpesaWaiting(String checkoutRequestId) {    showDialog(
+  void _showMpesaWaiting(String checkoutRequestId) {
+    showDialog(
       context: context,
       barrierDismissible: false,
       builder: (_) => _MpesaWaitingDialog(
         checkoutRequestId: checkoutRequestId,
         plan: _selectedPlan,
         onSuccess: (ref) async {
-          await ref.read(subscriptionProvider.notifier).activatePaid(
+          await ref
+              .read(subscriptionProvider.notifier)
+              .activatePaid(
                 plan: _selectedPlan,
                 paymentMethod: PaymentMethod.mpesa,
                 transactionRef: checkoutRequestId,
@@ -174,7 +178,8 @@ class _SubscriptionScreenState extends ConsumerState<SubscriptionScreen> {
           }
         },
         onFailed: () {
-          if (mounted) _showError('Payment was not completed. Please try again.');
+          if (mounted)
+            _showError('Payment was not completed. Please try again.');
         },
       ),
     );
@@ -184,8 +189,8 @@ class _SubscriptionScreenState extends ConsumerState<SubscriptionScreen> {
     showDialog(
       context: context,
       builder: (_) => AlertDialog(
-        title: const Text('Card Payment'),
-        content: const Text(
+        title: Text('Card Payment'),
+        content: Text(
           'Card payments are processed via our secure payment gateway.\n\n'
           'You will be redirected to complete your payment.\n\n'
           'Coming soon — contact support@personalhaven.app to pay by card.',
@@ -193,7 +198,7 @@ class _SubscriptionScreenState extends ConsumerState<SubscriptionScreen> {
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(context),
-            child: const Text('OK'),
+            child: Text('OK'),
           ),
         ],
       ),
@@ -204,12 +209,12 @@ class _SubscriptionScreenState extends ConsumerState<SubscriptionScreen> {
     showDialog(
       context: context,
       builder: (_) => AlertDialog(
-        title: const Text('Pay with USDT'),
+        title: Text('Pay with USDT'),
         content: Column(
           mainAxisSize: MainAxisSize.min,
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            const Text('Send USDT (TRC-20) to:'),
+            Text('Send USDT (TRC-20) to:'),
             const SizedBox(height: 8),
             Container(
               padding: const EdgeInsets.all(12),
@@ -220,25 +225,30 @@ class _SubscriptionScreenState extends ConsumerState<SubscriptionScreen> {
               child: const SelectableText(
                 'YOUR_USDT_WALLET_ADDRESS',
                 style: TextStyle(
-                    fontFamily: 'monospace', fontWeight: FontWeight.bold),
+                  fontFamily: 'monospace',
+                  fontWeight: FontWeight.bold,
+                ),
               ),
             ),
             const SizedBox(height: 12),
             Text(
               'Amount: \$${(Subscription.priceFor(_selectedPlan) / 130).toStringAsFixed(2)} USDT',
-              style: const TextStyle(fontWeight: FontWeight.w600),
+              style: TextStyle(fontWeight: FontWeight.w600),
             ),
             const SizedBox(height: 8),
-            const Text(
+            Text(
               'After sending, email your transaction hash to:\nsupport@personalhaven.app',
-              style: TextStyle(fontSize: 12, color: AppColors.textSecondary),
+              style: TextStyle(
+                fontSize: 12,
+                color: context.colors.textSecondary,
+              ),
             ),
           ],
         ),
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(context),
-            child: const Text('Close'),
+            child: Text('Close'),
           ),
         ],
       ),
@@ -246,15 +256,18 @@ class _SubscriptionScreenState extends ConsumerState<SubscriptionScreen> {
   }
 
   void _showError(String msg) {
-    ScaffoldMessenger.of(context)
-        .showSnackBar(SnackBar(content: Text(msg), backgroundColor: Colors.red));
+    ScaffoldMessenger.of(
+      context,
+    ).showSnackBar(SnackBar(content: Text(msg), backgroundColor: Colors.red));
   }
 
   void _showSuccess() {
-    ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
-      content: Text('🎉 Subscription activated! Enjoy Personal Haven.'),
-      backgroundColor: AppColors.primary,
-    ));
+    ScaffoldMessenger.of(context).showSnackBar(
+      const SnackBar(
+        content: Text('🎉 Subscription activated! Enjoy Personal Haven.'),
+        backgroundColor: AppColors.primary,
+      ),
+    );
   }
 
   String? _normalisePhone(String phone) {
@@ -274,9 +287,9 @@ class _SubscriptionScreenState extends ConsumerState<SubscriptionScreen> {
     final subState = ref.watch(subscriptionProvider);
 
     return Scaffold(
-      backgroundColor: AppColors.background,
+      backgroundColor: Theme.of(context).scaffoldBackgroundColor,
       appBar: AppBar(
-        title: const Text('Personal Haven Premium'),
+        title: Text('Personal Haven Premium'),
         backgroundColor: AppColors.primary,
         foregroundColor: Colors.white,
       ),
@@ -294,11 +307,14 @@ class _SubscriptionScreenState extends ConsumerState<SubscriptionScreen> {
               const SizedBox(height: 24),
 
               // Plan selector
-              const Text('Choose a Plan',
-                  style: TextStyle(
-                      fontSize: 18,
-                      fontWeight: FontWeight.bold,
-                      color: AppColors.textPrimary)),
+              Text(
+                'Choose a Plan',
+                style: TextStyle(
+                  fontSize: 18,
+                  fontWeight: FontWeight.bold,
+                  color: context.colors.textPrimary,
+                ),
+              ),
               const SizedBox(height: 12),
               _PlanCard(
                 plan: SubscriptionPlan.monthly,
@@ -317,11 +333,14 @@ class _SubscriptionScreenState extends ConsumerState<SubscriptionScreen> {
               const SizedBox(height: 24),
 
               // Payment method
-              const Text('Payment Method',
-                  style: TextStyle(
-                      fontSize: 18,
-                      fontWeight: FontWeight.bold,
-                      color: AppColors.textPrimary)),
+              Text(
+                'Payment Method',
+                style: TextStyle(
+                  fontSize: 18,
+                  fontWeight: FontWeight.bold,
+                  color: context.colors.textPrimary,
+                ),
+              ),
               const SizedBox(height: 12),
               // _PaymentMethodSelector(
               //   selected: _selectedMethod,
@@ -351,7 +370,9 @@ class _SubscriptionScreenState extends ConsumerState<SubscriptionScreen> {
                               ? 'Billed through your Apple ID. Manage in Settings → Apple ID → Subscriptions.'
                               : 'Billed through Google Play. Manage in Play Store → Subscriptions.',
                           style: TextStyle(
-                              fontSize: 12, color: Colors.blue.shade700),
+                            fontSize: 12,
+                            color: Colors.blue.shade700,
+                          ),
                         ),
                       ),
                     ],
@@ -361,16 +382,16 @@ class _SubscriptionScreenState extends ConsumerState<SubscriptionScreen> {
               ],
 
               // Phone field for M-Pesa
-              if (_selectedMethod == PaymentMethod.mpesa) ...[                TextField(
+              if (_selectedMethod == PaymentMethod.mpesa) ...[
+                TextField(
                   controller: _phoneController,
                   keyboardType: TextInputType.phone,
                   decoration: InputDecoration(
                     labelText: 'M-Pesa Phone Number',
                     hintText: '07XX XXX XXX',
-                    prefixIcon:
-                        const Icon(Icons.phone, color: AppColors.primary),
+                    prefixIcon: Icon(Icons.phone, color: AppColors.primary),
                     filled: true,
-                    fillColor: Colors.white,
+                    fillColor: context.colors.cardColor,
                     border: OutlineInputBorder(
                       borderRadius: BorderRadius.circular(12),
                       borderSide: BorderSide.none,
@@ -378,10 +399,12 @@ class _SubscriptionScreenState extends ConsumerState<SubscriptionScreen> {
                   ),
                 ),
                 const SizedBox(height: 8),
-                const Text(
+                Text(
                   'You will receive an STK push on your phone to confirm payment.',
-                  style:
-                      TextStyle(fontSize: 12, color: AppColors.textSecondary),
+                  style: TextStyle(
+                    fontSize: 12,
+                    color: context.colors.textSecondary,
+                  ),
                 ),
                 const SizedBox(height: 16),
               ],
@@ -396,18 +419,24 @@ class _SubscriptionScreenState extends ConsumerState<SubscriptionScreen> {
                     backgroundColor: AppColors.primary,
                     foregroundColor: Colors.white,
                     shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(28)),
+                      borderRadius: BorderRadius.circular(28),
+                    ),
                   ),
                   child: _isProcessing
                       ? const SizedBox(
                           width: 24,
                           height: 24,
                           child: CircularProgressIndicator(
-                              color: Colors.white, strokeWidth: 2))
+                            color: Colors.white,
+                            strokeWidth: 2,
+                          ),
+                        )
                       : Text(
                           'Subscribe — ${Subscription.labelFor(_selectedPlan)}',
-                          style: const TextStyle(
-                              fontSize: 16, fontWeight: FontWeight.w600),
+                          style: TextStyle(
+                            fontSize: 16,
+                            fontWeight: FontWeight.w600,
+                          ),
                         ),
                 ),
               ),
@@ -423,13 +452,12 @@ class _SubscriptionScreenState extends ConsumerState<SubscriptionScreen> {
               //               width: 14,
               //               height: 14,
               //               child: CircularProgressIndicator(strokeWidth: 2))
-              //           : const Icon(Icons.restore, size: 18),
-              //       label: const Text('Restore Purchases'),
+              //           : Icon(Icons.restore, size: 18),
+              //       label: Text('Restore Purchases'),
               //       style: TextButton.styleFrom(
-              //           foregroundColor: AppColors.textSecondary),
+              //           foregroundColor: context.colors.textSecondary),
               //     ),
               //   ),
-
               const SizedBox(height: 16),
 
               // Features list
@@ -463,11 +491,14 @@ class _HeroCard extends StatelessWidget {
         children: const [
           Icon(Icons.spa, color: Colors.white, size: 40),
           SizedBox(height: 12),
-          Text('Unlock Your Full Haven',
-              style: TextStyle(
-                  color: Colors.white,
-                  fontSize: 22,
-                  fontWeight: FontWeight.bold)),
+          Text(
+            'Unlock Your Full Haven',
+            style: TextStyle(
+              color: Colors.white,
+              fontSize: 22,
+              fontWeight: FontWeight.bold,
+            ),
+          ),
           SizedBox(height: 8),
           Text(
             'Journal, mood tracking, goals, budget, food diary, calendar — all in one safe space.',
@@ -500,7 +531,7 @@ class _PlanCard extends StatelessWidget {
         duration: const Duration(milliseconds: 200),
         padding: const EdgeInsets.all(16),
         decoration: BoxDecoration(
-          color: Colors.white,
+          color: context.colors.cardColor,
           borderRadius: BorderRadius.circular(14),
           border: Border.all(
             color: selected ? AppColors.primary : Colors.transparent,
@@ -509,9 +540,10 @@ class _PlanCard extends StatelessWidget {
           boxShadow: selected
               ? [
                   BoxShadow(
-                      color: AppColors.primary.withValues(alpha: 0.2),
-                      blurRadius: 8,
-                      offset: const Offset(0, 2))
+                    color: AppColors.primary.withValues(alpha: 0.2),
+                    blurRadius: 8,
+                    offset: const Offset(0, 2),
+                  ),
                 ]
               : [],
         ),
@@ -530,28 +562,32 @@ class _PlanCard extends StatelessWidget {
                   Row(
                     children: [
                       Text(
-                        plan == SubscriptionPlan.monthly
-                            ? 'Monthly'
-                            : 'Weekly',
-                        style: const TextStyle(
-                            fontSize: 16,
-                            fontWeight: FontWeight.bold,
-                            color: AppColors.textPrimary),
+                        plan == SubscriptionPlan.monthly ? 'Monthly' : 'Weekly',
+                        style: TextStyle(
+                          fontSize: 16,
+                          fontWeight: FontWeight.bold,
+                          color: context.colors.textPrimary,
+                        ),
                       ),
                       if (badge != null) ...[
                         const SizedBox(width: 8),
                         Container(
                           padding: const EdgeInsets.symmetric(
-                              horizontal: 8, vertical: 2),
+                            horizontal: 8,
+                            vertical: 2,
+                          ),
                           decoration: BoxDecoration(
                             color: AppColors.primary,
                             borderRadius: BorderRadius.circular(8),
                           ),
-                          child: Text(badge!,
-                              style: const TextStyle(
-                                  color: Colors.white,
-                                  fontSize: 10,
-                                  fontWeight: FontWeight.bold)),
+                          child: Text(
+                            badge!,
+                            style: TextStyle(
+                              color: Colors.white,
+                              fontSize: 10,
+                              fontWeight: FontWeight.bold,
+                            ),
+                          ),
                         ),
                       ],
                     ],
@@ -560,18 +596,21 @@ class _PlanCard extends StatelessWidget {
                     plan == SubscriptionPlan.monthly
                         ? 'KES 100 / month'
                         : 'KES 30 / week',
-                    style: const TextStyle(
-                        color: AppColors.textSecondary, fontSize: 13),
+                    style: TextStyle(
+                      color: context.colors.textSecondary,
+                      fontSize: 13,
+                    ),
                   ),
                 ],
               ),
             ),
             Text(
               plan == SubscriptionPlan.monthly ? 'KES 100' : 'KES 30',
-              style: const TextStyle(
-                  fontSize: 18,
-                  fontWeight: FontWeight.bold,
-                  color: AppColors.primary),
+              style: TextStyle(
+                fontSize: 18,
+                fontWeight: FontWeight.bold,
+                color: AppColors.primary,
+              ),
             ),
           ],
         ),
@@ -584,8 +623,10 @@ class _PaymentMethodSelector extends StatelessWidget {
   final PaymentMethod selected;
   final ValueChanged<PaymentMethod> onChanged;
 
-  const _PaymentMethodSelector(
-      {required this.selected, required this.onChanged});
+  const _PaymentMethodSelector({
+    required this.selected,
+    required this.onChanged,
+  });
 
   @override
   Widget build(BuildContext context) {
@@ -594,12 +635,12 @@ class _PaymentMethodSelector extends StatelessWidget {
       runSpacing: 10,
       children: [
         //if (IAPService.isAvailable)
-          _MethodChip(
-            label: Platform.isIOS ? 'App Store' : 'Play Store',
-            icon: Platform.isIOS ? '🍎' : '▶',
-            selected: selected == PaymentMethod.appStore,
-            onTap: () => onChanged(PaymentMethod.appStore),
-          ),
+        _MethodChip(
+          label: Platform.isIOS ? 'App Store' : 'Play Store',
+          icon: Platform.isIOS ? '🍎' : '▶',
+          selected: selected == PaymentMethod.appStore,
+          onTap: () => onChanged(PaymentMethod.appStore),
+        ),
         _MethodChip(
           label: 'M-Pesa',
           icon: '📱',
@@ -629,11 +670,12 @@ class _MethodChip extends StatelessWidget {
   final bool selected;
   final VoidCallback onTap;
 
-  const _MethodChip(
-      {required this.label,
-      required this.icon,
-      required this.selected,
-      required this.onTap});
+  const _MethodChip({
+    required this.label,
+    required this.icon,
+    required this.selected,
+    required this.onTap,
+  });
 
   @override
   Widget build(BuildContext context) {
@@ -646,17 +688,21 @@ class _MethodChip extends StatelessWidget {
           color: selected ? AppColors.primary : Colors.white,
           borderRadius: BorderRadius.circular(24),
           border: Border.all(
-              color: selected ? AppColors.primary : Colors.grey.shade300),
+            color: selected ? AppColors.primary : context.colors.divider,
+          ),
         ),
         child: Row(
           mainAxisSize: MainAxisSize.min,
           children: [
-            Text(icon, style: const TextStyle(fontSize: 16)),
+            Text(icon, style: TextStyle(fontSize: 16)),
             const SizedBox(width: 6),
-            Text(label,
-                style: TextStyle(
-                    color: selected ? Colors.white : AppColors.textPrimary,
-                    fontWeight: FontWeight.w600)),
+            Text(
+              label,
+              style: TextStyle(
+                color: selected ? Colors.white : context.colors.textPrimary,
+                fontWeight: FontWeight.w600,
+              ),
+            ),
           ],
         ),
       ),
@@ -681,30 +727,39 @@ class _FeaturesList extends StatelessWidget {
     return Container(
       padding: const EdgeInsets.all(20),
       decoration: BoxDecoration(
-        color: Colors.white,
+        color: context.colors.cardColor,
         borderRadius: BorderRadius.circular(16),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          const Text('What\'s included',
-              style: TextStyle(
-                  fontSize: 16,
-                  fontWeight: FontWeight.bold,
-                  color: AppColors.textPrimary)),
+          Text(
+            'What\'s included',
+            style: TextStyle(
+              fontSize: 16,
+              fontWeight: FontWeight.bold,
+              color: context.colors.textPrimary,
+            ),
+          ),
           const SizedBox(height: 12),
-          ..._features.map((f) => Padding(
-                padding: const EdgeInsets.only(bottom: 10),
-                child: Row(
-                  children: [
-                    Text(f.$1, style: const TextStyle(fontSize: 18)),
-                    const SizedBox(width: 12),
-                    Text(f.$2,
-                        style: const TextStyle(
-                            fontSize: 14, color: AppColors.textPrimary)),
-                  ],
-                ),
-              )),
+          ..._features.map(
+            (f) => Padding(
+              padding: const EdgeInsets.only(bottom: 10),
+              child: Row(
+                children: [
+                  Text(f.$1, style: TextStyle(fontSize: 18)),
+                  const SizedBox(width: 12),
+                  Text(
+                    f.$2,
+                    style: TextStyle(
+                      fontSize: 14,
+                      color: context.colors.textPrimary,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ),
         ],
       ),
     );
@@ -733,23 +788,28 @@ class _ActiveBanner extends StatelessWidget {
             children: [
               Icon(Icons.verified, color: Colors.white),
               SizedBox(width: 8),
-              Text('Premium Active',
-                  style: TextStyle(
-                      color: Colors.white,
-                      fontSize: 18,
-                      fontWeight: FontWeight.bold)),
+              Text(
+                'Premium Active',
+                style: TextStyle(
+                  color: Colors.white,
+                  fontSize: 18,
+                  fontWeight: FontWeight.bold,
+                ),
+              ),
             ],
           ),
           const SizedBox(height: 8),
           Text(
             '${Subscription.labelFor(sub.plan)} · ${sub.daysRemaining} days remaining',
-            style: const TextStyle(color: Colors.white70),
+            style: TextStyle(color: Colors.white70),
           ),
           if (sub.plan == SubscriptionPlan.free)
             const Padding(
               padding: EdgeInsets.only(top: 4),
-              child: Text('Free trial — subscribe to continue after expiry',
-                  style: TextStyle(color: Colors.white60, fontSize: 12)),
+              child: Text(
+                'Free trial — subscribe to continue after expiry',
+                style: TextStyle(color: Colors.white60, fontSize: 12),
+              ),
             ),
         ],
       ),
@@ -797,8 +857,9 @@ class _MpesaWaitingDialogState extends ConsumerState<_MpesaWaitingDialog> {
 
   Future<void> _poll() async {
     _attempts++;
-    final result = await MpesaService.instance
-        .queryStatus(widget.checkoutRequestId);
+    final result = await MpesaService.instance.queryStatus(
+      widget.checkoutRequestId,
+    );
 
     if (!mounted) return;
 
@@ -817,20 +878,21 @@ class _MpesaWaitingDialogState extends ConsumerState<_MpesaWaitingDialog> {
   @override
   Widget build(BuildContext context) {
     return AlertDialog(
-      title: const Text('Complete Payment'),
+      title: Text('Complete Payment'),
       content: Column(
         mainAxisSize: MainAxisSize.min,
         children: [
           const CircularProgressIndicator(color: AppColors.primary),
           const SizedBox(height: 16),
-          const Text(
+          Text(
             'Check your phone for the M-Pesa prompt and enter your PIN.',
             textAlign: TextAlign.center,
           ),
           const SizedBox(height: 8),
-          Text(_status,
-              style: const TextStyle(
-                  fontSize: 12, color: AppColors.textSecondary)),
+          Text(
+            _status,
+            style: TextStyle(fontSize: 12, color: context.colors.textSecondary),
+          ),
         ],
       ),
       actions: [
@@ -839,7 +901,7 @@ class _MpesaWaitingDialogState extends ConsumerState<_MpesaWaitingDialog> {
             _timer?.cancel();
             Navigator.pop(context);
           },
-          child: const Text('Cancel'),
+          child: Text('Cancel'),
         ),
       ],
     );

@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:personal_haven/core/theme/app_theme.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:personal_haven/presentation/screens/auth/signup_screen.dart';
 import 'package:personal_haven/presentation/screens/profile/main_navigation_screen.dart';
@@ -68,7 +69,8 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
   }
 
   Future<void> _handleSocialLogin(
-      Future<SocialAuthResult> Function() signIn) async {
+    Future<SocialAuthResult> Function() signIn,
+  ) async {
     setState(() => _isLoading = true);
     final result = await signIn();
     if (!mounted) return;
@@ -109,10 +111,13 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
               Row(
                 mainAxisAlignment: MainAxisAlignment.center,
                 children: [
-                  Icon(Icons.spa,
-                      color: Colors.white.withValues(alpha: 0.9), size: 32),
+                  Icon(
+                    Icons.spa,
+                    color: Colors.white.withValues(alpha: 0.9),
+                    size: 32,
+                  ),
                   const SizedBox(width: 12),
-                  const Text(
+                  Text(
                     'Personal Haven',
                     style: TextStyle(
                       fontSize: 24,
@@ -123,7 +128,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                 ],
               ),
               const Spacer(),
-              const Text(
+              Text(
                 'Welcome Back',
                 style: TextStyle(
                   fontSize: 32,
@@ -132,7 +137,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                 ),
               ),
               const SizedBox(height: 8),
-              const Text(
+              Text(
                 'Log in to your safe space',
                 style: TextStyle(fontSize: 16, color: Color(0xFF2D3E40)),
               ),
@@ -144,21 +149,24 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                   label: 'Continue with Google',
                   icon: _googleIcon(),
                   onTap: () => _handleSocialLogin(
-                      SocialAuthService.instance.signInWithGoogle),
+                    SocialAuthService.instance.signInWithGoogle,
+                  ),
                 ),
                 const SizedBox(height: 16),
                 _SocialButton(
                   label: 'Continue with Microsoft',
                   icon: _microsoftIcon(),
                   onTap: () => _handleSocialLogin(
-                      SocialAuthService.instance.signInWithMicrosoft),
+                    SocialAuthService.instance.signInWithMicrosoft,
+                  ),
                 ),
                 const SizedBox(height: 16),
                 _SocialButton(
                   label: 'Continue with Apple',
-                  icon: const Icon(Icons.apple, size: 22),
+                  icon: Icon(Icons.apple, size: 22),
                   onTap: () => _handleSocialLogin(
-                      SocialAuthService.instance.signInWithApple),
+                    SocialAuthService.instance.signInWithApple,
+                  ),
                 ),
                 if (_biometricAvailable) ...[
                   const SizedBox(height: 24),
@@ -167,7 +175,10 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                       Expanded(child: Divider(color: Color(0xFF2D3E40))),
                       Padding(
                         padding: EdgeInsets.symmetric(horizontal: 12),
-                        child: Text('or', style: TextStyle(color: Color(0xFF2D3E40))),
+                        child: Text(
+                          'or',
+                          style: TextStyle(color: Color(0xFF2D3E40)),
+                        ),
                       ),
                       Expanded(child: Divider(color: Color(0xFF2D3E40))),
                     ],
@@ -190,7 +201,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
               Row(
                 mainAxisAlignment: MainAxisAlignment.center,
                 children: [
-                  const Text(
+                  Text(
                     "Don't have an account? ",
                     style: TextStyle(color: Color(0xFF2D3E40)),
                   ),
@@ -199,7 +210,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                       context,
                       MaterialPageRoute(builder: (_) => const SignUpScreen()),
                     ),
-                    child: const Text(
+                    child: Text(
                       'Sign Up',
                       style: TextStyle(
                         color: Color(0xFF4ECDC4),
@@ -223,12 +234,12 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
       width: 22,
       height: 22,
       errorBuilder: (_, _, _) =>
-          const Icon(Icons.g_mobiledata, size: 22, color: Color(0xFF4285F4)),
+          Icon(Icons.g_mobiledata, size: 22, color: Color(0xFF4285F4)),
     );
   }
 
   Widget _microsoftIcon() {
-    return const Icon(Icons.window, size: 22, color: Color(0xFF00A4EF));
+    return Icon(Icons.window, size: 22, color: Color(0xFF00A4EF));
   }
 }
 
@@ -253,14 +264,14 @@ class _SocialButton extends StatelessWidget {
         icon: icon,
         label: Text(
           label,
-          style: const TextStyle(
+          style: TextStyle(
             fontSize: 16,
             fontWeight: FontWeight.w600,
             color: Color(0xFF2D3E40),
           ),
         ),
         style: OutlinedButton.styleFrom(
-          backgroundColor: Colors.white,
+          backgroundColor: context.colors.cardColor,
           side: BorderSide.none,
           shape: RoundedRectangleBorder(
             borderRadius: BorderRadius.circular(28),

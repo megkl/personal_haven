@@ -1,8 +1,8 @@
-
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:intl/intl.dart';
 import 'package:personal_haven/core/constants/app_colors.dart';
+import 'package:personal_haven/core/theme/app_theme.dart';
 import 'package:personal_haven/data/models/mood_log.dart';
 import 'package:personal_haven/providers/mood_provider.dart';
 
@@ -40,14 +40,14 @@ class MoodInsightsScreen extends ConsumerWidget {
         'emoji': '—',
         'label': 'No data',
         'percentage': '0%',
-        'color': Colors.grey.shade400,
+        'color': context.colors.textSecondary,
       });
     }
 
     return Scaffold(
-      backgroundColor: AppColors.background,
+      backgroundColor: Theme.of(context).scaffoldBackgroundColor,
       appBar: AppBar(
-        title: const Text('Mood Insights'),
+        title: Text('Mood Insights'),
         backgroundColor: AppColors.primary,
       ),
       body: Padding(
@@ -58,28 +58,28 @@ class MoodInsightsScreen extends ConsumerWidget {
               width: double.infinity,
               padding: const EdgeInsets.all(24),
               decoration: BoxDecoration(
-                color: Colors.white,
+                color: context.colors.cardColor,
                 borderRadius: BorderRadius.circular(16),
               ),
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  const Text(
+                  Text(
                     'This Week',
                     style: TextStyle(
                       fontSize: 20,
                       fontWeight: FontWeight.bold,
-                      color: AppColors.textPrimary,
+                      color: context.colors.textPrimary,
                     ),
                   ),
                   const SizedBox(height: 24),
                   if (moodState.isLoading)
                     const Center(child: CircularProgressIndicator())
                   else if (totalMoods == 0)
-                    const Center(
+                    Center(
                       child: Text(
                         'No moods saved yet. Log your mood from Home to start tracking.',
-                        style: TextStyle(color: AppColors.textSecondary),
+                        style: TextStyle(color: context.colors.textSecondary),
                         textAlign: TextAlign.center,
                       ),
                     )
@@ -88,6 +88,7 @@ class MoodInsightsScreen extends ConsumerWidget {
                       mainAxisAlignment: MainAxisAlignment.spaceAround,
                       children: moodStats.map((data) {
                         return _buildMoodStat(
+                          context,
                           data['emoji'] as String,
                           data['label'] as String,
                           data['percentage'] as String,
@@ -104,31 +105,33 @@ class MoodInsightsScreen extends ConsumerWidget {
                 width: double.infinity,
                 padding: const EdgeInsets.all(24),
                 decoration: BoxDecoration(
-                  color: Colors.white,
+                  color: context.colors.cardColor,
                   borderRadius: BorderRadius.circular(16),
                 ),
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    const Text(
+                    Text(
                       'Mood History',
                       style: TextStyle(
                         fontSize: 18,
                         fontWeight: FontWeight.bold,
-                        color: AppColors.textPrimary,
+                        color: context.colors.textPrimary,
                       ),
                     ),
                     const SizedBox(height: 16),
                     if (moodState.isLoading)
-                      const Expanded(
+                      Expanded(
                         child: Center(child: CircularProgressIndicator()),
                       )
                     else if (weekMoods.isEmpty)
-                      const Expanded(
+                      Expanded(
                         child: Center(
                           child: Text(
                             'No mood logs available yet.',
-                            style: TextStyle(color: AppColors.textSecondary),
+                            style: TextStyle(
+                              color: context.colors.textSecondary,
+                            ),
                             textAlign: TextAlign.center,
                           ),
                         ),
@@ -141,7 +144,7 @@ class MoodInsightsScreen extends ConsumerWidget {
                           separatorBuilder: (_, __) => const Divider(),
                           itemBuilder: (context, index) {
                             final mood = weekMoods[index];
-                            return _buildMoodHistoryItem(mood);
+                            return _buildMoodHistoryItem(context, mood);
                           },
                         ),
                       ),
@@ -156,6 +159,7 @@ class MoodInsightsScreen extends ConsumerWidget {
   }
 
   Widget _buildMoodStat(
+    BuildContext context,
     String emoji,
     String label,
     String percentage,
@@ -167,15 +171,12 @@ class MoodInsightsScreen extends ConsumerWidget {
         const SizedBox(height: 8),
         Text(
           label,
-          style: const TextStyle(
-            fontSize: 12,
-            color: AppColors.textSecondary,
-          ),
+          style: TextStyle(fontSize: 12, color: context.colors.textSecondary),
         ),
         const SizedBox(height: 4),
         Text(
           percentage,
-          style: const TextStyle(
+          style: TextStyle(
             fontSize: 16,
             fontWeight: FontWeight.bold,
             color: AppColors.primary,
@@ -185,7 +186,7 @@ class MoodInsightsScreen extends ConsumerWidget {
     );
   }
 
-  Widget _buildMoodHistoryItem(MoodLog mood) {
+  Widget _buildMoodHistoryItem(BuildContext context, MoodLog mood) {
     return Padding(
       padding: const EdgeInsets.symmetric(vertical: 12),
       child: Row(
@@ -195,14 +196,15 @@ class MoodInsightsScreen extends ConsumerWidget {
             width: 50,
             height: 50,
             decoration: BoxDecoration(
-              color: MoodOptions.getByEmoji(mood.moodEmoji)?.color.withOpacity(0.12) ?? AppColors.primary.withOpacity(0.12),
+              color:
+                  MoodOptions.getByEmoji(
+                    mood.moodEmoji,
+                  )?.color.withValues(alpha: 0.12) ??
+                  AppColors.primary.withValues(alpha: 0.12),
               shape: BoxShape.circle,
             ),
             alignment: Alignment.center,
-            child: Text(
-              mood.moodEmoji,
-              style: const TextStyle(fontSize: 24),
-            ),
+            child: Text(mood.moodEmoji, style: TextStyle(fontSize: 24)),
           ),
           const SizedBox(width: 16),
           Expanded(
@@ -210,28 +212,30 @@ class MoodInsightsScreen extends ConsumerWidget {
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Text(
-                  mood.moodLabel ?? MoodOptions.getByEmoji(mood.moodEmoji)?.label ?? 'Mood',
-                  style: const TextStyle(
+                  mood.moodLabel ??
+                      MoodOptions.getByEmoji(mood.moodEmoji)?.label ??
+                      'Mood',
+                  style: TextStyle(
                     fontSize: 16,
                     fontWeight: FontWeight.w600,
-                    color: AppColors.textPrimary,
+                    color: context.colors.textPrimary,
                   ),
                 ),
                 const SizedBox(height: 4),
                 Text(
                   DateFormat('EEE, MMM d · h:mm a').format(mood.timestamp),
-                  style: const TextStyle(
+                  style: TextStyle(
                     fontSize: 12,
-                    color: AppColors.textSecondary,
+                    color: context.colors.textSecondary,
                   ),
                 ),
                 if (mood.notes != null && mood.notes!.isNotEmpty) ...[
                   const SizedBox(height: 8),
                   Text(
                     mood.notes!,
-                    style: const TextStyle(
+                    style: TextStyle(
                       fontSize: 14,
-                      color: AppColors.textSecondary,
+                      color: context.colors.textSecondary,
                     ),
                   ),
                 ],
@@ -243,4 +247,3 @@ class MoodInsightsScreen extends ConsumerWidget {
     );
   }
 }
-

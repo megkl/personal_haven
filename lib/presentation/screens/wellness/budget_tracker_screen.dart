@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
+import 'package:personal_haven/core/theme/app_theme.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:intl/intl.dart';
-import 'package:personal_haven/core/constants/app_colors.dart';
 import 'package:personal_haven/data/models/transaction.dart';
 import 'package:personal_haven/providers/budget_provider.dart';
 
@@ -16,12 +16,12 @@ class BudgetScreen extends ConsumerWidget {
     final balance = transactionState.balance;
 
     return Scaffold(
-      backgroundColor: AppColors.background,
+      backgroundColor: Theme.of(context).scaffoldBackgroundColor,
       body: transactionState.isLoading
           ? const Center(child: CircularProgressIndicator())
           : Column(
               children: [
-                _buildOverviewCard(income, expenses, balance),
+                _buildOverviewCard(context, income, expenses, balance),
                 _buildQuickActions(context, ref),
                 const SizedBox(height: 8),
 
@@ -54,12 +54,17 @@ class BudgetScreen extends ConsumerWidget {
       // floatingActionButton: FloatingActionButton(
       //   onPressed: () => _showAddTransactionSheet(context, ref),
       //   backgroundColor: AppColors.primary,
-      //   child: const Icon(Icons.add, color: Colors.white),
+      //   child: Icon(Icons.add, color: Colors.white),
       // ),
     );
   }
 
-  Widget _buildOverviewCard(double income, double expenses, double balance) {
+  Widget _buildOverviewCard(
+    BuildContext context,
+    double income,
+    double expenses,
+    double balance,
+  ) {
     return Container(
       margin: const EdgeInsets.all(16),
       padding: const EdgeInsets.all(20),
@@ -88,7 +93,7 @@ class BudgetScreen extends ConsumerWidget {
             children: [
               Text(
                 DateFormat('MMMM yyyy').format(DateTime.now()),
-                style: const TextStyle(fontSize: 14, color: Colors.white70),
+                style: TextStyle(fontSize: 14, color: Colors.white70),
               ),
               Container(
                 padding: const EdgeInsets.symmetric(
@@ -96,14 +101,12 @@ class BudgetScreen extends ConsumerWidget {
                   vertical: 4,
                 ),
                 decoration: BoxDecoration(
-                  color: Colors.white.withValues(alpha: 0.2),
+                  color: context.colors.cardColor.withValues(alpha: 0.2),
                   borderRadius: BorderRadius.circular(12),
                 ),
                 child: Text(
-                  balance >= 0
-                      ? '✓ On Track'
-                      : '⛔ Over Budget',
-                  style: const TextStyle(
+                  balance >= 0 ? '✓ On Track' : '⛔ Over Budget',
+                  style: TextStyle(
                     fontSize: 12,
                     color: Colors.white,
                     fontWeight: FontWeight.w600,
@@ -115,7 +118,7 @@ class BudgetScreen extends ConsumerWidget {
           const SizedBox(height: 16),
           Text(
             '\$${balance.abs().toStringAsFixed(2)}',
-            style: const TextStyle(
+            style: TextStyle(
               fontSize: 44,
               fontWeight: FontWeight.bold,
               color: Colors.white,
@@ -123,7 +126,7 @@ class BudgetScreen extends ConsumerWidget {
           ),
           Text(
             balance >= 0 ? 'Available Balance' : 'Over Budget',
-            style: const TextStyle(fontSize: 14, color: Colors.white70),
+            style: TextStyle(fontSize: 14, color: Colors.white70),
           ),
           const SizedBox(height: 24),
           Row(
@@ -169,16 +172,13 @@ class BudgetScreen extends ConsumerWidget {
           children: [
             Icon(icon, color: iconColor, size: 18),
             const SizedBox(width: 6),
-            Text(
-              label,
-              style: const TextStyle(fontSize: 13, color: Colors.white70),
-            ),
+            Text(label, style: TextStyle(fontSize: 13, color: Colors.white70)),
           ],
         ),
         const SizedBox(height: 6),
         Text(
           '\$${amount.toStringAsFixed(2)}',
-          style: const TextStyle(
+          style: TextStyle(
             fontSize: 20,
             fontWeight: FontWeight.bold,
             color: Colors.white,
@@ -236,7 +236,7 @@ class BudgetScreen extends ConsumerWidget {
               const SizedBox(width: 8),
               Text(
                 label,
-                style: const TextStyle(
+                style: TextStyle(
                   color: Colors.white,
                   fontWeight: FontWeight.w600,
                 ),
@@ -274,7 +274,7 @@ class BudgetScreen extends ConsumerWidget {
             margin: const EdgeInsets.only(right: 12),
             padding: const EdgeInsets.all(10),
             decoration: BoxDecoration(
-              color: Colors.white,
+              color: context.colors.cardColor,
               borderRadius: BorderRadius.circular(12),
               boxShadow: [
                 BoxShadow(
@@ -287,20 +287,20 @@ class BudgetScreen extends ConsumerWidget {
             child: Column(
               mainAxisAlignment: MainAxisAlignment.center,
               children: [
-                Text(icon, style: const TextStyle(fontSize: 24)),
+                Text(icon, style: TextStyle(fontSize: 24)),
                 const SizedBox(height: 4),
                 Text(
                   entry.key,
-                  style: const TextStyle(
-                    fontSize: 10,
-                    fontWeight: FontWeight.w500,
-                  ),
+                  style: TextStyle(fontSize: 10, fontWeight: FontWeight.w500),
                   maxLines: 1,
                   overflow: TextOverflow.ellipsis,
                 ),
                 Text(
                   '${percentage.toStringAsFixed(0)}%',
-                  style: TextStyle(fontSize: 11, color: Colors.grey.shade600),
+                  style: TextStyle(
+                    fontSize: 11,
+                    color: context.colors.textSecondary,
+                  ),
                 ),
               ],
             ),
@@ -342,7 +342,7 @@ class BudgetScreen extends ConsumerWidget {
                 style: TextStyle(
                   fontSize: 13,
                   fontWeight: FontWeight.w600,
-                  color: Colors.grey.shade600,
+                  color: context.colors.textSecondary,
                 ),
               ),
             ),
@@ -385,27 +385,22 @@ class BudgetScreen extends ConsumerWidget {
           color: Colors.red,
           borderRadius: BorderRadius.circular(12),
         ),
-        child: const Icon(Icons.delete, color: Colors.white),
+        child: Icon(Icons.delete, color: Colors.white),
       ),
       confirmDismiss: (direction) async {
         return await showDialog(
           context: context,
           builder: (context) => AlertDialog(
-            title: const Text('Delete Transaction'),
-            content: const Text(
-              'Are you sure you want to delete this transaction?',
-            ),
+            title: Text('Delete Transaction'),
+            content: Text('Are you sure you want to delete this transaction?'),
             actions: [
               TextButton(
                 onPressed: () => Navigator.pop(context, false),
-                child: const Text('Cancel'),
+                child: Text('Cancel'),
               ),
               TextButton(
                 onPressed: () => Navigator.pop(context, true),
-                child: const Text(
-                  'Delete',
-                  style: TextStyle(color: Colors.red),
-                ),
+                child: Text('Delete', style: TextStyle(color: Colors.red)),
               ),
             ],
           ),
@@ -426,7 +421,7 @@ class BudgetScreen extends ConsumerWidget {
         margin: const EdgeInsets.only(bottom: 12),
         padding: const EdgeInsets.all(16),
         decoration: BoxDecoration(
-          color: Colors.white,
+          color: context.colors.cardColor,
           borderRadius: BorderRadius.circular(12),
           boxShadow: [
             BoxShadow(
@@ -443,12 +438,12 @@ class BudgetScreen extends ConsumerWidget {
               width: 48,
               height: 48,
               decoration: BoxDecoration(
-                color: (isIncome ? Colors.green : Colors.red).withValues(alpha: 0.1),
+                color: (isIncome ? Colors.green : Colors.red).withValues(
+                  alpha: 0.1,
+                ),
                 borderRadius: BorderRadius.circular(12),
               ),
-              child: Center(
-                child: Text(icon, style: const TextStyle(fontSize: 24)),
-              ),
+              child: Center(child: Text(icon, style: TextStyle(fontSize: 24))),
             ),
             const SizedBox(width: 14),
             // Details
@@ -458,7 +453,7 @@ class BudgetScreen extends ConsumerWidget {
                 children: [
                   Text(
                     transaction.category,
-                    style: const TextStyle(
+                    style: TextStyle(
                       fontSize: 15,
                       fontWeight: FontWeight.w600,
                       color: Color(0xFF2D3E40),
@@ -472,7 +467,7 @@ class BudgetScreen extends ConsumerWidget {
                         transaction.description!,
                         style: TextStyle(
                           fontSize: 12,
-                          color: Colors.grey.shade600,
+                          color: context.colors.textSecondary,
                         ),
                         maxLines: 1,
                         overflow: TextOverflow.ellipsis,
@@ -484,7 +479,7 @@ class BudgetScreen extends ConsumerWidget {
                       DateFormat('h:mm a').format(transaction.transactionDate),
                       style: TextStyle(
                         fontSize: 11,
-                        color: Colors.grey.shade500,
+                        color: context.colors.textSecondary,
                       ),
                     ),
                   ),
@@ -514,13 +509,13 @@ class BudgetScreen extends ConsumerWidget {
           Container(
             padding: const EdgeInsets.all(24),
             decoration: BoxDecoration(
-              color: Colors.grey.shade100,
+              color: context.colors.cardColor2,
               shape: BoxShape.circle,
             ),
             child: Icon(
               Icons.account_balance_wallet_outlined,
               size: 64,
-              color: Colors.grey.shade400,
+              color: context.colors.textSecondary,
             ),
           ),
           const SizedBox(height: 24),
@@ -529,15 +524,15 @@ class BudgetScreen extends ConsumerWidget {
             style: TextStyle(
               fontSize: 20,
               fontWeight: FontWeight.bold,
-              color: Colors.grey.shade700,
+              color: context.colors.textSecondary,
             ),
           ),
           const SizedBox(height: 8),
           Text(
             'Start tracking your income and expenses',
-            style: TextStyle(fontSize: 14, color: Colors.grey.shade500),
+            style: TextStyle(fontSize: 14, color: context.colors.textSecondary),
           ),
-          ],
+        ],
       ),
     );
   }
@@ -548,8 +543,8 @@ class BudgetScreen extends ConsumerWidget {
       backgroundColor: Colors.transparent,
       builder: (context) => Container(
         padding: const EdgeInsets.all(24),
-        decoration: const BoxDecoration(
-          color: Colors.white,
+        decoration: BoxDecoration(
+          color: context.colors.cardColor,
           borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
         ),
         child: Column(
@@ -559,12 +554,12 @@ class BudgetScreen extends ConsumerWidget {
               width: 40,
               height: 4,
               decoration: BoxDecoration(
-                color: Colors.grey.shade300,
+                color: context.colors.divider,
                 borderRadius: BorderRadius.circular(2),
               ),
             ),
             const SizedBox(height: 24),
-            const Text(
+            Text(
               'Add Transaction',
               style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
             ),
@@ -771,16 +766,19 @@ class BudgetScreen extends ConsumerWidget {
                   child: Container(
                     padding: const EdgeInsets.all(16),
                     decoration: BoxDecoration(
-                      border: Border.all(color: Colors.grey.shade300),
+                      border: Border.all(color: context.colors.divider),
                       borderRadius: BorderRadius.circular(12),
                     ),
                     child: Row(
                       children: [
-                        Icon(Icons.calendar_today, color: Colors.grey.shade600),
+                        Icon(
+                          Icons.calendar_today,
+                          color: context.colors.textSecondary,
+                        ),
                         const SizedBox(width: 12),
                         Text(
                           DateFormat('EEEE, MMM d, yyyy').format(selectedDate),
-                          style: const TextStyle(fontSize: 15),
+                          style: TextStyle(fontSize: 15),
                         ),
                       ],
                     ),
@@ -792,7 +790,7 @@ class BudgetScreen extends ConsumerWidget {
           actions: [
             TextButton(
               onPressed: () => Navigator.pop(context),
-              child: const Text('Cancel'),
+              child: Text('Cancel'),
             ),
             ElevatedButton(
               onPressed: () {
@@ -843,7 +841,7 @@ class BudgetScreen extends ConsumerWidget {
                   borderRadius: BorderRadius.circular(8),
                 ),
               ),
-              child: const Text('Add'),
+              child: Text('Add'),
             ),
           ],
         ),

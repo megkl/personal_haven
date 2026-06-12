@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:personal_haven/core/theme/app_theme.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:personal_haven/core/constants/app_colors.dart';
 import 'package:personal_haven/providers/user_provider.dart';
@@ -34,7 +35,9 @@ class _EditProfileScreenState extends ConsumerState<EditProfileScreen> {
   }
 
   Future<void> _saveChanges() async {
-    await ref.read(userProvider.notifier).updateProfile(
+    await ref
+        .read(userProvider.notifier)
+        .updateProfile(
           firstName: _nameController.text.trim().isNotEmpty
               ? _nameController.text.trim()
               : null,
@@ -56,14 +59,14 @@ class _EditProfileScreenState extends ConsumerState<EditProfileScreen> {
     showDialog(
       context: context,
       builder: (context) => AlertDialog(
-        title: const Text('Delete Account'),
-        content: const Text(
+        title: Text('Delete Account'),
+        content: Text(
           'Are you sure you want to delete your account? This action cannot be undone and all your data will be permanently deleted.',
         ),
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(context),
-            child: const Text('Cancel'),
+            child: Text('Cancel'),
           ),
           TextButton(
             onPressed: () {
@@ -75,10 +78,7 @@ class _EditProfileScreenState extends ConsumerState<EditProfileScreen> {
                 ),
               );
             },
-            child: const Text(
-              'Delete',
-              style: TextStyle(color: Colors.red),
-            ),
+            child: Text('Delete', style: TextStyle(color: Colors.red)),
           ),
         ],
       ),
@@ -92,9 +92,9 @@ class _EditProfileScreenState extends ConsumerState<EditProfileScreen> {
     return Scaffold(
       backgroundColor: AppColors.primaryLight,
       appBar: AppBar(
-        title: const Text('Update Profile'),
+        title: Text('Update Profile'),
         backgroundColor: AppColors.primaryLight,
-        foregroundColor: AppColors.textPrimary,
+        foregroundColor: context.colors.textPrimary,
         elevation: 0,
       ),
       body: SingleChildScrollView(
@@ -106,12 +106,12 @@ class _EditProfileScreenState extends ConsumerState<EditProfileScreen> {
               children: [
                 CircleAvatar(
                   radius: 60,
-                  backgroundColor: Colors.white,
+                  backgroundColor: context.colors.cardColor,
                   backgroundImage: user?.avatarUrl != null
                       ? NetworkImage(user!.avatarUrl!)
                       : null,
                   child: user?.avatarUrl == null
-                      ? const Icon(
+                      ? Icon(
                           Icons.person,
                           size: 60,
                           color: AppColors.primaryLight,
@@ -132,11 +132,11 @@ class _EditProfileScreenState extends ConsumerState<EditProfileScreen> {
                     },
                     child: Container(
                       padding: const EdgeInsets.all(8),
-                      decoration: const BoxDecoration(
+                      decoration: BoxDecoration(
                         color: AppColors.primary,
                         shape: BoxShape.circle,
                       ),
-                      child: const Icon(
+                      child: Icon(
                         Icons.camera_alt,
                         size: 20,
                         color: Colors.white,
@@ -149,10 +149,10 @@ class _EditProfileScreenState extends ConsumerState<EditProfileScreen> {
             const SizedBox(height: 16),
             Text(
               user?.fullName ?? 'User',
-              style: const TextStyle(
+              style: TextStyle(
                 fontSize: 24,
                 fontWeight: FontWeight.bold,
-                color: AppColors.textPrimary,
+                color: context.colors.textPrimary,
               ),
             ),
             const SizedBox(height: 40),
@@ -162,7 +162,7 @@ class _EditProfileScreenState extends ConsumerState<EditProfileScreen> {
               decoration: InputDecoration(
                 labelText: 'Name',
                 filled: true,
-                fillColor: Colors.white,
+                fillColor: context.colors.cardColor,
                 border: OutlineInputBorder(
                   borderRadius: BorderRadius.circular(12),
                   borderSide: BorderSide.none,
@@ -177,12 +177,15 @@ class _EditProfileScreenState extends ConsumerState<EditProfileScreen> {
               decoration: InputDecoration(
                 labelText: 'Email Address',
                 filled: true,
-                fillColor: Colors.grey.shade100,
+                fillColor: context.colors.cardColor2,
                 border: OutlineInputBorder(
                   borderRadius: BorderRadius.circular(12),
                   borderSide: BorderSide.none,
                 ),
-                suffixIcon: const Icon(Icons.lock_outline, color: Colors.grey),
+                suffixIcon: Icon(
+                  Icons.lock_outline,
+                  color: context.colors.textSecondary,
+                ),
                 helperText: 'Email is managed by your sign-in provider',
               ),
             ),
@@ -194,12 +197,15 @@ class _EditProfileScreenState extends ConsumerState<EditProfileScreen> {
               decoration: InputDecoration(
                 labelText: 'Bio (Optional)',
                 filled: true,
-                fillColor: Colors.white,
+                fillColor: context.colors.cardColor,
                 border: OutlineInputBorder(
                   borderRadius: BorderRadius.circular(12),
                   borderSide: BorderSide.none,
                 ),
-                suffixIcon: const Icon(Icons.edit, color: Colors.grey),
+                suffixIcon: Icon(
+                  Icons.edit,
+                  color: context.colors.textSecondary,
+                ),
               ),
             ),
             const SizedBox(height: 32),
@@ -213,7 +219,7 @@ class _EditProfileScreenState extends ConsumerState<EditProfileScreen> {
                   borderRadius: BorderRadius.circular(28),
                 ),
               ),
-              child: const Text(
+              child: Text(
                 'Save Changes',
                 style: TextStyle(
                   fontSize: 18,
@@ -226,7 +232,7 @@ class _EditProfileScreenState extends ConsumerState<EditProfileScreen> {
             // Delete Account Button
             TextButton(
               onPressed: _showDeleteAccountDialog,
-              child: const Text(
+              child: Text(
                 'Delete Account',
                 style: TextStyle(
                   color: Colors.red,

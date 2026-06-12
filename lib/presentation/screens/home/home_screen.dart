@@ -2,6 +2,7 @@ import 'dart:math' as math;
 import 'dart:ui' as ui;
 
 import 'package:flutter/material.dart';
+import 'package:personal_haven/core/theme/app_theme.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:intl/intl.dart';
 import 'package:personal_haven/core/constants/app_colors.dart';
@@ -245,27 +246,27 @@ class _HomeScreenState extends ConsumerState<HomeScreen>
                           ),
                           const SizedBox(height: 14),
 
-                          // Active goals (conditional)
-                          if (goalState.activeGoals.isNotEmpty) ...[
-                            _animated(3, _buildGoalsCard(goalState)),
-                            const SizedBox(height: 14),
-                          ],
-
                           // Tasks (conditional)
                           if (taskState.tasks.isNotEmpty) ...[
                             _animated(4, _buildTasksCard(taskState)),
                             const SizedBox(height: 14),
                           ],
 
-                          // Events
-                          _animated(5, _buildEventsCard(eventState.events)),
-                          const SizedBox(height: 14),
-
                           // Journal (conditional)
                           if (journalState.entries.isNotEmpty) ...[
                             _animated(5, _buildJournalCard(journalState)),
                             const SizedBox(height: 14),
                           ],
+
+                          // Active goals (conditional)
+                          if (goalState.activeGoals.isNotEmpty) ...[
+                            _animated(3, _buildGoalsCard(goalState)),
+                            const SizedBox(height: 14),
+                          ],
+
+                          // Events
+                          _animated(5, _buildEventsCard(eventState.events)),
+                          const SizedBox(height: 14),
 
                           // Food (conditional)
                           if (foodState.todayEntries.isNotEmpty) ...[
@@ -346,7 +347,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen>
       height: size,
       decoration: BoxDecoration(
         shape: BoxShape.circle,
-        color: color.withOpacity(opacity),
+        color: color.withValues(alpha: opacity),
       ),
     );
   }
@@ -369,10 +370,10 @@ class _HomeScreenState extends ConsumerState<HomeScreen>
                   Container(
                     padding: const EdgeInsets.all(7),
                     decoration: BoxDecoration(
-                      color: Colors.white.withValues(alpha: 0.3),
+                      color: context.colors.cardColor.withValues(alpha: 0.3),
                       shape: BoxShape.circle,
                     ),
-                    child: const Icon(Icons.spa, color: Colors.white, size: 18),
+                    child: Icon(Icons.spa, color: Colors.white, size: 18),
                   ),
                   const SizedBox(width: 10),
                   Column(
@@ -383,13 +384,13 @@ class _HomeScreenState extends ConsumerState<HomeScreen>
                         _getGreeting(),
                         style: TextStyle(
                           fontSize: 14,
-                          color: Colors.white.withValues(alpha: 0.85),
-                          fontWeight: FontWeight.w500,
+                          color: Colors.white,
+                          fontWeight: FontWeight.w700,
                         ),
                       ),
                       Text(
                         _userName ?? 'Friend',
-                        style: const TextStyle(
+                        style: TextStyle(
                           fontSize: 14,
                           fontWeight: FontWeight.bold,
                           color: Colors.white,
@@ -407,7 +408,13 @@ class _HomeScreenState extends ConsumerState<HomeScreen>
             children: [
               // Streak badge
               if (streakState.currentStreak > 0)
-                InkWell(
+                Semantics(
+                  button: true,
+                  label:
+                      '${streakState.currentStreak} day streak. Open streak summary and badges.',
+                  child: InkWell(
+                    borderRadius: BorderRadius.circular(20),
+                    onTap: () => _showStreakSummary(streakState),
                     child: AnimatedBuilder(
                       animation: _pulseAnim,
                       builder: (context, child) => Transform.scale(
@@ -420,21 +427,23 @@ class _HomeScreenState extends ConsumerState<HomeScreen>
                             vertical: 5,
                           ),
                           decoration: BoxDecoration(
-                            color: Colors.white.withOpacity(0.28),
+                            color: context.colors.cardColor.withValues(
+                              alpha: 0.28,
+                            ),
                             borderRadius: BorderRadius.circular(20),
                             border: Border.all(
-                              color: Colors.white.withOpacity(0.4),
+                              color: Colors.white.withValues(alpha: 0.4),
                               width: 1,
                             ),
                           ),
                           child: Row(
                             mainAxisSize: MainAxisSize.min,
                             children: [
-                              const Text('🔥', style: TextStyle(fontSize: 14)),
+                              Text('🔥', style: TextStyle(fontSize: 14)),
                               const SizedBox(width: 4),
                               Text(
                                 '${streakState.currentStreak}',
-                                style: const TextStyle(
+                                style: TextStyle(
                                   color: Colors.white,
                                   fontWeight: FontWeight.bold,
                                   fontSize: 13,
@@ -445,8 +454,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen>
                         ),
                       ),
                     ),
-                    onTap: (){
-                    }
+                  ),
                 ),
               const SizedBox(width: 10),
 
@@ -462,7 +470,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen>
                   decoration: BoxDecoration(
                     shape: BoxShape.circle,
                     border: Border.all(
-                      color: Colors.white.withOpacity(0.6),
+                      color: Colors.white.withValues(alpha: 0.6),
                       width: 2,
                     ),
                   ),
@@ -473,12 +481,14 @@ class _HomeScreenState extends ConsumerState<HomeScreen>
                         )
                       : CircleAvatar(
                           radius: 18,
-                          backgroundColor: Colors.white.withOpacity(0.3),
+                          backgroundColor: context.colors.cardColor.withValues(
+                            alpha: 0.3,
+                          ),
                           child: Text(
                             _userName?.isNotEmpty == true
                                 ? _userName![0].toUpperCase()
                                 : 'U',
-                            style: const TextStyle(
+                            style: TextStyle(
                               color: Colors.white,
                               fontWeight: FontWeight.bold,
                             ),
@@ -519,17 +529,17 @@ class _HomeScreenState extends ConsumerState<HomeScreen>
               decoration: BoxDecoration(
                 gradient: LinearGradient(
                   colors: [
-                    baseColor.withOpacity(0.30),
-                    baseColor.withOpacity(0.12),
+                    baseColor.withValues(alpha: 0.30),
+                    baseColor.withValues(alpha: 0.12),
                   ],
                   begin: Alignment.topLeft,
                   end: Alignment.bottomRight,
                 ),
                 borderRadius: BorderRadius.circular(20),
-                border: Border.all(color: Colors.white.withOpacity(0.35)),
+                border: Border.all(color: Colors.white.withValues(alpha: 0.35)),
                 boxShadow: [
                   BoxShadow(
-                    color: baseColor.withOpacity(0.15),
+                    color: baseColor.withValues(alpha: 0.15),
                     blurRadius: 24,
                     offset: const Offset(0, 10),
                   ),
@@ -542,12 +552,12 @@ class _HomeScreenState extends ConsumerState<HomeScreen>
                         Container(
                           padding: const EdgeInsets.all(10),
                           decoration: BoxDecoration(
-                            color: baseColor.withOpacity(0.2),
+                            color: baseColor.withValues(alpha: 0.2),
                             shape: BoxShape.circle,
                           ),
                           child: Text(
                             todayMood.moodEmoji,
-                            style: const TextStyle(fontSize: 36),
+                            style: TextStyle(fontSize: 36),
                           ),
                         ),
                         const SizedBox(width: 16),
@@ -559,7 +569,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen>
                                 "Today's Mood",
                                 style: TextStyle(
                                   fontSize: 11,
-                                  color: Colors.white.withOpacity(0.85),
+                                  color: Colors.white.withValues(alpha: 0.85),
                                   fontWeight: FontWeight.w500,
                                   letterSpacing: 0.5,
                                 ),
@@ -567,7 +577,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen>
                               const SizedBox(height: 2),
                               Text(
                                 todayMood.moodLabel ?? '',
-                                style: const TextStyle(
+                                style: TextStyle(
                                   fontSize: 22,
                                   fontWeight: FontWeight.bold,
                                   color: Colors.white,
@@ -580,7 +590,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen>
                                   style: TextStyle(
                                     fontSize: 12,
                                     fontStyle: FontStyle.italic,
-                                    color: Colors.white.withOpacity(0.85),
+                                    color: Colors.white.withValues(alpha: 0.85),
                                   ),
                                   maxLines: 1,
                                   overflow: TextOverflow.ellipsis,
@@ -591,12 +601,14 @@ class _HomeScreenState extends ConsumerState<HomeScreen>
                         Container(
                           padding: const EdgeInsets.all(6),
                           decoration: BoxDecoration(
-                            color: Colors.white.withOpacity(0.2),
+                            color: context.colors.cardColor.withValues(
+                              alpha: 0.2,
+                            ),
                             shape: BoxShape.circle,
                           ),
                           child: Icon(
                             Icons.edit_outlined,
-                            color: Colors.white.withOpacity(0.9),
+                            color: Colors.white.withValues(alpha: 0.9),
                             size: 16,
                           ),
                         ),
@@ -607,20 +619,19 @@ class _HomeScreenState extends ConsumerState<HomeScreen>
                         Container(
                           padding: const EdgeInsets.all(10),
                           decoration: BoxDecoration(
-                            color: Colors.white.withOpacity(0.2),
+                            color: context.colors.cardColor.withValues(
+                              alpha: 0.2,
+                            ),
                             shape: BoxShape.circle,
                           ),
-                          child: const Text(
-                            '🌸',
-                            style: TextStyle(fontSize: 30),
-                          ),
+                          child: Text('🌸', style: TextStyle(fontSize: 30)),
                         ),
                         const SizedBox(width: 14),
                         Expanded(
                           child: Column(
                             crossAxisAlignment: CrossAxisAlignment.start,
                             children: [
-                              const Text(
+                              Text(
                                 'How are you feeling today?',
                                 style: TextStyle(
                                   fontSize: 17,
@@ -632,7 +643,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen>
                                 'Tap to check in',
                                 style: TextStyle(
                                   fontSize: 12,
-                                  color: Colors.white.withOpacity(0.8),
+                                  color: Colors.white.withValues(alpha: 0.8),
                                 ),
                               ),
                             ],
@@ -644,10 +655,12 @@ class _HomeScreenState extends ConsumerState<HomeScreen>
                             vertical: 6,
                           ),
                           decoration: BoxDecoration(
-                            color: Colors.white.withOpacity(0.25),
+                            color: context.colors.cardColor.withValues(
+                              alpha: 0.25,
+                            ),
                             borderRadius: BorderRadius.circular(20),
                           ),
-                          child: const Text(
+                          child: Text(
                             'Log',
                             style: TextStyle(
                               color: Colors.white,
@@ -680,7 +693,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen>
         borderRadius: BorderRadius.circular(20),
         boxShadow: [
           BoxShadow(
-            color: const Color(0xFF4ECDC4).withOpacity(0.3),
+            color: const Color(0xFF4ECDC4).withValues(alpha: 0.3),
             blurRadius: 20,
             offset: const Offset(0, 8),
           ),
@@ -692,21 +705,17 @@ class _HomeScreenState extends ConsumerState<HomeScreen>
           Container(
             padding: const EdgeInsets.all(8),
             decoration: BoxDecoration(
-              color: Colors.white.withOpacity(0.2),
+              color: context.colors.cardColor.withValues(alpha: 0.2),
               shape: BoxShape.circle,
             ),
-            child: const Icon(
-              Icons.auto_awesome,
-              color: Colors.white,
-              size: 18,
-            ),
+            child: Icon(Icons.auto_awesome, color: Colors.white, size: 18),
           ),
           const SizedBox(width: 12),
           Expanded(
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                const Text(
+                Text(
                   "Today's Affirmation",
                   style: TextStyle(
                     fontSize: 12,
@@ -718,7 +727,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen>
                 const SizedBox(height: 6),
                 Text(
                   '"$_todayAffirmation"',
-                  style: const TextStyle(
+                  style: TextStyle(
                     fontSize: 15,
                     color: Colors.white,
                     fontStyle: FontStyle.italic,
@@ -735,15 +744,191 @@ class _HomeScreenState extends ConsumerState<HomeScreen>
 
   // ─── STREAK CARD ──────────────────────────────────────────────
 
+  void _showStreakSummary(StreakState streakState) {
+    const badges = [
+      (3, 'Spark', Icons.local_fire_department_outlined),
+      (7, 'One Week', Icons.calendar_view_week_outlined),
+      (14, 'Momentum', Icons.bolt_outlined),
+      (30, 'Monthly', Icons.workspace_premium_outlined),
+    ];
+
+    showModalBottomSheet<void>(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: Colors.transparent,
+      builder: (sheetContext) => SafeArea(
+        top: false,
+        child: Container(
+          constraints: BoxConstraints(
+            maxHeight: MediaQuery.sizeOf(sheetContext).height * 0.78,
+          ),
+          decoration: BoxDecoration(
+            color: sheetContext.colors.cardColor,
+            borderRadius: const BorderRadius.vertical(top: Radius.circular(24)),
+          ),
+          child: SingleChildScrollView(
+            padding: const EdgeInsets.fromLTRB(20, 12, 20, 28),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Center(
+                  child: Container(
+                    width: 40,
+                    height: 4,
+                    decoration: BoxDecoration(
+                      color: sheetContext.colors.divider,
+                      borderRadius: BorderRadius.circular(2),
+                    ),
+                  ),
+                ),
+                const SizedBox(height: 20),
+                Row(
+                  children: [
+                    Container(
+                      width: 48,
+                      height: 48,
+                      decoration: BoxDecoration(
+                        color: const Color(0xFFFF6B6B).withValues(alpha: 0.14),
+                        shape: BoxShape.circle,
+                      ),
+                      child: const Center(
+                        child: Text('🔥', style: TextStyle(fontSize: 24)),
+                      ),
+                    ),
+                    const SizedBox(width: 12),
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          const Text(
+                            'Your streak',
+                            style: TextStyle(
+                              fontSize: 20,
+                              fontWeight: FontWeight.w700,
+                            ),
+                          ),
+                          Text(
+                            streakState.isNewStreakToday
+                                ? 'Today is counted. Keep showing up.'
+                                : 'You have checked in today.',
+                            style: TextStyle(
+                              fontSize: 13,
+                              color: sheetContext.colors.textSecondary,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                    IconButton(
+                      tooltip: 'Close',
+                      onPressed: () => Navigator.pop(sheetContext),
+                      icon: const Icon(Icons.close),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 20),
+                _buildStreakCard(streakState),
+                const SizedBox(height: 24),
+                const Text(
+                  'Badges',
+                  style: TextStyle(fontSize: 17, fontWeight: FontWeight.w700),
+                ),
+                const SizedBox(height: 4),
+                Text(
+                  'Badges unlock from your best streak.',
+                  style: TextStyle(
+                    fontSize: 12,
+                    color: sheetContext.colors.textSecondary,
+                  ),
+                ),
+                const SizedBox(height: 12),
+                GridView.builder(
+                  shrinkWrap: true,
+                  physics: const NeverScrollableScrollPhysics(),
+                  gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
+                    crossAxisCount: 2,
+                    crossAxisSpacing: 10,
+                    mainAxisSpacing: 10,
+                    childAspectRatio: 1.75,
+                  ),
+                  itemCount: badges.length,
+                  itemBuilder: (context, index) {
+                    final (days, label, icon) = badges[index];
+                    final isEarned = streakState.longestStreak >= days;
+
+                    return Semantics(
+                      label: isEarned
+                          ? '$label badge earned for a $days day streak'
+                          : '$label badge locked. Reach a $days day streak',
+                      child: Container(
+                        padding: const EdgeInsets.all(12),
+                        decoration: BoxDecoration(
+                          color: isEarned
+                              ? AppColors.primary.withValues(alpha: 0.12)
+                              : sheetContext.colors.cardColor2,
+                          borderRadius: BorderRadius.circular(12),
+                          border: Border.all(
+                            color: isEarned
+                                ? AppColors.primary.withValues(alpha: 0.45)
+                                : sheetContext.colors.divider,
+                          ),
+                        ),
+                        child: Row(
+                          children: [
+                            Icon(
+                              isEarned ? icon : Icons.lock_outline,
+                              color: isEarned
+                                  ? AppColors.primary
+                                  : sheetContext.colors.textSecondary,
+                            ),
+                            const SizedBox(width: 10),
+                            Expanded(
+                              child: Column(
+                                mainAxisAlignment: MainAxisAlignment.center,
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  Text(
+                                    label,
+                                    maxLines: 1,
+                                    overflow: TextOverflow.ellipsis,
+                                    style: const TextStyle(
+                                      fontSize: 13,
+                                      fontWeight: FontWeight.w700,
+                                    ),
+                                  ),
+                                  Text(
+                                    isEarned ? 'Earned' : '$days days',
+                                    style: TextStyle(
+                                      fontSize: 11,
+                                      color: sheetContext.colors.textSecondary,
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                    );
+                  },
+                ),
+              ],
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+
   Widget _buildStreakCard(StreakState streakState) {
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 16),
       decoration: BoxDecoration(
-        color: Colors.white,
+        color: context.colors.cardColor,
         borderRadius: BorderRadius.circular(20),
         boxShadow: [
           BoxShadow(
-            color: Colors.black.withOpacity(0.06),
+            color: Colors.black.withValues(alpha: 0.06),
             blurRadius: 16,
             offset: const Offset(0, 4),
           ),
@@ -786,7 +971,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen>
     return Expanded(
       child: Column(
         children: [
-          Text(emoji, style: const TextStyle(fontSize: 22)),
+          Text(emoji, style: TextStyle(fontSize: 22)),
           const SizedBox(height: 4),
           Text(
             value,
@@ -800,7 +985,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen>
             label,
             style: TextStyle(
               fontSize: 10,
-              color: Colors.grey.shade500,
+              color: context.colors.textSecondary,
               fontWeight: FontWeight.w500,
             ),
           ),
@@ -810,7 +995,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen>
   }
 
   Widget _verticalDivider() {
-    return Container(height: 40, width: 1, color: Colors.grey.shade200);
+    return Container(height: 40, width: 1, color: context.colors.divider);
   }
 
   // ─── TODAY'S PROGRESS ─────────────────────────────────────────
@@ -859,7 +1044,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen>
           if (taskState.pendingCount > 0 ||
               goalState.activeGoals.isNotEmpty) ...[
             const SizedBox(height: 14),
-            Container(height: 1, color: Colors.grey.shade100),
+            Container(height: 1, color: context.colors.cardColor2),
             const SizedBox(height: 10),
             Row(
               children: [
@@ -869,7 +1054,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen>
                       '${taskState.pendingCount} tasks pending',
                       style: TextStyle(
                         fontSize: 12,
-                        color: Colors.grey.shade500,
+                        color: context.colors.textSecondary,
                       ),
                     ),
                   ),
@@ -902,26 +1087,26 @@ class _HomeScreenState extends ConsumerState<HomeScreen>
         child: Container(
           padding: const EdgeInsets.symmetric(vertical: 14, horizontal: 8),
           decoration: BoxDecoration(
-            color: color.withOpacity(0.1),
+            color: color.withValues(alpha: 0.1),
             borderRadius: BorderRadius.circular(14),
           ),
           child: Column(
             children: [
-              Text(emoji, style: const TextStyle(fontSize: 26)),
+              Text(emoji, style: TextStyle(fontSize: 26)),
               const SizedBox(height: 6),
               Text(
                 value,
                 style: TextStyle(
                   fontSize: 18,
                   fontWeight: FontWeight.bold,
-                  color: color.withOpacity(0.9),
+                  color: color.withValues(alpha: 0.9),
                 ),
               ),
               Text(
                 label,
                 style: TextStyle(
                   fontSize: 10,
-                  color: Colors.grey.shade600,
+                  color: context.colors.textSecondary,
                   fontWeight: FontWeight.w500,
                 ),
               ),
@@ -970,23 +1155,20 @@ class _HomeScreenState extends ConsumerState<HomeScreen>
             children: [
               Text(
                 categoryEmojis[goal.category] ?? '🎯',
-                style: const TextStyle(fontSize: 16),
+                style: TextStyle(fontSize: 16),
               ),
               const SizedBox(width: 8),
               Expanded(
                 child: Text(
                   goal.title,
-                  style: const TextStyle(
-                    fontSize: 14,
-                    fontWeight: FontWeight.w600,
-                  ),
+                  style: TextStyle(fontSize: 14, fontWeight: FontWeight.w600),
                   maxLines: 1,
                   overflow: TextOverflow.ellipsis,
                 ),
               ),
               Text(
                 '${progress.toInt()}%',
-                style: const TextStyle(
+                style: TextStyle(
                   fontSize: 13,
                   fontWeight: FontWeight.bold,
                   color: goalColor,
@@ -1004,7 +1186,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen>
               builder: (context, value, child) => LinearProgressIndicator(
                 value: value,
                 minHeight: 7,
-                backgroundColor: Colors.grey.shade100,
+                backgroundColor: context.colors.cardColor2,
                 valueColor: const AlwaysStoppedAnimation<Color>(goalColor),
               ),
             ),
@@ -1015,7 +1197,10 @@ class _HomeScreenState extends ConsumerState<HomeScreen>
             children: [
               Text(
                 '${goal.currentValue.toStringAsFixed(0)}/${goal.targetValue.toStringAsFixed(0)} ${goal.unit}',
-                style: TextStyle(fontSize: 11, color: Colors.grey.shade400),
+                style: TextStyle(
+                  fontSize: 11,
+                  color: context.colors.textSecondary,
+                ),
               ),
               if (goal.daysRemaining >= 0)
                 Text(
@@ -1026,7 +1211,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen>
                     fontSize: 11,
                     color: goal.daysRemaining <= 7
                         ? Colors.orange
-                        : Colors.grey.shade400,
+                        : context.colors.textSecondary,
                   ),
                 ),
             ],
@@ -1058,21 +1243,21 @@ class _HomeScreenState extends ConsumerState<HomeScreen>
                   vertical: 6,
                 ),
                 decoration: BoxDecoration(
-                  color: Colors.grey.shade50,
+                  color: context.colors.cardColor2,
                   borderRadius: BorderRadius.circular(16),
-                  border: Border.all(color: Colors.grey.shade200),
+                  border: Border.all(color: context.colors.divider),
                 ),
                 child: Row(
                   mainAxisSize: MainAxisSize.min,
                   children: [
-                    Text(entry.key, style: const TextStyle(fontSize: 18)),
+                    Text(entry.key, style: TextStyle(fontSize: 18)),
                     const SizedBox(width: 5),
                     Text(
                       '×${entry.value}',
                       style: TextStyle(
                         fontSize: 12,
                         fontWeight: FontWeight.w600,
-                        color: Colors.grey.shade700,
+                        color: context.colors.textSecondary,
                       ),
                     ),
                   ],
@@ -1113,7 +1298,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen>
               builder: (context, value, _) => LinearProgressIndicator(
                 value: value,
                 minHeight: 7,
-                backgroundColor: Colors.grey.shade100,
+                backgroundColor: context.colors.cardColor2,
                 valueColor: const AlwaysStoppedAnimation<Color>(
                   Color(0xFF6BCB77),
                 ),
@@ -1127,7 +1312,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen>
                 padding: const EdgeInsets.symmetric(vertical: 8),
                 child: Text(
                   '🎉 All tasks completed!',
-                  style: TextStyle(color: Colors.grey.shade500),
+                  style: TextStyle(color: context.colors.textSecondary),
                 ),
               ),
             )
@@ -1170,7 +1355,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen>
                     : Colors.transparent,
               ),
               child: task.isCompleted
-                  ? const Icon(Icons.check, size: 14, color: Colors.white)
+                  ? Icon(Icons.check, size: 14, color: Colors.white)
                   : null,
             ),
           ),
@@ -1188,7 +1373,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen>
                         ? TextDecoration.lineThrough
                         : null,
                     color: task.isCompleted
-                        ? Colors.grey.shade400
+                        ? context.colors.textSecondary
                         : const Color(0xFF2D3E40),
                   ),
                 ),
@@ -1201,7 +1386,9 @@ class _HomeScreenState extends ConsumerState<HomeScreen>
                         : DateFormat('MMM d').format(task.dueDate!),
                     style: TextStyle(
                       fontSize: 11,
-                      color: task.isOverdue ? Colors.red : Colors.grey.shade400,
+                      color: task.isOverdue
+                          ? Colors.red
+                          : context.colors.textSecondary,
                     ),
                   ),
               ],
@@ -1211,7 +1398,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen>
             width: 4,
             height: 22,
             decoration: BoxDecoration(
-              color: color.withOpacity(0.7),
+              color: color.withValues(alpha: 0.7),
               borderRadius: BorderRadius.circular(2),
             ),
           ),
@@ -1227,12 +1414,15 @@ class _HomeScreenState extends ConsumerState<HomeScreen>
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          _cardHeader('Upcoming', '${events.length} events'),
+          _cardHeader('Upcoming Events', '${events.length} events'),
           const SizedBox(height: 12),
           if (events.isEmpty)
             Text(
               'No upcoming events. Enjoy your day 🌸',
-              style: TextStyle(fontSize: 13, color: Colors.grey.shade500),
+              style: TextStyle(
+                fontSize: 13,
+                color: context.colors.textSecondary,
+              ),
             )
           else
             ...events.take(3).map((event) {
@@ -1260,7 +1450,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen>
                         children: [
                           Text(
                             event.title ?? 'Untitled Event',
-                            style: const TextStyle(
+                            style: TextStyle(
                               fontSize: 14,
                               fontWeight: FontWeight.w600,
                               color: Color(0xFF2D3E40),
@@ -1271,7 +1461,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen>
                               time,
                               style: TextStyle(
                                 fontSize: 11,
-                                color: Colors.grey.shade500,
+                                color: context.colors.textSecondary,
                               ),
                             ),
                         ],
@@ -1315,7 +1505,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen>
         children: [
           Text(
             entry.emoji ?? categoryData?.emoji ?? '📝',
-            style: const TextStyle(fontSize: 22),
+            style: TextStyle(fontSize: 22),
           ),
           const SizedBox(width: 10),
           Expanded(
@@ -1324,16 +1514,16 @@ class _HomeScreenState extends ConsumerState<HomeScreen>
               children: [
                 Text(
                   entry.title,
-                  style: const TextStyle(
-                    fontSize: 14,
-                    fontWeight: FontWeight.w500,
-                  ),
+                  style: TextStyle(fontSize: 14, fontWeight: FontWeight.w500),
                   maxLines: 1,
                   overflow: TextOverflow.ellipsis,
                 ),
                 Text(
                   entry.content,
-                  style: TextStyle(fontSize: 12, color: Colors.grey.shade500),
+                  style: TextStyle(
+                    fontSize: 12,
+                    color: context.colors.textSecondary,
+                  ),
                   maxLines: 1,
                   overflow: TextOverflow.ellipsis,
                 ),
@@ -1342,7 +1532,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen>
           ),
           Text(
             DateFormat('MMM d').format(entry.entryDate),
-            style: TextStyle(fontSize: 11, color: Colors.grey.shade400),
+            style: TextStyle(fontSize: 11, color: context.colors.textSecondary),
           ),
         ],
       ),
@@ -1385,7 +1575,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen>
         children: [
           Text(
             mealTypeEmojis[entry.mealType] ?? '🍽️',
-            style: const TextStyle(fontSize: 18),
+            style: TextStyle(fontSize: 18),
           ),
           const SizedBox(width: 10),
           Expanded(
@@ -1394,16 +1584,16 @@ class _HomeScreenState extends ConsumerState<HomeScreen>
               children: [
                 Text(
                   entry.foodName,
-                  style: const TextStyle(
-                    fontSize: 14,
-                    fontWeight: FontWeight.w500,
-                  ),
+                  style: TextStyle(fontSize: 14, fontWeight: FontWeight.w500),
                   maxLines: 1,
                   overflow: TextOverflow.ellipsis,
                 ),
                 Text(
                   entry.mealType[0].toUpperCase() + entry.mealType.substring(1),
-                  style: TextStyle(fontSize: 11, color: Colors.grey.shade500),
+                  style: TextStyle(
+                    fontSize: 11,
+                    color: context.colors.textSecondary,
+                  ),
                 ),
               ],
             ),
@@ -1413,7 +1603,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen>
             style: TextStyle(
               fontSize: 13,
               fontWeight: FontWeight.w600,
-              color: Colors.grey.shade600,
+              color: context.colors.textSecondary,
             ),
           ),
         ],
@@ -1428,11 +1618,11 @@ class _HomeScreenState extends ConsumerState<HomeScreen>
       width: double.infinity,
       padding: const EdgeInsets.all(20),
       decoration: BoxDecoration(
-        color: Colors.white,
+        color: context.colors.cardColor,
         borderRadius: BorderRadius.circular(20),
         boxShadow: [
           BoxShadow(
-            color: Colors.black.withOpacity(0.05),
+            color: Colors.black.withValues(alpha: 0.05),
             blurRadius: 20,
             offset: const Offset(0, 4),
           ),
@@ -1448,7 +1638,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen>
       children: [
         Text(
           title,
-          style: const TextStyle(
+          style: TextStyle(
             fontSize: 16,
             fontWeight: FontWeight.bold,
             color: Color(0xFF2D3E40),
@@ -1458,12 +1648,12 @@ class _HomeScreenState extends ConsumerState<HomeScreen>
           Container(
             padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 3),
             decoration: BoxDecoration(
-              color: AppColors.primary.withOpacity(0.1),
+              color: AppColors.primary.withValues(alpha: 0.1),
               borderRadius: BorderRadius.circular(10),
             ),
             child: Text(
               trailing,
-              style: const TextStyle(
+              style: TextStyle(
                 fontSize: 11,
                 fontWeight: FontWeight.w600,
                 color: AppColors.primary,
@@ -1484,7 +1674,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen>
         ),
         child: Text(
           '$label →',
-          style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w600),
+          style: TextStyle(fontSize: 12, fontWeight: FontWeight.w600),
         ),
       ),
     );

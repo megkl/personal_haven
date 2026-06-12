@@ -17,8 +17,7 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
 
   @override
   Widget build(BuildContext context) {
-    final themeMode =
-        ref.watch(themeProvider).value ?? ThemeMode.system;
+    final themeMode = ref.watch(themeProvider).value ?? ThemeMode.system;
     final isDark = themeMode == ThemeMode.dark;
     final colors = context.colors;
 
@@ -48,7 +47,7 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
                     value: _notificationsEnabled,
                     onChanged: (value) =>
                         setState(() => _notificationsEnabled = value),
-                    activeColor: AppColors.primary,
+                    activeThumbColor: AppColors.primary,
                   ),
                 ),
                 Divider(color: colors.divider),
@@ -60,7 +59,7 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
                     value: isDark,
                     onChanged: (_) =>
                         ref.read(themeProvider.notifier).toggleDark(),
-                    activeColor: AppColors.primary,
+                    activeThumbColor: AppColors.primary,
                   ),
                 ),
                 Divider(color: colors.divider),
@@ -74,10 +73,10 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
                     dropdownColor: colors.cardColor,
                     style: TextStyle(color: colors.textPrimary, fontSize: 14),
                     items: ['English', 'Spanish', 'French']
-                        .map((lang) => DropdownMenuItem(
-                              value: lang,
-                              child: Text(lang),
-                            ))
+                        .map(
+                          (lang) =>
+                              DropdownMenuItem(value: lang, child: Text(lang)),
+                        )
                         .toList(),
                     onChanged: (value) {
                       if (value != null) setState(() => _language = value);
@@ -149,7 +148,11 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
   }
 
   Widget _buildSettingRow(
-      BuildContext context, String title, IconData icon, Widget trailing) {
+    BuildContext context,
+    String title,
+    IconData icon,
+    Widget trailing,
+  ) {
     final colors = context.colors;
     return Padding(
       padding: const EdgeInsets.symmetric(vertical: 8),
@@ -160,10 +163,7 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
           Expanded(
             child: Text(
               title,
-              style: TextStyle(
-                fontSize: 16,
-                color: colors.textPrimary,
-              ),
+              style: TextStyle(fontSize: 16, color: colors.textPrimary),
             ),
           ),
           trailing,
@@ -192,9 +192,7 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
                 : colors.cardColor2,
             borderRadius: BorderRadius.circular(12),
             border: Border.all(
-              color: selected
-                  ? AppColors.primary
-                  : colors.divider,
+              color: selected ? AppColors.primary : colors.divider,
               width: selected ? 2 : 1,
             ),
           ),

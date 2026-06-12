@@ -13,8 +13,6 @@ class AppTheme {
   static const String _fontFamily = 'Outfit';
 
   static const _primary = AppColors.primary; // #4ECDC4
-  static const _primaryDark = AppColors.primaryDark; // #3AA99F
-
   // ── Light theme ─────────────────────────────────────────────────────────
 
   static final ThemeData light = ThemeData(
@@ -47,6 +45,25 @@ class AppTheme {
       elevation: 0,
       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
     ),
+    dialogTheme: DialogThemeData(
+      backgroundColor: Colors.white,
+      surfaceTintColor: Colors.transparent,
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+    ),
+    bottomSheetTheme: const BottomSheetThemeData(
+      backgroundColor: Colors.white,
+      surfaceTintColor: Colors.transparent,
+      modalBackgroundColor: Colors.white,
+    ),
+    popupMenuTheme: PopupMenuThemeData(
+      color: Colors.white,
+      surfaceTintColor: Colors.transparent,
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+    ),
+    navigationBarTheme: const NavigationBarThemeData(
+      backgroundColor: Colors.white,
+      surfaceTintColor: Colors.transparent,
+    ),
     inputDecorationTheme: InputDecorationTheme(
       filled: true,
       fillColor: const Color(0xFFF5F5F5),
@@ -58,11 +75,13 @@ class AppTheme {
     ),
     switchTheme: SwitchThemeData(
       thumbColor: WidgetStateProperty.resolveWith(
-          (s) => s.contains(WidgetState.selected) ? _primary : Colors.white),
-      trackColor: WidgetStateProperty.resolveWith((s) =>
-          s.contains(WidgetState.selected)
-              ? _primary.withValues(alpha: 0.5)
-              : Colors.grey.shade300),
+        (s) => s.contains(WidgetState.selected) ? _primary : Colors.white,
+      ),
+      trackColor: WidgetStateProperty.resolveWith(
+        (s) => s.contains(WidgetState.selected)
+            ? _primary.withValues(alpha: 0.5)
+            : Colors.grey.shade300,
+      ),
     ),
     dividerColor: const Color(0xFFEEEEEE),
     iconTheme: const IconThemeData(color: Color(0xFF2D3E40)),
@@ -73,8 +92,8 @@ class AppTheme {
   // ── Dark theme ──────────────────────────────────────────────────────────
 
   // Dark surfaces: layered warm-dark neutrals so white cards don't blind.
-  static const Color _darkBg = Color(0xFF121A1B);       // page bg
-  static const Color _darkSurface = Color(0xFF1E2A2B);  // cards
+  static const Color _darkBg = Color(0xFF121A1B); // page bg
+  static const Color _darkSurface = Color(0xFF1E2A2B); // cards
   static const Color _darkSurface2 = Color(0xFF243133); // elevated cards
   static const Color _darkOnSurface = Color(0xFFE8F4F3);
   static const Color _darkSubtext = Color(0xFF8AADAB);
@@ -109,6 +128,25 @@ class AppTheme {
       elevation: 0,
       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
     ),
+    dialogTheme: DialogThemeData(
+      backgroundColor: _darkSurface,
+      surfaceTintColor: Colors.transparent,
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+    ),
+    bottomSheetTheme: const BottomSheetThemeData(
+      backgroundColor: _darkSurface,
+      surfaceTintColor: Colors.transparent,
+      modalBackgroundColor: _darkSurface,
+    ),
+    popupMenuTheme: PopupMenuThemeData(
+      color: _darkSurface2,
+      surfaceTintColor: Colors.transparent,
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+    ),
+    navigationBarTheme: const NavigationBarThemeData(
+      backgroundColor: _darkSurface,
+      surfaceTintColor: Colors.transparent,
+    ),
     inputDecorationTheme: InputDecorationTheme(
       filled: true,
       fillColor: _darkSurface2,
@@ -120,11 +158,14 @@ class AppTheme {
     ),
     switchTheme: SwitchThemeData(
       thumbColor: WidgetStateProperty.resolveWith(
-          (s) => s.contains(WidgetState.selected) ? _primary : Colors.grey.shade400),
-      trackColor: WidgetStateProperty.resolveWith((s) =>
-          s.contains(WidgetState.selected)
-              ? _primary.withValues(alpha: 0.5)
-              : Colors.grey.shade700),
+        (s) =>
+            s.contains(WidgetState.selected) ? _primary : Colors.grey.shade400,
+      ),
+      trackColor: WidgetStateProperty.resolveWith(
+        (s) => s.contains(WidgetState.selected)
+            ? _primary.withValues(alpha: 0.5)
+            : Colors.grey.shade700,
+      ),
     ),
     dividerColor: const Color(0xFF2A3A3B),
     iconTheme: IconThemeData(color: _darkOnSurface),
@@ -135,22 +176,52 @@ class AppTheme {
   // ── Text theme ───────────────────────────────────────────────────────────
 
   static TextTheme _textTheme(Brightness brightness) {
-    final base =
-        brightness == Brightness.light ? const Color(0xFF2D3E40) : const Color(0xFFE8F4F3);
-    final sub =
-        brightness == Brightness.light ? const Color(0xFF666666) : const Color(0xFF8AADAB);
+    final base = brightness == Brightness.light
+        ? const Color(0xFF2D3E40)
+        : const Color(0xFFE8F4F3);
+    final sub = brightness == Brightness.light
+        ? const Color(0xFF666666)
+        : const Color(0xFF8AADAB);
 
     return TextTheme(
-      displayLarge: TextStyle(fontFamily: _fontFamily, fontWeight: FontWeight.bold, color: base),
-      displayMedium: TextStyle(fontFamily: _fontFamily, fontWeight: FontWeight.bold, color: base),
-      headlineLarge: TextStyle(fontFamily: _fontFamily, fontWeight: FontWeight.bold, color: base),
-      headlineMedium: TextStyle(fontFamily: _fontFamily, fontWeight: FontWeight.w600, color: base),
-      titleLarge: TextStyle(fontFamily: _fontFamily, fontWeight: FontWeight.w600, color: base),
-      titleMedium: TextStyle(fontFamily: _fontFamily, fontWeight: FontWeight.w500, color: base),
+      displayLarge: TextStyle(
+        fontFamily: _fontFamily,
+        fontWeight: FontWeight.bold,
+        color: base,
+      ),
+      displayMedium: TextStyle(
+        fontFamily: _fontFamily,
+        fontWeight: FontWeight.bold,
+        color: base,
+      ),
+      headlineLarge: TextStyle(
+        fontFamily: _fontFamily,
+        fontWeight: FontWeight.bold,
+        color: base,
+      ),
+      headlineMedium: TextStyle(
+        fontFamily: _fontFamily,
+        fontWeight: FontWeight.w600,
+        color: base,
+      ),
+      titleLarge: TextStyle(
+        fontFamily: _fontFamily,
+        fontWeight: FontWeight.w600,
+        color: base,
+      ),
+      titleMedium: TextStyle(
+        fontFamily: _fontFamily,
+        fontWeight: FontWeight.w500,
+        color: base,
+      ),
       bodyLarge: TextStyle(fontFamily: _fontFamily, color: base),
       bodyMedium: TextStyle(fontFamily: _fontFamily, color: sub),
       bodySmall: TextStyle(fontFamily: _fontFamily, color: sub, fontSize: 12),
-      labelLarge: TextStyle(fontFamily: _fontFamily, fontWeight: FontWeight.w600, color: base),
+      labelLarge: TextStyle(
+        fontFamily: _fontFamily,
+        fontWeight: FontWeight.w600,
+        color: base,
+      ),
     );
   }
 }

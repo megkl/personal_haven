@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:personal_haven/core/theme/app_theme.dart';
 import 'package:personal_haven/core/constants/app_colors.dart';
 
 class FavoritesScreen extends StatefulWidget {
@@ -20,9 +21,9 @@ class _FavoritesScreenState extends State<FavoritesScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: AppColors.background,
+      backgroundColor: Theme.of(context).scaffoldBackgroundColor,
       appBar: AppBar(
-        title: const Text('My Favorites'),
+        title: Text('My Favorites'),
         backgroundColor: AppColors.primary,
       ),
       body: ListView(
@@ -37,25 +38,25 @@ class _FavoritesScreenState extends State<FavoritesScreen> {
           _buildFavoriteCard(
             'Favorite Music',
             Icons.music_note,
-            Text(_favorites['music'], style: const TextStyle(fontSize: 16)),
+            Text(_favorites['music'], style: TextStyle(fontSize: 16)),
           ),
           const SizedBox(height: 16),
           _buildFavoriteCard(
             'Favorite Foods',
             Icons.restaurant,
-            Text(_favorites['food'], style: const TextStyle(fontSize: 16)),
+            Text(_favorites['food'], style: TextStyle(fontSize: 16)),
           ),
           const SizedBox(height: 16),
           _buildFavoriteCard(
             'Favorite Scent',
             Icons.spa,
-            Text(_favorites['scent'], style: const TextStyle(fontSize: 16)),
+            Text(_favorites['scent'], style: TextStyle(fontSize: 16)),
           ),
           const SizedBox(height: 16),
           _buildFavoriteCard(
             'Favorite Activity',
             Icons.favorite,
-            Text(_favorites['activity'], style: const TextStyle(fontSize: 16)),
+            Text(_favorites['activity'], style: TextStyle(fontSize: 16)),
           ),
         ],
       ),
@@ -66,11 +67,11 @@ class _FavoritesScreenState extends State<FavoritesScreen> {
     return Container(
       padding: const EdgeInsets.all(20),
       decoration: BoxDecoration(
-        color: Colors.white,
+        color: context.colors.cardColor,
         borderRadius: BorderRadius.circular(16),
         boxShadow: [
           BoxShadow(
-            color: Colors.grey.shade200,
+            color: context.colors.divider,
             blurRadius: 8,
             offset: const Offset(0, 2),
           ),
@@ -85,10 +86,10 @@ class _FavoritesScreenState extends State<FavoritesScreen> {
               const SizedBox(width: 12),
               Text(
                 title,
-                style: const TextStyle(
+                style: TextStyle(
                   fontSize: 18,
                   fontWeight: FontWeight.bold,
-                  color: AppColors.textPrimary,
+                  color: context.colors.textPrimary,
                 ),
               ),
             ],
@@ -110,11 +111,10 @@ class _FavoritesScreenState extends State<FavoritesScreen> {
           decoration: BoxDecoration(
             color: Color(int.parse(color.replaceFirst('#', '0xFF'))),
             shape: BoxShape.circle,
-            border: Border.all(color: Colors.grey.shade300, width: 2),
+            border: Border.all(color: context.colors.divider, width: 2),
           ),
         );
       }).toList(),
     );
   }
 }
-

@@ -14,7 +14,8 @@ class MainNavigationScreen extends ConsumerStatefulWidget {
   final int currentIndex;
 
   @override
-  ConsumerState<MainNavigationScreen> createState() => _MainNavigationScreenState();
+  ConsumerState<MainNavigationScreen> createState() =>
+      _MainNavigationScreenState();
 }
 
 class _MainNavigationScreenState extends ConsumerState<MainNavigationScreen> {
@@ -38,7 +39,7 @@ class _MainNavigationScreenState extends ConsumerState<MainNavigationScreen> {
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: _selectedIndex == 0 ? const Color(0xFFB8E6E3) : null,
-      body: _screens[_selectedIndex],
+      body: IndexedStack(index: _selectedIndex, children: _screens),
       bottomNavigationBar: Padding(
         padding: const EdgeInsets.fromLTRB(20, 10, 20, 20),
         child: Container(
@@ -48,7 +49,9 @@ class _MainNavigationScreenState extends ConsumerState<MainNavigationScreen> {
             borderRadius: BorderRadius.circular(30),
             boxShadow: [
               BoxShadow(
-                color: Colors.black.withValues(alpha: context.isDark ? 0.35 : 0.15),
+                color: Colors.black.withValues(
+                  alpha: context.isDark ? 0.35 : 0.15,
+                ),
                 blurRadius: 16,
                 offset: const Offset(0, 8),
               ),
@@ -88,7 +91,9 @@ class _MainNavigationScreenState extends ConsumerState<MainNavigationScreen> {
                 ),
                 child: Icon(
                   icon,
-                  color: isSelected ? Colors.white : Colors.grey.shade500,
+                  color: isSelected
+                      ? Colors.white
+                      : context.colors.textSecondary,
                   size: 22,
                 ),
               ),
@@ -98,7 +103,9 @@ class _MainNavigationScreenState extends ConsumerState<MainNavigationScreen> {
                 style: TextStyle(
                   fontSize: 10,
                   fontWeight: isSelected ? FontWeight.w600 : FontWeight.normal,
-                  color: isSelected ? AppColors.primary : Colors.grey.shade500,
+                  color: isSelected
+                      ? AppColors.primary
+                      : context.colors.textSecondary,
                 ),
               ),
             ],

@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:personal_haven/core/theme/app_theme.dart';
 import 'package:personal_haven/data/models/mood_log.dart';
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -63,8 +64,9 @@ class _MoodCheckInOverlayState extends State<MoodCheckInOverlay>
 
     // Resolve starting index
     if (widget.existingMood != null) {
-      final idx = MoodOptions.all
-          .indexWhere((m) => m.emoji == widget.existingMood!.moodEmoji);
+      final idx = MoodOptions.all.indexWhere(
+        (m) => m.emoji == widget.existingMood!.moodEmoji,
+      );
       _selectedIndex = idx < 0 ? 4 : idx;
     } else {
       _selectedIndex = 4; // Neutral
@@ -82,34 +84,52 @@ class _MoodCheckInOverlayState extends State<MoodCheckInOverlay>
 
     // Entrance: slides up from slightly below
     _entranceCtrl = AnimationController(
-        vsync: this, duration: const Duration(milliseconds: 480));
+      vsync: this,
+      duration: const Duration(milliseconds: 480),
+    );
     _entranceFade = CurvedAnimation(
-        parent: _entranceCtrl, curve: Curves.easeOut);
+      parent: _entranceCtrl,
+      curve: Curves.easeOut,
+    );
     _entranceSlide =
         Tween<Offset>(begin: const Offset(0, 0.08), end: Offset.zero).animate(
-            CurvedAnimation(
-                parent: _entranceCtrl, curve: Curves.easeOutCubic));
+          CurvedAnimation(parent: _entranceCtrl, curve: Curves.easeOutCubic),
+        );
 
     // Exit: scales down and fades
     _exitCtrl = AnimationController(
-        vsync: this, duration: const Duration(milliseconds: 380));
-    _exitFade = Tween<double>(begin: 1, end: 0)
-        .animate(CurvedAnimation(parent: _exitCtrl, curve: Curves.easeIn));
-    _exitScale = Tween<double>(begin: 1.0, end: 0.94)
-        .animate(CurvedAnimation(parent: _exitCtrl, curve: Curves.easeIn));
+      vsync: this,
+      duration: const Duration(milliseconds: 380),
+    );
+    _exitFade = Tween<double>(
+      begin: 1,
+      end: 0,
+    ).animate(CurvedAnimation(parent: _exitCtrl, curve: Curves.easeIn));
+    _exitScale = Tween<double>(
+      begin: 1.0,
+      end: 0.94,
+    ).animate(CurvedAnimation(parent: _exitCtrl, curve: Curves.easeIn));
 
     // Bounce
     _bounceCtrl = AnimationController(
-        vsync: this, duration: const Duration(milliseconds: 500));
-    _bounceAnim = Tween<double>(begin: 1.0, end: 1.13).animate(
-        CurvedAnimation(parent: _bounceCtrl, curve: Curves.elasticOut));
+      vsync: this,
+      duration: const Duration(milliseconds: 500),
+    );
+    _bounceAnim = Tween<double>(
+      begin: 1.0,
+      end: 1.13,
+    ).animate(CurvedAnimation(parent: _bounceCtrl, curve: Curves.elasticOut));
 
     // Background color
     _colorCtrl = AnimationController(
-        vsync: this, duration: const Duration(milliseconds: 380));
+      vsync: this,
+      duration: const Duration(milliseconds: 380),
+    );
     _initColor(_selectedIndex);
-    _bgColorAnim =
-        ColorTween(begin: _fromColor, end: _toColor).animate(_colorCtrl);
+    _bgColorAnim = ColorTween(
+      begin: _fromColor,
+      end: _toColor,
+    ).animate(_colorCtrl);
 
     _entranceCtrl.forward();
   }
@@ -135,8 +155,10 @@ class _MoodCheckInOverlayState extends State<MoodCheckInOverlay>
     final newColor = MoodOptions.all[i].color.withValues(alpha: 0.20);
     _fromColor = _bgColorAnim.value ?? _fromColor;
     _toColor = newColor;
-    _bgColorAnim =
-        ColorTween(begin: _fromColor, end: _toColor).animate(_colorCtrl);
+    _bgColorAnim = ColorTween(
+      begin: _fromColor,
+      end: _toColor,
+    ).animate(_colorCtrl);
     _colorCtrl.forward(from: 0);
     _bounceCtrl.forward(from: 0);
     setState(() => _selectedIndex = i);
@@ -170,11 +192,14 @@ class _MoodCheckInOverlayState extends State<MoodCheckInOverlay>
     final bottomPad = MediaQuery.of(context).viewInsets.bottom;
 
     return AnimatedBuilder(
-      animation: Listenable.merge(
-          [_entranceCtrl, _exitCtrl, _colorCtrl, _bounceCtrl]),
+      animation: Listenable.merge([
+        _entranceCtrl,
+        _exitCtrl,
+        _colorCtrl,
+        _bounceCtrl,
+      ]),
       builder: (context, child) {
-        final bg =
-            _bgColorAnim.value ?? selected.color.withValues(alpha: 0.18);
+        final bg = _bgColorAnim.value ?? selected.color.withValues(alpha: 0.18);
 
         return Opacity(
           opacity: (_entranceFade.value * _exitFade.value).clamp(0.0, 1.0),
@@ -243,10 +268,10 @@ class _MoodCheckInOverlayState extends State<MoodCheckInOverlay>
             color: const Color(0xFF4ECDC4).withValues(alpha: 0.15),
             shape: BoxShape.circle,
           ),
-          child: const Text('🌿', style: TextStyle(fontSize: 16)),
+          child: Text('🌿', style: TextStyle(fontSize: 16)),
         ),
         const SizedBox(width: 8),
-        const Text(
+        Text(
           'Personal Haven',
           style: TextStyle(
             fontSize: 14,
@@ -266,7 +291,7 @@ class _MoodCheckInOverlayState extends State<MoodCheckInOverlay>
         children: [
           Text(
             isEditing ? 'Update Your Mood.' : 'Know Your Mind.',
-            style: const TextStyle(
+            style: TextStyle(
               fontSize: 26,
               fontWeight: FontWeight.bold,
               color: Color(0xFF2D3E40),
@@ -280,7 +305,7 @@ class _MoodCheckInOverlayState extends State<MoodCheckInOverlay>
                 : 'Check in with yourself — how are you feeling?',
             style: TextStyle(
               fontSize: 13,
-              color: Colors.grey.shade600,
+              color: context.colors.textSecondary,
               height: 1.4,
             ),
             textAlign: TextAlign.center,
@@ -303,14 +328,15 @@ class _MoodCheckInOverlayState extends State<MoodCheckInOverlay>
           return GestureDetector(
             onTap: () {
               if (i != _selectedIndex) {
-                _pageController.animateToPage(i,
-                    duration: const Duration(milliseconds: 320),
-                    curve: Curves.easeInOut);
+                _pageController.animateToPage(
+                  i,
+                  duration: const Duration(milliseconds: 320),
+                  curve: Curves.easeInOut,
+                );
               }
             },
             child: AnimatedBuilder(
-              animation:
-                  Listenable.merge([_pageController, _bounceCtrl]),
+              animation: Listenable.merge([_pageController, _bounceCtrl]),
               builder: (context, _) {
                 double scale;
                 double opacity;
@@ -328,8 +354,7 @@ class _MoodCheckInOverlayState extends State<MoodCheckInOverlay>
 
                 final isCenter = i == _selectedIndex;
                 final mood = MoodOptions.all[i];
-                final finalScale =
-                    isCenter ? scale * _bounceAnim.value : scale;
+                final finalScale = isCenter ? scale * _bounceAnim.value : scale;
 
                 return Transform.scale(
                   scale: finalScale,
@@ -341,9 +366,11 @@ class _MoodCheckInOverlayState extends State<MoodCheckInOverlay>
                         gradient: RadialGradient(
                           colors: [
                             mood.color.withValues(
-                                alpha: isCenter ? 0.52 : 0.30),
+                              alpha: isCenter ? 0.52 : 0.30,
+                            ),
                             mood.color.withValues(
-                                alpha: isCenter ? 0.18 : 0.06),
+                              alpha: isCenter ? 0.18 : 0.06,
+                            ),
                           ],
                           radius: 0.80,
                         ),
@@ -385,17 +412,19 @@ class _MoodCheckInOverlayState extends State<MoodCheckInOverlay>
     return AnimatedSwitcher(
       duration: const Duration(milliseconds: 220),
       transitionBuilder: (child, anim) => ScaleTransition(
-          scale: anim,
-          child: FadeTransition(opacity: anim, child: child)),
+        scale: anim,
+        child: FadeTransition(opacity: anim, child: child),
+      ),
       child: Container(
         key: ValueKey(selected.label),
-        padding:
-            const EdgeInsets.symmetric(horizontal: 24, vertical: 10),
+        padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 10),
         decoration: BoxDecoration(
           color: selected.color.withValues(alpha: 0.14),
           borderRadius: BorderRadius.circular(32),
           border: Border.all(
-              color: selected.color.withValues(alpha: 0.38), width: 1.5),
+            color: selected.color.withValues(alpha: 0.38),
+            width: 1.5,
+          ),
         ),
         child: Text(
           'I feel ${selected.label}',
@@ -424,7 +453,7 @@ class _MoodCheckInOverlayState extends State<MoodCheckInOverlay>
           decoration: BoxDecoration(
             color: isSelected
                 ? MoodOptions.all[i].color
-                : Colors.grey.shade300,
+                : context.colors.divider,
             borderRadius: BorderRadius.circular(3),
           ),
         );
@@ -449,13 +478,15 @@ class _MoodCheckInOverlayState extends State<MoodCheckInOverlay>
                       ? Icons.keyboard_arrow_up_rounded
                       : Icons.edit_note_rounded,
                   size: 18,
-                  color: Colors.grey.shade500,
+                  color: context.colors.textSecondary,
                 ),
                 const SizedBox(width: 5),
                 Text(
                   _showNote ? 'Hide note' : 'Add a note (optional)',
                   style: TextStyle(
-                      fontSize: 13, color: Colors.grey.shade500),
+                    fontSize: 13,
+                    color: context.colors.textSecondary,
+                  ),
                 ),
               ],
             ),
@@ -474,15 +505,19 @@ class _MoodCheckInOverlayState extends State<MoodCheckInOverlay>
                       decoration: InputDecoration(
                         hintText: "What's on your mind?",
                         hintStyle: TextStyle(
-                            color: Colors.grey.shade400, fontSize: 14),
+                          color: context.colors.textSecondary,
+                          fontSize: 14,
+                        ),
                         filled: true,
-                        fillColor: Colors.white.withValues(alpha: 0.7),
+                        fillColor: context.colors.cardColor.withValues(
+                          alpha: 0.7,
+                        ),
                         border: OutlineInputBorder(
                           borderRadius: BorderRadius.circular(16),
                           borderSide: BorderSide.none,
                         ),
                         contentPadding: const EdgeInsets.all(14),
-                        counterStyle: const TextStyle(fontSize: 10),
+                        counterStyle: TextStyle(fontSize: 10),
                       ),
                     ),
                   )
@@ -507,14 +542,14 @@ class _MoodCheckInOverlayState extends State<MoodCheckInOverlay>
             backgroundColor: const Color(0xFF4ECDC4),
             foregroundColor: Colors.white,
             elevation: 6,
-            shadowColor:
-                const Color(0xFF4ECDC4).withValues(alpha: 0.40),
+            shadowColor: const Color(0xFF4ECDC4).withValues(alpha: 0.40),
             shape: RoundedRectangleBorder(
-                borderRadius: BorderRadius.circular(32)),
+              borderRadius: BorderRadius.circular(32),
+            ),
           ),
           child: Text(
             widget.existingMood != null ? 'Update Mood' : 'Save Mood',
-            style: const TextStyle(
+            style: TextStyle(
               fontSize: 17,
               fontWeight: FontWeight.bold,
               letterSpacing: 0.3,
@@ -529,14 +564,10 @@ class _MoodCheckInOverlayState extends State<MoodCheckInOverlay>
     return TextButton(
       onPressed: _skip,
       style: TextButton.styleFrom(
-        foregroundColor: Colors.grey.shade500,
-        padding:
-            const EdgeInsets.symmetric(horizontal: 24, vertical: 8),
+        foregroundColor: context.colors.textSecondary,
+        padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 8),
       ),
-      child: const Text(
-        'Skip for now',
-        style: TextStyle(fontSize: 13),
-      ),
+      child: Text('Skip for now', style: TextStyle(fontSize: 13)),
     );
   }
 
@@ -544,8 +575,6 @@ class _MoodCheckInOverlayState extends State<MoodCheckInOverlay>
 
   Color _darken(Color c) {
     final hsl = HSLColor.fromColor(c);
-    return hsl
-        .withLightness((hsl.lightness - 0.22).clamp(0.0, 1.0))
-        .toColor();
+    return hsl.withLightness((hsl.lightness - 0.22).clamp(0.0, 1.0)).toColor();
   }
 }
