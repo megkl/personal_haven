@@ -76,12 +76,14 @@ class GoalState {
 @riverpod
 class GoalNotifier extends _$GoalNotifier {
   final GoalRepository _repository = GoalRepository();
-  late final String _userId;
+
+  String get _userId => ref.watch(currentUserIdProvider);
 
   @override
   GoalState build() {
-    // replaces the constructor — runs on first use
-    Future.microtask(loadGoals);
+    if (_userId.isNotEmpty) {
+      Future.microtask(loadGoals);
+    }
     return GoalState();
   }
 

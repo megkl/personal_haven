@@ -40,12 +40,14 @@ class MoodState {
 @riverpod
 class MoodNotifier extends _$MoodNotifier {
   final MoodRepository _repository = MoodRepository();
-  late final String _userId;
+
+  String get _userId => ref.watch(currentUserIdProvider);
 
   @override
   MoodState build() {
-    // replaces the constructor — runs on first use
-    Future.microtask(loadTodayMood);
+    if (_userId.isNotEmpty) {
+      Future.microtask(loadTodayMood);
+    }
     return MoodState();
   }
 

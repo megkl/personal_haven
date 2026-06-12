@@ -1,12 +1,15 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:personal_haven/data/models/event.dart';
+import 'package:personal_haven/data/data_sources/local/cache_helper.dart';
 import 'package:personal_haven/services/firestore_service.dart';
 import 'package:uuid/uuid.dart';
 
 class EventRepository {
   final _fs = FirestoreService.instance;
+  final _cache = CacheHelper();
   final _uuid = const Uuid();
   static const _col = 'events';
+  static const _cacheDuration = Duration(hours: 1);
 
   Future<Event> createEvent({
     required String userId,
@@ -43,13 +46,32 @@ class EventRepository {
       updatedAt: now,
     );
     await _fs.set(userId, _col, event.id, event.toFirestore());
+    // Invalidate cache so next read fetches fresh data
+    await _cache.clearData(userId, _col);
     return event;
   }
 
-  Future<List<Event>> getAllEvents(String userId) async {
+  Future<List<Event>> getAllEvents(String userId, {bool forceRefresh = false}) async {
+    // Try cache first if not forcing refresh
+    if (!forceRefresh) {
+      final cached = await _cache.getData(
+        userId,
+        _col,
+        fromJson: (json) => Event.fromJson(json),
+        expiry: _cacheDuration,
+      );
+      if (cached != null) return cached;
+    }
+
+    // Fetch from Firestore
     final snap = await _fs.query(userId, _col,
         (c) => c.orderBy('eventDate', descending: false));
-    return snap.docs.map((d) => Event.fromFirestore(d)).toList();
+    final events = snap.docs.map((d) => Event.fromFirestore(d)).toList();
+    
+    // Cache result
+    await _cache.saveData(userId, _col, events, toJson: (e) => e.toJson());
+    
+    return events;
   }
 
   Future<Event?> getEventById(String userId, String eventId) async {
@@ -58,50 +80,37 @@ class EventRepository {
     return Event.fromFirestore(doc);
   }
 
-  Future<List<Event>> getEventsByDate(String userId, DateTime date) async {
-    final start = DateTime(date.year, date.month, date.day).toIso8601String();
-    final end =
-        DateTime(date.year, date.month, date.day + 1).toIso8601String();
-    final snap = await _fs.query(
-        userId,
-        _col,
-        (c) => c
-            .where('eventDate', isGreaterThanOrEqualTo: start)
-            .where('eventDate', isLessThan: end));
-    return snap.docs.map((d) => Event.fromFirestore(d)).toList();
+  Future<List<Event>> getEventsByDate(String userId, DateTime date, {bool forceRefresh = false}) async {
+    // Derive from all events cache
+    final allEvents = await getAllEvents(userId, forceRefresh: forceRefresh);
+    return allEvents.where((e) {
+      return e.eventDate.year == date.year &&
+          e.eventDate.month == date.month &&
+          e.eventDate.day == date.day;
+    }).toList();
   }
 
-  Future<List<Event>> getTodayEvents(String userId) async {
-    return getEventsByDate(userId, DateTime.now());
+  Future<List<Event>> getTodayEvents(String userId, {bool forceRefresh = false}) async {
+    return getEventsByDate(userId, DateTime.now(), forceRefresh: forceRefresh);
   }
 
-  Future<List<Event>> getUpcomingEvents(String userId, {int days = 7}) async {
-    final now = DateTime.now().toIso8601String();
-    final future = DateTime.now()
-        .add(Duration(days: days))
-        .toIso8601String();
-    final snap = await _fs.query(
-        userId,
-        _col,
-        (c) => c
-            .where('eventDate', isGreaterThanOrEqualTo: now)
-            .where('eventDate', isLessThanOrEqualTo: future)
-            .orderBy('eventDate'));
-    return snap.docs.map((d) => Event.fromFirestore(d)).toList();
+  Future<List<Event>> getUpcomingEvents(String userId, {int days = 7, bool forceRefresh = false}) async {
+    // For upcoming events, derive from cached data or fetch
+    final allEvents = await getAllEvents(userId, forceRefresh: forceRefresh);
+    final now = DateTime.now();
+    final future = now.add(Duration(days: days));
+    
+    return allEvents.where((e) {
+      return e.eventDate.isAfter(now) && e.eventDate.isBefore(future);
+    }).toList()..sort((a, b) => a.eventDate.compareTo(b.eventDate));
   }
 
-  Future<List<Event>> getEventsByMonth(
-      String userId, int year, int month) async {
-    final start = DateTime(year, month, 1).toIso8601String();
-    final end = DateTime(year, month + 1, 1).toIso8601String();
-    final snap = await _fs.query(
-        userId,
-        _col,
-        (c) => c
-            .where('eventDate', isGreaterThanOrEqualTo: start)
-            .where('eventDate', isLessThan: end)
-            .orderBy('eventDate'));
-    return snap.docs.map((d) => Event.fromFirestore(d)).toList();
+  Future<List<Event>> getEventsByMonth(String userId, int year, int month, {bool forceRefresh = false}) async {
+    // Derive from all events cache
+    final allEvents = await getAllEvents(userId, forceRefresh: forceRefresh);
+    return allEvents.where((e) {
+      return e.eventDate.year == year && e.eventDate.month == month;
+    }).toList()..sort((a, b) => a.eventDate.compareTo(b.eventDate));
   }
 
   Future<List<Event>> searchEvents(String userId, String query) async {
@@ -140,11 +149,15 @@ class EventRepository {
   Future<Event> updateEvent(Event event) async {
     final updated = event.copyWith(updatedAt: DateTime.now());
     await _fs.set(event.userId, _col, event.id, updated.toFirestore());
+    // Invalidate cache so next read fetches fresh data
+    await _cache.clearData(event.userId, _col);
     return updated;
   }
 
   Future<void> deleteEvent(String userId, String eventId) async {
     await _fs.delete(userId, _col, eventId);
+    // Invalidate cache
+    await _cache.clearData(userId, _col);
   }
 
   Future<void> deleteAllEvents(String userId) async {
@@ -154,6 +167,8 @@ class EventRepository {
       batch.delete(doc.reference);
     }
     await batch.commit();
+    // Invalidate cache
+    await _cache.clearData(userId, _col);
   }
 
   Future<void> deletePastEvents(String userId) async {
@@ -165,5 +180,14 @@ class EventRepository {
       batch.delete(doc.reference);
     }
     await batch.commit();
+    // Invalidate cache
+    await _cache.clearData(userId, _col);
   }
-}
+
+  /// Refresh cache by fetching from Firestore
+  Future<List<Event>> refreshEvents(String userId) async {
+    await _cache.clearData(userId, _col);
+    return getAllEvents(userId, forceRefresh: true);
+  }
+  }
+

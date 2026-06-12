@@ -95,12 +95,14 @@ class FoodState {
 @riverpod
 class FoodNotifier extends _$FoodNotifier {
   final FoodRepository _repository = FoodRepository();
-  late final String _userId;
+
+  String get _userId => ref.watch(currentUserIdProvider);
 
   @override
   FoodState build() {
-    // replaces the constructor — runs on first use
-    Future.microtask(loadEntries);
+    if (_userId.isNotEmpty) {
+      Future.microtask(loadEntries);
+    }
     return FoodState();
   }
 

@@ -106,11 +106,14 @@ class JournalState {
 @riverpod
 class JournalNotifier extends _$JournalNotifier {
   final JournalRepository _repository = JournalRepository();
-  late final String _userId;
+
+  String get _userId => ref.watch(currentUserIdProvider);
+
   @override
   JournalState build() {
-    // replaces the constructor — runs on first use
-    Future.microtask(loadEntries);
+    if (_userId.isNotEmpty) {
+      Future.microtask(loadEntries);
+    }
     return JournalState();
   }
 

@@ -76,23 +76,41 @@ class Goal extends Equatable {
     );
   }
 
-  Map<String, dynamic> toFirestore() {
-    return {
-      'id': id,
-      'userId': userId,
-      'title': title,
-      'description': description,
-      'targetValue': targetValue,
-      'currentValue': currentValue,
-      'unit': unit,
-      'startDate': startDate.toIso8601String(),
-      'targetDate': targetDate?.toIso8601String(),
-      'status': status,
-      'category': category,
-      'createdAt': createdAt.toIso8601String(),
-      'updatedAt': updatedAt.toIso8601String(),
-    };
-  }
+  Map<String, dynamic> toFirestore() => toJson();
+
+  Map<String, dynamic> toJson() => {
+        'id': id,
+        'userId': userId,
+        'title': title,
+        'description': description,
+        'targetValue': targetValue,
+        'currentValue': currentValue,
+        'unit': unit,
+        'startDate': startDate.toIso8601String(),
+        'targetDate': targetDate?.toIso8601String(),
+        'status': status,
+        'category': category,
+        'createdAt': createdAt.toIso8601String(),
+        'updatedAt': updatedAt.toIso8601String(),
+      };
+
+  factory Goal.fromJson(Map<String, dynamic> json) => Goal(
+        id: json['id'] as String,
+        userId: json['userId'] as String,
+        title: json['title'] as String,
+        description: json['description'] as String?,
+        targetValue: (json['targetValue'] as num).toDouble(),
+        currentValue: (json['currentValue'] as num?)?.toDouble() ?? 0.0,
+        unit: json['unit'] as String,
+        startDate: DateTime.parse(json['startDate'] as String),
+        targetDate: json['targetDate'] != null
+            ? DateTime.parse(json['targetDate'] as String)
+            : null,
+        status: json['status'] as String? ?? 'active',
+        category: json['category'] as String? ?? 'personal',
+        createdAt: DateTime.parse(json['createdAt'] as String),
+        updatedAt: DateTime.parse(json['updatedAt'] as String),
+      );
 
   static Goal fromFirestore(dynamic doc) {
     final d = doc.data() as Map<String, dynamic>;

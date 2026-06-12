@@ -82,12 +82,14 @@ class TransactionState {
 @riverpod
 class TransactionNotifier extends _$TransactionNotifier {
   final TransactionRepository _repository = TransactionRepository();
-  late final String _userId;
+
+  String get _userId => ref.watch(currentUserIdProvider);
 
   @override
   TransactionState build() {
-    // replaces the constructor — runs on first use
-    Future.microtask(loadTransactions);
+    if (_userId.isNotEmpty) {
+      Future.microtask(loadTransactions);
+    }
     return TransactionState();
   }
 

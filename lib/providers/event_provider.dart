@@ -65,11 +65,15 @@ class EventState {
 @riverpod
 class EventNotifier extends _$EventNotifier {
   final EventRepository _repository = EventRepository();
-  late final String _userId;
+
+  String get _userId => ref.watch(currentUserIdProvider);
+
   @override
   EventState build() {
-    // replaces the constructor — runs on first use
-    Future.microtask(loadEvents);
+    // only load when a user is signed in
+    if (_userId.isNotEmpty) {
+      Future.microtask(loadEvents);
+    }
     return EventState();
   }
 

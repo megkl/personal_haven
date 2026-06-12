@@ -34,11 +34,11 @@ class SubscriptionState {
 @riverpod
 class SubscriptionNotifier extends _$SubscriptionNotifier {
   final SubscriptionRepository _repo = SubscriptionRepository();
-  late final String _userId;
+
+  String get _userId => ref.watch(currentUserIdProvider);
 
   @override
   SubscriptionState build() {
-    // replaces the constructor — runs on first use
     Future.microtask(_load);
     return SubscriptionState();
   }

@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:personal_haven/core/constants/app_colors.dart';
+import 'package:personal_haven/core/theme/app_theme.dart';
 import 'package:personal_haven/presentation/screens/home/home_screen.dart';
 import 'package:personal_haven/presentation/screens/journal/journal_screen.dart';
 import 'package:personal_haven/presentation/screens/profile/profile_screen.dart';
@@ -36,24 +37,25 @@ class _MainNavigationScreenState extends ConsumerState<MainNavigationScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
+      backgroundColor: _selectedIndex == 0 ? const Color(0xFFB8E6E3) : null,
       body: _screens[_selectedIndex],
       bottomNavigationBar: Padding(
-        padding: const EdgeInsets.fromLTRB(5, 10, 5, 16),
+        padding: const EdgeInsets.fromLTRB(20, 10, 20, 20),
         child: Container(
           height: 80,
           decoration: BoxDecoration(
-            color: Colors.white,
-            borderRadius: BorderRadius.circular(32),
+            color: context.colors.navBar,
+            borderRadius: BorderRadius.circular(30),
             boxShadow: [
               BoxShadow(
-                color: Colors.black.withOpacity(0.2),
+                color: Colors.black.withValues(alpha: context.isDark ? 0.35 : 0.15),
                 blurRadius: 16,
                 offset: const Offset(0, 8),
               ),
             ],
           ),
           child: Row(
-            mainAxisAlignment: MainAxisAlignment.spaceAround,
+            mainAxisAlignment: MainAxisAlignment.spaceEvenly,
             children: [
               _buildNavItem(Icons.home, 'Home', 0),
               _buildNavItem(Icons.book, 'Journal', 1),
@@ -86,7 +88,7 @@ class _MainNavigationScreenState extends ConsumerState<MainNavigationScreen> {
                 ),
                 child: Icon(
                   icon,
-                  color: isSelected ? Colors.white : Colors.grey.shade600,
+                  color: isSelected ? Colors.white : Colors.grey.shade500,
                   size: 22,
                 ),
               ),
@@ -96,7 +98,7 @@ class _MainNavigationScreenState extends ConsumerState<MainNavigationScreen> {
                 style: TextStyle(
                   fontSize: 10,
                   fontWeight: isSelected ? FontWeight.w600 : FontWeight.normal,
-                  color: isSelected ? AppColors.primary : Colors.grey.shade600,
+                  color: isSelected ? AppColors.primary : Colors.grey.shade500,
                 ),
               ),
             ],

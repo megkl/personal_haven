@@ -126,12 +126,14 @@ class TaskState {
 @riverpod
 class TaskNotifier extends _$TaskNotifier {
   final TaskRepository _repository = TaskRepository();
-  late final String _userId;
+
+  String get _userId => ref.watch(currentUserIdProvider);
 
   @override
   TaskState build() {
-    // replaces the constructor — runs on first use
-    Future.microtask(loadTasks);
+    if (_userId.isNotEmpty) {
+      Future.microtask(loadTasks);
+    }
     return TaskState();
   }
 
