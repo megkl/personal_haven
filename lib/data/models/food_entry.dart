@@ -25,20 +25,33 @@ class FoodEntry extends Equatable {
     required this.consumedAt,
   });
 
-  Map<String, dynamic> toFirestore() {
-    return {
-      'id': id,
-      'userId': userId,
-      'mealType': mealType,
-      'foodName': foodName,
-      'description': description,
-      'calories': calories,
-      'protein': protein,
-      'carbs': carbs,
-      'fat': fat,
-      'consumedAt': consumedAt.toIso8601String(),
-    };
-  }
+  Map<String, dynamic> toFirestore() => toJson();
+
+  Map<String, dynamic> toJson() => {
+        'id': id,
+        'userId': userId,
+        'mealType': mealType,
+        'foodName': foodName,
+        'description': description,
+        'calories': calories,
+        'protein': protein,
+        'carbs': carbs,
+        'fat': fat,
+        'consumedAt': consumedAt.toIso8601String(),
+      };
+
+  factory FoodEntry.fromJson(Map<String, dynamic> json) => FoodEntry(
+        id: json['id'] as String,
+        userId: json['userId'] as String,
+        mealType: json['mealType'] as String,
+        foodName: json['foodName'] as String,
+        description: json['description'] as String?,
+        calories: json['calories'] as int?,
+        protein: json['protein'] as int?,
+        carbs: json['carbs'] as int?,
+        fat: json['fat'] as int?,
+        consumedAt: DateTime.parse(json['consumedAt'] as String),
+      );
 
   static FoodEntry fromFirestore(dynamic doc) {
     final d = doc.data() as Map<String, dynamic>;

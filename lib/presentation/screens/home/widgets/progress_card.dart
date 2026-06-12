@@ -2,15 +2,13 @@
 // progress_card.dart
 // ============================================================================
 import 'package:flutter/material.dart';
+import 'package:personal_haven/core/theme/app_theme.dart';
 import 'package:personal_haven/core/constants/app_colors.dart';
 
 class ProgressCard extends StatelessWidget {
   final int todayEntryCount;
 
-  const ProgressCard({
-    super.key,
-    required this.todayEntryCount,
-  });
+  const ProgressCard({super.key, required this.todayEntryCount});
 
   @override
   Widget build(BuildContext context) {
@@ -18,32 +16,29 @@ class ProgressCard extends StatelessWidget {
       width: double.infinity,
       padding: const EdgeInsets.all(20),
       decoration: BoxDecoration(
-        color: AppColors.cardBackground,
+        color: context.colors.cardColor,
         borderRadius: BorderRadius.circular(16),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          const Text(
+          Text(
             "Today's Progress",
             style: TextStyle(
               fontSize: 18,
               fontWeight: FontWeight.bold,
-              color: AppColors.textPrimary,
+              color: context.colors.textPrimary,
             ),
           ),
           const SizedBox(height: 12),
           Text(
             'You wrote $todayEntryCount journal ${todayEntryCount == 1 ? 'entry' : 'entries'} and logged\n3 meals',
-            style: const TextStyle(
-              fontSize: 14,
-              color: AppColors.textSecondary,
-            ),
+            style: TextStyle(fontSize: 14, color: context.colors.textSecondary),
           ),
           const SizedBox(height: 12),
           TextButton(
             onPressed: () {},
-            child: const Text(
+            child: Text(
               'View Full Recap',
               style: TextStyle(
                 color: AppColors.primary,
@@ -56,7 +51,6 @@ class ProgressCard extends StatelessWidget {
     );
   }
 }
-
 
 // ============================================================================
 // mood_check_in_card.dart
@@ -89,17 +83,13 @@ class MoodCheckInCard extends StatelessWidget {
               ),
             ),
             SizedBox(width: 12),
-            Text(
-              '😊',
-              style: TextStyle(fontSize: 24),
-            ),
+            Text('😊', style: TextStyle(fontSize: 24)),
           ],
         ),
       ),
     );
   }
 }
-
 
 // ============================================================================
 // tasks_card.dart
@@ -113,18 +103,18 @@ class TasksCard extends StatelessWidget {
       width: double.infinity,
       padding: const EdgeInsets.all(20),
       decoration: BoxDecoration(
-        color: AppColors.cardBackground,
+        color: context.colors.cardColor,
         borderRadius: BorderRadius.circular(16),
       ),
       child: Row(
         mainAxisAlignment: MainAxisAlignment.spaceBetween,
         children: [
-          const Text(
+          Text(
             'Urgent Tasks',
             style: TextStyle(
               fontSize: 18,
               fontWeight: FontWeight.bold,
-              color: AppColors.textPrimary,
+              color: context.colors.textPrimary,
             ),
           ),
           Container(

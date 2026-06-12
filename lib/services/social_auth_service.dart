@@ -1,6 +1,7 @@
 import 'dart:convert';
 
 import 'package:firebase_auth/firebase_auth.dart' as fb;
+import 'package:flutter/foundation.dart';
 import 'package:flutter_appauth/flutter_appauth.dart';
 import 'package:google_sign_in/google_sign_in.dart';
 import 'package:sign_in_with_apple/sign_in_with_apple.dart';
@@ -33,43 +34,105 @@ class SocialAuthService {
   static final SocialAuthService instance = SocialAuthService._();
   SocialAuthService._();
 
-  final _googleSignIn = GoogleSignIn(scopes: ['email', 'profile']);
   final _appAuth = const FlutterAppAuth();
+  bool _googleInitialized = false;
 
   // ── Google ──────────────────────────────────────────────────────────────────
+
+  /// Initialize Google Sign-In. This must be called once before any other Google methods.
+  /// Client ID and server Client ID should be configured via platform-specific setup.
+  Future<void> initializeGoogle() async {
+    if (_googleInitialized) return;
+
+    try {
+      await GoogleSignIn.instance.initialize();
+      _googleInitialized = true;
+    } catch (e) {
+      debugPrint('Error initializing Google Sign-In: $e');
+      _googleInitialized = false;
+    }
+  }
+
+  /// Sign in with Google using authentication.
+  /// On platforms that support it (Android, iOS, macOS), this shows the native sign-in UI.
+  /// On web, fall back to platform-specific approach using renderButton.
   Future<SocialAuthResult> signInWithGoogle() async {
     try {
-      final account = await _googleSignIn.signIn();
+      // Ensure Google Sign-In is initialized
+      if (!_googleInitialized) {
+        await initializeGoogle();
+      }
+
+      GoogleSignInAccount? account;
+
+      // Use authenticate on platforms that support it
+      if (GoogleSignIn.instance.supportsAuthenticate()) {
+        // authenticate() handles both authentication and can include scope authorization
+        try {
+          account = await GoogleSignIn.instance.authenticate();
+        } on GoogleSignInException catch (e) {
+          if (e.code == GoogleSignInExceptionCode.canceled) {
+            return SocialAuthResult(success: false, error: 'Sign-in cancelled');
+          }
+          return SocialAuthResult(success: false, error: e.description ?? 'Sign-in failed');
+        }
+      } else {
+        // For web and other platforms that don't support authenticate(),
+        // use the lightweight authentication method
+        try {
+          account = await GoogleSignIn.instance.attemptLightweightAuthentication();
+        } on GoogleSignInException catch (e) {
+          if (e.code == GoogleSignInExceptionCode.canceled) {
+            return SocialAuthResult(success: false, error: 'Sign-in cancelled');
+          }
+          return SocialAuthResult(success: false, error: e.description ?? 'Sign-in failed');
+        }
+      }
+
       if (account == null) {
         return SocialAuthResult(success: false, error: 'Sign-in cancelled');
       }
+
+      // Get authentication details (idToken)
       final auth = await account.authentication;
       if (auth.idToken == null) {
         return SocialAuthResult(
             success: false,
             error: 'Google idToken was null — try again');
       }
+
+      // In google_sign_in 7.x, accessToken is obtained via authorization if needed
+      // For Firebase authentication, idToken is sufficient
+      // Create Firebase credential with idToken only (Firebase handles it)
       final credential = fb.GoogleAuthProvider.credential(
         idToken: auth.idToken,
-        accessToken: auth.accessToken,
       );
+
       return SocialAuthResult(
         success: true,
         email: account.email,
         displayName: account.displayName,
         avatarUrl: account.photoUrl,
         idToken: auth.idToken,
-        accessToken: auth.accessToken,
+        accessToken: null, // Not available from basic authentication in 7.x
         provider: 'google',
         credential: credential,
       );
     } catch (e) {
-      return SocialAuthResult(success: false, error: e.toString());
+      return SocialAuthResult(success: false, error: 'Google Sign-In error: $e');
     }
   }
 
+  /// Disconnect from Google Sign-In.
+  /// This clears the cached current user.
   Future<void> signOutGoogle() async {
-    await _googleSignIn.signOut();
+    try {
+      if (_googleInitialized) {
+        await GoogleSignIn.instance.disconnect();
+      }
+    } catch (e) {
+      debugPrint('Error signing out from Google: $e');
+    }
   }
 
   // ── Apple ───────────────────────────────────────────────────────────────────

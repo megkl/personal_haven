@@ -3,7 +3,8 @@ import 'package:personal_haven/data/models/event.dart';
 import 'package:personal_haven/data/repositories/event_repository.dart';
 import 'package:personal_haven/providers/auth_provider.dart';
 import 'package:personal_haven/services/notification_service.dart';
-
+import 'package:riverpod_annotation/riverpod_annotation.dart';
+part 'event_provider.g.dart';
 /// Provider for EventRepository
 final eventRepositoryProvider = Provider<EventRepository>((ref) {
   return EventRepository();
@@ -60,13 +61,20 @@ class EventState {
   }
 }
 
-/// Event Notifier
-class EventNotifier extends StateNotifier<EventState> {
-  final EventRepository _repository;
-  final String _userId;
 
-  EventNotifier(this._repository, this._userId) : super(EventState()) {
-    loadEvents();
+@riverpod
+class EventNotifier extends _$EventNotifier {
+  final EventRepository _repository = EventRepository();
+
+  String get _userId => ref.watch(currentUserIdProvider);
+
+  @override
+  EventState build() {
+    // only load when a user is signed in
+    if (_userId.isNotEmpty) {
+      Future.microtask(loadEvents);
+    }
+    return EventState();
   }
 
   // ─────────────────────────────────────────────────────────────
@@ -260,14 +268,6 @@ class EventNotifier extends StateNotifier<EventState> {
 // ─────────────────────────────────────────────────────────────
 // PROVIDERS
 // ─────────────────────────────────────────────────────────────
-
-/// Main event provider
-final eventProvider = StateNotifierProvider<EventNotifier, EventState>((ref) {
-  final repository = ref.watch(eventRepositoryProvider);
-  final userId = ref.watch(currentUserIdProvider);
-
-  return EventNotifier(repository, userId);
-});
 
 /// Provider for today's events
 final todayEventsProvider = Provider<List<Event>>((ref) {

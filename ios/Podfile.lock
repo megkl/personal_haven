@@ -1,52 +1,16 @@
 PODS:
-  - AppAuth (1.7.6):
-    - AppAuth/Core (= 1.7.6)
-    - AppAuth/ExternalUserAgent (= 1.7.6)
-  - AppAuth/Core (1.7.6)
-  - AppAuth/ExternalUserAgent (1.7.6):
-    - AppAuth/Core
   - Flutter (1.0.0)
-  - flutter_appauth (0.0.1):
-    - AppAuth (= 1.7.6)
-    - Flutter
-  - flutter_inapp_purchase (0.0.1):
-    - Flutter
-  - flutter_local_notifications (0.0.1):
-    - Flutter
-  - sign_in_with_apple (0.0.1):
-    - Flutter
 
 DEPENDENCIES:
   - Flutter (from `Flutter`)
-  - flutter_appauth (from `.symlinks/plugins/flutter_appauth/ios`)
-  - flutter_inapp_purchase (from `.symlinks/plugins/flutter_inapp_purchase/ios`)
-  - flutter_local_notifications (from `.symlinks/plugins/flutter_local_notifications/ios`)
-  - sign_in_with_apple (from `.symlinks/plugins/sign_in_with_apple/ios`)
-
-SPEC REPOS:
-  trunk:
-    - AppAuth
 
 EXTERNAL SOURCES:
   Flutter:
     :path: Flutter
-  flutter_appauth:
-    :path: ".symlinks/plugins/flutter_appauth/ios"
-  flutter_inapp_purchase:
-    :path: ".symlinks/plugins/flutter_inapp_purchase/ios"
-  flutter_local_notifications:
-    :path: ".symlinks/plugins/flutter_local_notifications/ios"
-  sign_in_with_apple:
-    :path: ".symlinks/plugins/sign_in_with_apple/ios"
 
 SPEC CHECKSUMS:
-  AppAuth: d4f13a8fe0baf391b2108511793e4b479691fb73
   Flutter: cabc95a1d2626b1b06e7179b784ebcf0c0cde467
-  flutter_appauth: 914057fda669db5073d3ca9d94ea932e7df3c964
-  flutter_inapp_purchase: 722da12971a50f306f37e62fc1aaf576b1cbecf6
-  flutter_local_notifications: 395056b3175ba4f08480a7c5de30cd36d69827e4
-  sign_in_with_apple: c5dcc141574c8c54d5ac99dd2163c0c72ad22418
 
-PODFILE CHECKSUM: 67e3877bd51d6e83232be0ad5771ec770f364b70
+PODFILE CHECKSUM: 2972c8b28f03c16db4f0de942f566657c3689337
 
 COCOAPODS: 1.16.2

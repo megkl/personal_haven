@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:personal_haven/core/theme/app_theme.dart';
 import 'package:personal_haven/core/constants/app_colors.dart';
 
 class TermsScreen extends StatelessWidget {
@@ -7,9 +8,9 @@ class TermsScreen extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: AppColors.background,
+      backgroundColor: Theme.of(context).scaffoldBackgroundColor,
       appBar: AppBar(
-        title: const Text('Terms & Conditions'),
+        title: Text('Terms & Conditions'),
         backgroundColor: AppColors.primary,
         foregroundColor: Colors.white,
       ),
@@ -27,9 +28,9 @@ class PrivacyPolicyScreen extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: AppColors.background,
+      backgroundColor: Theme.of(context).scaffoldBackgroundColor,
       appBar: AppBar(
-        title: const Text('Privacy Policy'),
+        title: Text('Privacy Policy'),
         backgroundColor: AppColors.primary,
         foregroundColor: Colors.white,
       ),
@@ -56,27 +57,27 @@ class _LegalContent extends StatelessWidget {
           if (section.heading != null) ...[
             Text(
               section.heading!,
-              style: const TextStyle(
+              style: TextStyle(
                 fontSize: 16,
                 fontWeight: FontWeight.bold,
-                color: AppColors.textPrimary,
+                color: context.colors.textPrimary,
               ),
             ),
             const SizedBox(height: 8),
           ],
           Text(
             section.body,
-            style: const TextStyle(
+            style: TextStyle(
               fontSize: 14,
-              color: AppColors.textSecondary,
+              color: context.colors.textSecondary,
               height: 1.6,
             ),
           ),
           const SizedBox(height: 20),
         ],
-        const Text(
+        Text(
           'Last updated: April 2026',
-          style: TextStyle(fontSize: 12, color: AppColors.textSecondary),
+          style: TextStyle(fontSize: 12, color: context.colors.textSecondary),
         ),
         const SizedBox(height: 40),
       ],

@@ -46,17 +46,28 @@ class BudgetTransaction extends Equatable {
     );
   }
 
-  Map<String, dynamic> toFirestore() {
-    return {
-      'id': id,
-      'userId': userId,
-      'type': type,
-      'amount': amount,
-      'category': category,
-      'description': description,
-      'transactionDate': transactionDate.toIso8601String(),
-    };
-  }
+  Map<String, dynamic> toFirestore() => toJson();
+
+  Map<String, dynamic> toJson() => {
+        'id': id,
+        'userId': userId,
+        'type': type,
+        'amount': amount,
+        'category': category,
+        'description': description,
+        'transactionDate': transactionDate.toIso8601String(),
+      };
+
+  factory BudgetTransaction.fromJson(Map<String, dynamic> json) =>
+      BudgetTransaction(
+        id: json['id'] as String,
+        userId: json['userId'] as String,
+        type: json['type'] as String,
+        amount: (json['amount'] as num).toDouble(),
+        category: json['category'] as String? ?? 'Other',
+        description: json['description'] as String?,
+        transactionDate: DateTime.parse(json['transactionDate'] as String),
+      );
 
   static BudgetTransaction fromFirestore(dynamic doc) {
     final d = doc.data() as Map<String, dynamic>;

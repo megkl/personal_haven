@@ -52,7 +52,7 @@ class NotificationService {
       requestSoundPermission: true,
     );
     await _plugin.initialize(
-      const InitializationSettings(android: android, iOS: ios),
+      settings:InitializationSettings(android: android, iOS: ios),
       onDidReceiveNotificationResponse: _onTap,
     );
     _initialized = true;
@@ -115,7 +115,8 @@ class NotificationService {
     String channelId = NotificationChannels.dailyId,
     String channelName = NotificationChannels.dailyName,
   }) async {
-    await _plugin.show(id, title, body, _details(channelId, channelName));
+    await _plugin.show(id: id, title: title, body: body, payload: null,
+        notificationDetails: _details(channelId, channelName));
   }
 
   // ── Daily recurring ───────────────────────────────────────────────────────
@@ -165,14 +166,12 @@ class NotificationService {
     required String channelName,
   }) async {
     await _plugin.zonedSchedule(
-      id,
-      title,
-      body,
-      _nextInstanceOfTime(hour, minute),
-      _details(channelId, channelName),
+      id: id,
+      title: title,
+      body: body,
+      scheduledDate: _nextInstanceOfTime(hour, minute),
+      notificationDetails: _details(channelId, channelName),
       androidScheduleMode: AndroidScheduleMode.exactAllowWhileIdle,
-      uiLocalNotificationDateInterpretation:
-          UILocalNotificationDateInterpretation.absoluteTime,
       matchDateTimeComponents: DateTimeComponents.time,
     );
   }
@@ -184,7 +183,7 @@ class NotificationService {
       NotificationIds.journalPrompt,
       NotificationIds.mealReminder,
     ]) {
-      await _plugin.cancel(id);
+      await _plugin.cancel(id: id);
     }
   }
 
@@ -198,14 +197,12 @@ class NotificationService {
         tz.local, now.year, now.month, now.day + daysUntilSunday, 18, 0);
 
     await _plugin.zonedSchedule(
-      NotificationIds.weeklyMoodSummary,
-      '📊 Your weekly mood summary',
-      'Check your mood insights to see how your week went.',
-      nextSunday,
-      _details(NotificationChannels.wellnessId, NotificationChannels.wellnessName),
+      id: 1,
+      title: '📊 Your weekly mood summary',
+      body: 'Check your mood insights to see how your week went.',
+      scheduledDate: nextSunday,
+      notificationDetails: _details(NotificationChannels.wellnessId, NotificationChannels.wellnessName),
       androidScheduleMode: AndroidScheduleMode.exactAllowWhileIdle,
-      uiLocalNotificationDateInterpretation:
-          UILocalNotificationDateInterpretation.absoluteTime,
       matchDateTimeComponents: DateTimeComponents.dayOfWeekAndTime,
     );
   }
@@ -258,26 +255,34 @@ class NotificationService {
   // ── Events ────────────────────────────────────────────────────────────────
 
   Future<void> scheduleEventReminder(
-      String eventId, String eventTitle, DateTime eventTime) async {
+    String eventId,
+    String eventTitle,
+    DateTime eventTime,
+  ) async {
     final reminderTime = eventTime.subtract(const Duration(hours: 1));
     if (reminderTime.isBefore(DateTime.now())) return;
 
+    final id = NotificationIds.eventReminderBase + eventId.hashCode.abs() % 100;
+
     await _plugin.zonedSchedule(
-      NotificationIds.eventReminderBase + eventId.hashCode.abs() % 100,
-      '📅 Upcoming event',
-      '"$eventTitle" starts in 1 hour.',
-      _scheduleAt(reminderTime),
-      _details(NotificationChannels.eventsId, NotificationChannels.eventsName,
-          importance: Importance.high, priority: Priority.high),
+      id: id,
+      title: '⏰ Upcoming event',
+      body: 'Your event "$eventTitle" starts in 1 hour.',
+      scheduledDate: _scheduleAt(reminderTime),
+      notificationDetails: _details(
+        NotificationChannels.eventsId,
+        NotificationChannels.eventsName,
+        importance: Importance.high,
+        priority: Priority.high,
+      ),
       androidScheduleMode: AndroidScheduleMode.exactAllowWhileIdle,
-      uiLocalNotificationDateInterpretation:
-          UILocalNotificationDateInterpretation.absoluteTime,
     );
   }
 
   Future<void> cancelEventReminder(String eventId) async {
     await _plugin.cancel(
-        NotificationIds.eventReminderBase + eventId.hashCode.abs() % 100);
+      id: NotificationIds.eventReminderBase + eventId.hashCode.abs() % 100,
+    );
   }
 
   // ── Subscription ─────────────────────────────────────────────────────────
@@ -289,31 +294,33 @@ class NotificationService {
 
     if (threeDays.isAfter(now)) {
       await _plugin.zonedSchedule(
-        NotificationIds.trialExpiring3Days,
-        '⏳ Your subscription expires soon',
-        'Your Personal Haven access expires in 3 days. Renew to keep your haven.',
-        _scheduleAt(threeDays),
-        _details(NotificationChannels.subscriptionId,
-            NotificationChannels.subscriptionName,
-            importance: Importance.high, priority: Priority.high),
+        id: NotificationIds.trialExpiring3Days,
+        title: '⏳ Your subscription expires soon',
+        body: 'Your Personal Haven access expires in 3 days. Renew to keep your haven.',
+        scheduledDate: _scheduleAt(threeDays),
+        notificationDetails: _details(
+          NotificationChannels.subscriptionId,
+          NotificationChannels.subscriptionName,
+          importance: Importance.high,
+          priority: Priority.high,
+        ),
         androidScheduleMode: AndroidScheduleMode.exactAllowWhileIdle,
-        uiLocalNotificationDateInterpretation:
-            UILocalNotificationDateInterpretation.absoluteTime,
       );
     }
 
     if (oneDay.isAfter(now)) {
       await _plugin.zonedSchedule(
-        NotificationIds.trialExpiring1Day,
-        '🔔 Last day of your subscription',
-        'Your access expires tomorrow. Subscribe now to avoid interruption.',
-        _scheduleAt(oneDay),
-        _details(NotificationChannels.subscriptionId,
-            NotificationChannels.subscriptionName,
-            importance: Importance.high, priority: Priority.high),
+        id: NotificationIds.trialExpiring1Day,
+        title: '🔔 Last day of your subscription',
+        body: 'Your access expires tomorrow. Subscribe now to avoid interruption.',
+        scheduledDate: _scheduleAt(oneDay),
+        notificationDetails: _details(
+          NotificationChannels.subscriptionId,
+          NotificationChannels.subscriptionName,
+          importance: Importance.high,
+          priority: Priority.high,
+        ),
         androidScheduleMode: AndroidScheduleMode.exactAllowWhileIdle,
-        uiLocalNotificationDateInterpretation:
-            UILocalNotificationDateInterpretation.absoluteTime,
       );
     }
   }

@@ -3,7 +3,8 @@ import 'package:personal_haven/data/models/subscription.dart';
 import 'package:personal_haven/data/repositories/subscription_repository.dart';
 import 'package:personal_haven/providers/auth_provider.dart';
 import 'package:personal_haven/services/notification_service.dart';
-
+import 'package:riverpod_annotation/riverpod_annotation.dart';
+part 'subscription_provider.g.dart';
 class SubscriptionState {
   final Subscription? active;
   final bool isLoading;
@@ -30,12 +31,16 @@ class SubscriptionState {
   }
 }
 
-class SubscriptionNotifier extends StateNotifier<SubscriptionState> {
+@riverpod
+class SubscriptionNotifier extends _$SubscriptionNotifier {
   final SubscriptionRepository _repo = SubscriptionRepository();
-  final String _userId;
 
-  SubscriptionNotifier(this._userId) : super(const SubscriptionState()) {
-    _load();
+  String get _userId => ref.watch(currentUserIdProvider);
+
+  @override
+  SubscriptionState build() {
+    Future.microtask(_load);
+    return SubscriptionState();
   }
 
   Future<void> _load() async {
@@ -102,11 +107,6 @@ class SubscriptionNotifier extends StateNotifier<SubscriptionState> {
   void clearError() => state = state.copyWith(error: null);
 }
 
-final subscriptionProvider =
-    StateNotifierProvider<SubscriptionNotifier, SubscriptionState>((ref) {
-  final userId = ref.watch(currentUserIdProvider);
-  return SubscriptionNotifier(userId);
-});
 
 /// Convenience — true when user has an active paid/trial subscription.
 final isPremiumProvider = Provider<bool>((ref) {

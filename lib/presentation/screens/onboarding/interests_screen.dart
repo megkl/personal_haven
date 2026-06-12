@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:personal_haven/core/theme/app_theme.dart';
 import 'package:personal_haven/presentation/screens/auth/signup_screen.dart';
 
 class InterestsScreen extends StatefulWidget {
@@ -42,7 +43,7 @@ class _InterestsScreenState extends State<InterestsScreen> {
               children: [
                 Icon(Icons.spa, color: Colors.white.withValues(alpha: 0.9)),
                 const SizedBox(width: 8),
-                const Text(
+                Text(
                   'Personal Haven',
                   style: TextStyle(
                     fontSize: 18,
@@ -53,7 +54,7 @@ class _InterestsScreenState extends State<InterestsScreen> {
               ],
             ),
             const SizedBox(height: 40),
-            const Text(
+            Text(
               'What brings you here?',
               style: TextStyle(
                 fontSize: 28,
@@ -62,12 +63,9 @@ class _InterestsScreenState extends State<InterestsScreen> {
               ),
             ),
             const SizedBox(height: 8),
-            const Text(
+            Text(
               'Help us tailor your haven.',
-              style: TextStyle(
-                fontSize: 16,
-                color: Color(0xFF2D3E40),
-              ),
+              style: TextStyle(fontSize: 16, color: Color(0xFF2D3E40)),
             ),
             const SizedBox(height: 40),
             Expanded(
@@ -82,7 +80,9 @@ class _InterestsScreenState extends State<InterestsScreen> {
                 itemCount: _interests.length,
                 itemBuilder: (context, index) {
                   final interest = _interests[index];
-                  final isSelected = _selectedInterests.contains(interest['label']);
+                  final isSelected = _selectedInterests.contains(
+                    interest['label'],
+                  );
                   return GestureDetector(
                     onTap: () {
                       setState(() {
@@ -95,7 +95,7 @@ class _InterestsScreenState extends State<InterestsScreen> {
                     },
                     child: Container(
                       decoration: BoxDecoration(
-                        color: Colors.white,
+                        color: context.colors.cardColor,
                         borderRadius: BorderRadius.circular(16),
                         border: Border.all(
                           color: isSelected
@@ -115,7 +115,7 @@ class _InterestsScreenState extends State<InterestsScreen> {
                           const SizedBox(height: 8),
                           Text(
                             interest['label'],
-                            style: const TextStyle(
+                            style: TextStyle(
                               fontSize: 14,
                               color: Color(0xFF2D3E40),
                             ),
@@ -141,7 +141,7 @@ class _InterestsScreenState extends State<InterestsScreen> {
                         borderRadius: BorderRadius.circular(28),
                       ),
                     ),
-                    child: const Text(
+                    child: Text(
                       'Continue',
                       style: TextStyle(
                         fontSize: 18,
@@ -153,12 +153,9 @@ class _InterestsScreenState extends State<InterestsScreen> {
                   const SizedBox(height: 12),
                   TextButton(
                     onPressed: _continue,
-                    child: const Text(
+                    child: Text(
                       'Skip for now',
-                      style: TextStyle(
-                        color: Color(0xFF2D3E40),
-                        fontSize: 16,
-                      ),
+                      style: TextStyle(color: Color(0xFF2D3E40), fontSize: 16),
                     ),
                   ),
                   const SizedBox(height: 8),
@@ -178,7 +175,9 @@ class _InterestsScreenState extends State<InterestsScreen> {
                         width: 10,
                         height: 10,
                         decoration: BoxDecoration(
-                          color: Colors.white.withValues(alpha: 0.5),
+                          color: context.colors.cardColor.withValues(
+                            alpha: 0.5,
+                          ),
                           borderRadius: BorderRadius.circular(5),
                         ),
                       ),
@@ -187,7 +186,9 @@ class _InterestsScreenState extends State<InterestsScreen> {
                         width: 10,
                         height: 10,
                         decoration: BoxDecoration(
-                          color: Colors.white.withValues(alpha: 0.5),
+                          color: context.colors.cardColor.withValues(
+                            alpha: 0.5,
+                          ),
                           borderRadius: BorderRadius.circular(5),
                         ),
                       ),

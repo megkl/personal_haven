@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:personal_haven/core/theme/app_theme.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:personal_haven/core/constants/app_colors.dart';
 import 'package:personal_haven/providers/task_provider.dart';
@@ -16,7 +17,9 @@ class TasksCard extends ConsumerWidget {
         final pending = stats['pending'] ?? 0;
         final completed = stats['completed'] ?? 0;
         final total = stats['total'] ?? 0;
-        final completionRate = total > 0 ? (completed / total * 100).toInt() : 0;
+        final completionRate = total > 0
+            ? (completed / total * 100).toInt()
+            : 0;
 
         return GestureDetector(
           onTap: () {
@@ -29,7 +32,7 @@ class TasksCard extends ConsumerWidget {
             width: double.infinity,
             padding: const EdgeInsets.all(20),
             decoration: BoxDecoration(
-              color: AppColors.cardBackground,
+              color: context.colors.cardColor,
               borderRadius: BorderRadius.circular(16),
             ),
             child: Column(
@@ -38,12 +41,12 @@ class TasksCard extends ConsumerWidget {
                 Row(
                   mainAxisAlignment: MainAxisAlignment.spaceBetween,
                   children: [
-                    const Text(
+                    Text(
                       'Tasks Progress',
                       style: TextStyle(
                         fontSize: 18,
                         fontWeight: FontWeight.bold,
-                        color: AppColors.textPrimary,
+                        color: context.colors.textPrimary,
                       ),
                     ),
                     Container(
@@ -62,7 +65,9 @@ class TasksCard extends ConsumerWidget {
                         style: TextStyle(
                           fontSize: 12,
                           fontWeight: FontWeight.w600,
-                          color: pending > 0 ? Colors.orange : AppColors.primary,
+                          color: pending > 0
+                              ? Colors.orange
+                              : AppColors.primary,
                         ),
                       ),
                     ),
@@ -77,17 +82,17 @@ class TasksCard extends ConsumerWidget {
                         children: [
                           Text(
                             '$completed / $total',
-                            style: const TextStyle(
+                            style: TextStyle(
                               fontSize: 24,
                               fontWeight: FontWeight.bold,
-                              color: AppColors.textPrimary,
+                              color: context.colors.textPrimary,
                             ),
                           ),
-                          const Text(
+                          Text(
                             'Completed',
                             style: TextStyle(
                               fontSize: 12,
-                              color: AppColors.textSecondary,
+                              color: context.colors.textSecondary,
                             ),
                           ),
                         ],
@@ -105,7 +110,7 @@ class TasksCard extends ConsumerWidget {
                               child: CircularProgressIndicator(
                                 value: completionRate / 100,
                                 strokeWidth: 6,
-                                backgroundColor: Colors.grey.shade200,
+                                backgroundColor: context.colors.divider,
                                 valueColor: const AlwaysStoppedAnimation<Color>(
                                   AppColors.primary,
                                 ),
@@ -115,7 +120,7 @@ class TasksCard extends ConsumerWidget {
                           Center(
                             child: Text(
                               '$completionRate%',
-                              style: const TextStyle(
+                              style: TextStyle(
                                 fontSize: 14,
                                 fontWeight: FontWeight.bold,
                                 color: AppColors.primary,
@@ -136,7 +141,7 @@ class TasksCard extends ConsumerWidget {
         width: double.infinity,
         padding: const EdgeInsets.all(20),
         decoration: BoxDecoration(
-          color: AppColors.cardBackground,
+          color: context.colors.cardColor,
           borderRadius: BorderRadius.circular(16),
         ),
         child: const Center(child: CircularProgressIndicator()),
@@ -145,10 +150,10 @@ class TasksCard extends ConsumerWidget {
         width: double.infinity,
         padding: const EdgeInsets.all(20),
         decoration: BoxDecoration(
-          color: AppColors.cardBackground,
+          color: context.colors.cardColor,
           borderRadius: BorderRadius.circular(16),
         ),
-        child: const Text('Unable to load tasks'),
+        child: Text('Unable to load tasks'),
       ),
     );
   }

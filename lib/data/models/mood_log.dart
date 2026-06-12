@@ -19,7 +19,9 @@ class MoodLog {
     this.notes,
   });
 
-  Map<String, dynamic> toFirestore() => {
+  Map<String, dynamic> toFirestore() => toJson();
+
+  Map<String, dynamic> toJson() => {
         'id': id,
         'userId': userId,
         'moodLevel': moodLevel,
@@ -28,6 +30,16 @@ class MoodLog {
         'timestamp': timestamp.toIso8601String(),
         'notes': notes,
       };
+
+  factory MoodLog.fromJson(Map<String, dynamic> json) => MoodLog(
+        id: json['id'] as String,
+        userId: json['userId'] as String,
+        moodLevel: json['moodLevel'] as int,
+        moodLabel: json['moodLabel'] as String?,
+        moodEmoji: json['moodEmoji'] as String,
+        timestamp: DateTime.parse(json['timestamp'] as String),
+        notes: json['notes'] as String?,
+      );
 
   static MoodLog fromFirestore(dynamic doc) {
     final d = doc.data() as Map<String, dynamic>;

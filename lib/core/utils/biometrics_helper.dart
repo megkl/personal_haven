@@ -29,10 +29,7 @@ class BiometricHelper {
     try {
       return await _localAuth.authenticate(
         localizedReason: reason,
-        options: const AuthenticationOptions(
-          stickyAuth: true,
-          biometricOnly: true,
-        ),
+        biometricOnly: true,
       );
     } catch (e) {
       print('Biometric authentication error: $e');

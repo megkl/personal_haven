@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:personal_haven/core/theme/app_theme.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:personal_haven/core/constants/app_colors.dart';
 import 'package:personal_haven/data/models/food_entry.dart';
@@ -20,17 +21,21 @@ class _FoodDiaryScreenState extends ConsumerState<FoodDiaryScreen> {
     final todayCalories = foodState.todayCalories;
 
     // Group entries by meal type
-    final breakfast =
-        foodState.entries.where((e) => e.mealType == 'breakfast').toList();
-    final lunch =
-        foodState.entries.where((e) => e.mealType == 'lunch').toList();
-    final dinner =
-        foodState.entries.where((e) => e.mealType == 'dinner').toList();
-    final snacks =
-        foodState.entries.where((e) => e.mealType == 'snack').toList();
+    final breakfast = foodState.entries
+        .where((e) => e.mealType == 'breakfast')
+        .toList();
+    final lunch = foodState.entries
+        .where((e) => e.mealType == 'lunch')
+        .toList();
+    final dinner = foodState.entries
+        .where((e) => e.mealType == 'dinner')
+        .toList();
+    final snacks = foodState.entries
+        .where((e) => e.mealType == 'snack')
+        .toList();
 
     return Scaffold(
-      backgroundColor: AppColors.background,
+      backgroundColor: Theme.of(context).scaffoldBackgroundColor,
       body: foodState.isLoading
           ? const Center(child: CircularProgressIndicator())
           : Column(
@@ -90,7 +95,7 @@ class _FoodDiaryScreenState extends ConsumerState<FoodDiaryScreen> {
       floatingActionButton: FloatingActionButton(
         onPressed: () => _showAddFoodDialog(context, ref),
         backgroundColor: AppColors.primary,
-        child: const Icon(Icons.add, color: Colors.white),
+        child: Icon(Icons.add, color: Colors.white),
       ),
     );
   }
@@ -127,12 +132,9 @@ class _FoodDiaryScreenState extends ConsumerState<FoodDiaryScreen> {
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    const Text(
+                    Text(
                       'Today\'s Calories',
-                      style: TextStyle(
-                        fontSize: 14,
-                        color: Colors.white70,
-                      ),
+                      style: TextStyle(fontSize: 14, color: Colors.white70),
                     ),
                     const SizedBox(height: 8),
                     Row(
@@ -140,7 +142,7 @@ class _FoodDiaryScreenState extends ConsumerState<FoodDiaryScreen> {
                       children: [
                         Text(
                           '$todayCalories',
-                          style: const TextStyle(
+                          style: TextStyle(
                             fontSize: 36,
                             fontWeight: FontWeight.bold,
                             color: Colors.white,
@@ -150,7 +152,7 @@ class _FoodDiaryScreenState extends ConsumerState<FoodDiaryScreen> {
                           padding: const EdgeInsets.only(bottom: 6, left: 4),
                           child: Text(
                             '/ $_calorieGoal',
-                            style: const TextStyle(
+                            style: TextStyle(
                               fontSize: 16,
                               color: Colors.white70,
                             ),
@@ -163,10 +165,7 @@ class _FoodDiaryScreenState extends ConsumerState<FoodDiaryScreen> {
                       remaining >= 0
                           ? '$remaining cal remaining'
                           : '${remaining.abs()} cal over',
-                      style: const TextStyle(
-                        fontSize: 13,
-                        color: Colors.white70,
-                      ),
+                      style: TextStyle(fontSize: 13, color: Colors.white70),
                     ),
                   ],
                 ),
@@ -184,9 +183,12 @@ class _FoodDiaryScreenState extends ConsumerState<FoodDiaryScreen> {
                         child: CircularProgressIndicator(
                           value: percentage / 100,
                           strokeWidth: 10,
-                          backgroundColor: Colors.white.withValues(alpha: 0.2),
-                          valueColor:
-                              const AlwaysStoppedAnimation<Color>(Colors.white),
+                          backgroundColor: context.colors.cardColor.withValues(
+                            alpha: 0.2,
+                          ),
+                          valueColor: const AlwaysStoppedAnimation<Color>(
+                            Colors.white,
+                          ),
                           strokeCap: StrokeCap.round,
                         ),
                       ),
@@ -194,7 +196,7 @@ class _FoodDiaryScreenState extends ConsumerState<FoodDiaryScreen> {
                     Center(
                       child: Text(
                         '${percentage.toInt()}%',
-                        style: const TextStyle(
+                        style: TextStyle(
                           fontSize: 18,
                           fontWeight: FontWeight.bold,
                           color: Colors.white,
@@ -224,23 +226,17 @@ class _FoodDiaryScreenState extends ConsumerState<FoodDiaryScreen> {
   Widget _buildMacroItem(String label, String value, String emoji) {
     return Column(
       children: [
-        Text(emoji, style: const TextStyle(fontSize: 20)),
+        Text(emoji, style: TextStyle(fontSize: 20)),
         const SizedBox(height: 4),
         Text(
           value,
-          style: const TextStyle(
+          style: TextStyle(
             fontSize: 16,
             fontWeight: FontWeight.bold,
             color: Colors.white,
           ),
         ),
-        Text(
-          label,
-          style: const TextStyle(
-            fontSize: 11,
-            color: Colors.white70,
-          ),
-        ),
+        Text(label, style: TextStyle(fontSize: 11, color: Colors.white70)),
       ],
     );
   }
@@ -253,7 +249,7 @@ class _FoodDiaryScreenState extends ConsumerState<FoodDiaryScreen> {
     return Container(
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
-        color: Colors.white,
+        color: context.colors.cardColor,
         borderRadius: BorderRadius.circular(16),
         boxShadow: [
           BoxShadow(
@@ -285,7 +281,7 @@ class _FoodDiaryScreenState extends ConsumerState<FoodDiaryScreen> {
               ),
               TextButton(
                 onPressed: () => setState(() {}), // Refresh suggestions
-                child: const Text('Refresh'),
+                child: Text('Refresh'),
               ),
             ],
           ),
@@ -345,7 +341,9 @@ class _FoodDiaryScreenState extends ConsumerState<FoodDiaryScreen> {
           ),
           borderRadius: BorderRadius.circular(12),
           border: Border.all(
-            color: _getMealTypeColor(suggestion.mealType).withValues(alpha: 0.3),
+            color: _getMealTypeColor(
+              suggestion.mealType,
+            ).withValues(alpha: 0.3),
           ),
         ),
         child: Column(
@@ -353,18 +351,20 @@ class _FoodDiaryScreenState extends ConsumerState<FoodDiaryScreen> {
           children: [
             Row(
               children: [
-                Text(suggestion.emoji, style: const TextStyle(fontSize: 24)),
+                Text(suggestion.emoji, style: TextStyle(fontSize: 24)),
                 const Spacer(),
                 Container(
-                  padding:
-                      const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 6,
+                    vertical: 2,
+                  ),
                   decoration: BoxDecoration(
                     color: _getMealTypeColor(suggestion.mealType),
                     borderRadius: BorderRadius.circular(8),
                   ),
                   child: Text(
                     suggestion.mealType[0].toUpperCase(),
-                    style: const TextStyle(
+                    style: TextStyle(
                       fontSize: 10,
                       fontWeight: FontWeight.bold,
                       color: Colors.white,
@@ -376,7 +376,7 @@ class _FoodDiaryScreenState extends ConsumerState<FoodDiaryScreen> {
             const SizedBox(height: 8),
             Text(
               suggestion.name,
-              style: const TextStyle(
+              style: TextStyle(
                 fontSize: 13,
                 fontWeight: FontWeight.w600,
                 color: Color(0xFF2D3E40),
@@ -425,13 +425,10 @@ class _FoodDiaryScreenState extends ConsumerState<FoodDiaryScreen> {
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
         title: Row(
           children: [
-            Text(suggestion.emoji, style: const TextStyle(fontSize: 28)),
+            Text(suggestion.emoji, style: TextStyle(fontSize: 28)),
             const SizedBox(width: 12),
             Expanded(
-              child: Text(
-                suggestion.name,
-                style: const TextStyle(fontSize: 18),
-              ),
+              child: Text(suggestion.name, style: TextStyle(fontSize: 18)),
             ),
           ],
         ),
@@ -448,15 +445,13 @@ class _FoodDiaryScreenState extends ConsumerState<FoodDiaryScreen> {
                 spacing: 6,
                 runSpacing: 6,
                 children: suggestion.tags
-                    .map((tag) => Chip(
-                          label: Text(
-                            tag,
-                            style: const TextStyle(fontSize: 11),
-                          ),
-                          padding: EdgeInsets.zero,
-                          materialTapTargetSize:
-                              MaterialTapTargetSize.shrinkWrap,
-                        ))
+                    .map(
+                      (tag) => Chip(
+                        label: Text(tag, style: TextStyle(fontSize: 11)),
+                        padding: EdgeInsets.zero,
+                        materialTapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                      ),
+                    )
                     .toList(),
               ),
           ],
@@ -464,11 +459,13 @@ class _FoodDiaryScreenState extends ConsumerState<FoodDiaryScreen> {
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(context),
-            child: const Text('Cancel'),
+            child: Text('Cancel'),
           ),
           ElevatedButton.icon(
             onPressed: () {
-              ref.read(foodProvider.notifier).addEntry(
+              ref
+                  .read(foodProvider.notifier)
+                  .addEntry(
                     mealType: suggestion.mealType,
                     foodName: suggestion.name,
                     calories: suggestion.calories,
@@ -485,8 +482,8 @@ class _FoodDiaryScreenState extends ConsumerState<FoodDiaryScreen> {
                 ),
               );
             },
-            icon: const Icon(Icons.add, size: 18),
-            label: const Text('Add'),
+            icon: Icon(Icons.add, size: 18),
+            label: Text('Add'),
             style: ElevatedButton.styleFrom(
               backgroundColor: _getMealTypeColor(suggestion.mealType),
               foregroundColor: Colors.white,
@@ -503,11 +500,8 @@ class _FoodDiaryScreenState extends ConsumerState<FoodDiaryScreen> {
       child: Row(
         mainAxisAlignment: MainAxisAlignment.spaceBetween,
         children: [
-          Text(label, style: const TextStyle(color: Colors.grey)),
-          Text(
-            '$value $unit',
-            style: const TextStyle(fontWeight: FontWeight.w600),
-          ),
+          Text(label, style: TextStyle(color: context.colors.textSecondary)),
+          Text('$value $unit', style: TextStyle(fontWeight: FontWeight.w600)),
         ],
       ),
     );
@@ -532,7 +526,7 @@ class _FoodDiaryScreenState extends ConsumerState<FoodDiaryScreen> {
     return Container(
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
-        color: Colors.white,
+        color: context.colors.cardColor,
         borderRadius: BorderRadius.circular(16),
         boxShadow: [
           BoxShadow(
@@ -550,15 +544,17 @@ class _FoodDiaryScreenState extends ConsumerState<FoodDiaryScreen> {
             children: [
               Text(
                 title,
-                style: const TextStyle(
+                style: TextStyle(
                   fontSize: 18,
                   fontWeight: FontWeight.bold,
                   color: Color(0xFF2D3E40),
                 ),
               ),
               Container(
-                padding:
-                    const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 10,
+                  vertical: 4,
+                ),
                 decoration: BoxDecoration(
                   color: _getMealTypeColor(mealType).withValues(alpha: 0.1),
                   borderRadius: BorderRadius.circular(12),
@@ -585,10 +581,11 @@ class _FoodDiaryScreenState extends ConsumerState<FoodDiaryScreen> {
                   TextButton.icon(
                     onPressed: () =>
                         _showAddFoodDialog(context, ref, mealType: mealType),
-                    icon: const Icon(Icons.add_circle_outline, size: 18),
-                    label: const Text('Add custom'),
-                    style:
-                        TextButton.styleFrom(foregroundColor: AppColors.primary),
+                    icon: Icon(Icons.add_circle_outline, size: 18),
+                    label: Text('Add custom'),
+                    style: TextButton.styleFrom(
+                      foregroundColor: AppColors.primary,
+                    ),
                   ),
                 ],
               ),
@@ -601,10 +598,11 @@ class _FoodDiaryScreenState extends ConsumerState<FoodDiaryScreen> {
               child: TextButton.icon(
                 onPressed: () =>
                     _showAddFoodDialog(context, ref, mealType: mealType),
-                icon: const Icon(Icons.add, size: 18),
-                label: const Text('Add more'),
-                style:
-                    TextButton.styleFrom(foregroundColor: _getMealTypeColor(mealType)),
+                icon: Icon(Icons.add, size: 18),
+                label: Text('Add more'),
+                style: TextButton.styleFrom(
+                  foregroundColor: _getMealTypeColor(mealType),
+                ),
               ),
             ),
           ],
@@ -614,7 +612,10 @@ class _FoodDiaryScreenState extends ConsumerState<FoodDiaryScreen> {
   }
 
   Widget _buildInlineSuggestion(
-      BuildContext context, WidgetRef ref, String mealType) {
+    BuildContext context,
+    WidgetRef ref,
+    String mealType,
+  ) {
     final suggestion = MealSuggestions.getRandomSuggestion(mealType);
 
     return GestureDetector(
@@ -632,21 +633,21 @@ class _FoodDiaryScreenState extends ConsumerState<FoodDiaryScreen> {
         child: Row(
           mainAxisSize: MainAxisSize.min,
           children: [
-            Text(suggestion.emoji, style: const TextStyle(fontSize: 24)),
+            Text(suggestion.emoji, style: TextStyle(fontSize: 24)),
             const SizedBox(width: 10),
             Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                const Text(
+                Text(
                   'Try this?',
-                  style: TextStyle(fontSize: 11, color: Colors.grey),
+                  style: TextStyle(
+                    fontSize: 11,
+                    color: context.colors.textSecondary,
+                  ),
                 ),
                 Text(
                   suggestion.name,
-                  style: const TextStyle(
-                    fontSize: 14,
-                    fontWeight: FontWeight.w600,
-                  ),
+                  style: TextStyle(fontSize: 14, fontWeight: FontWeight.w600),
                 ),
               ],
             ),
@@ -671,8 +672,7 @@ class _FoodDiaryScreenState extends ConsumerState<FoodDiaryScreen> {
     );
   }
 
-  Widget _buildFoodItem(
-      BuildContext context, WidgetRef ref, FoodEntry entry) {
+  Widget _buildFoodItem(BuildContext context, WidgetRef ref, FoodEntry entry) {
     return Dismissible(
       key: Key(entry.id),
       direction: DismissDirection.endToStart,
@@ -683,7 +683,7 @@ class _FoodDiaryScreenState extends ConsumerState<FoodDiaryScreen> {
           color: Colors.red.withValues(alpha: 0.1),
           borderRadius: BorderRadius.circular(8),
         ),
-        child: const Icon(Icons.delete, color: Colors.red),
+        child: Icon(Icons.delete, color: Colors.red),
       ),
       onDismissed: (_) {
         ref.read(foodProvider.notifier).deleteEntry(entry.id);
@@ -710,17 +710,14 @@ class _FoodDiaryScreenState extends ConsumerState<FoodDiaryScreen> {
                 children: [
                   Text(
                     entry.foodName,
-                    style: const TextStyle(
-                      fontSize: 15,
-                      fontWeight: FontWeight.w500,
-                    ),
+                    style: TextStyle(fontSize: 15, fontWeight: FontWeight.w500),
                   ),
                   if (entry.protein != null || entry.carbs != null)
                     Text(
                       'P: ${entry.protein ?? 0}g • C: ${entry.carbs ?? 0}g • F: ${entry.fat ?? 0}g',
-                      style: const TextStyle(
+                      style: TextStyle(
                         fontSize: 11,
-                        color: Colors.grey,
+                        color: context.colors.textSecondary,
                       ),
                     ),
                 ],
@@ -728,7 +725,7 @@ class _FoodDiaryScreenState extends ConsumerState<FoodDiaryScreen> {
             ),
             Text(
               '${entry.calories ?? 0} cal',
-              style: const TextStyle(
+              style: TextStyle(
                 fontSize: 14,
                 fontWeight: FontWeight.w600,
                 color: Color(0xFF2D3E40),
@@ -744,8 +741,11 @@ class _FoodDiaryScreenState extends ConsumerState<FoodDiaryScreen> {
   // ADD FOOD DIALOG
   // ─────────────────────────────────────────────────────────────
 
-  void _showAddFoodDialog(BuildContext context, WidgetRef ref,
-      {String? mealType}) {
+  void _showAddFoodDialog(
+    BuildContext context,
+    WidgetRef ref, {
+    String? mealType,
+  }) {
     final foodController = TextEditingController();
     final caloriesController = TextEditingController();
     final proteinController = TextEditingController();
@@ -758,8 +758,9 @@ class _FoodDiaryScreenState extends ConsumerState<FoodDiaryScreen> {
       context: context,
       builder: (context) => StatefulBuilder(
         builder: (context, setState) => AlertDialog(
-          shape:
-              RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(20),
+          ),
           title: Text('Add ${_getMealTypeEmoji(selectedMealType)} Food'),
           content: SingleChildScrollView(
             child: Column(
@@ -801,10 +802,14 @@ class _FoodDiaryScreenState extends ConsumerState<FoodDiaryScreen> {
                     ),
                     items: const [
                       DropdownMenuItem(
-                          value: 'breakfast', child: Text('🌅 Breakfast')),
+                        value: 'breakfast',
+                        child: Text('🌅 Breakfast'),
+                      ),
                       DropdownMenuItem(value: 'lunch', child: Text('☀️ Lunch')),
                       DropdownMenuItem(
-                          value: 'dinner', child: Text('🌙 Dinner')),
+                        value: 'dinner',
+                        child: Text('🌙 Dinner'),
+                      ),
                       DropdownMenuItem(value: 'snack', child: Text('🍎 Snack')),
                     ],
                     onChanged: (value) {
@@ -884,12 +889,14 @@ class _FoodDiaryScreenState extends ConsumerState<FoodDiaryScreen> {
           actions: [
             TextButton(
               onPressed: () => Navigator.pop(context),
-              child: const Text('Cancel'),
+              child: Text('Cancel'),
             ),
             ElevatedButton(
               onPressed: () {
                 if (foodController.text.isNotEmpty) {
-                  ref.read(foodProvider.notifier).addEntry(
+                  ref
+                      .read(foodProvider.notifier)
+                      .addEntry(
                         mealType: selectedMealType,
                         foodName: foodController.text.trim(),
                         calories: int.tryParse(caloriesController.text),
@@ -911,7 +918,7 @@ class _FoodDiaryScreenState extends ConsumerState<FoodDiaryScreen> {
                 backgroundColor: _getMealTypeColor(selectedMealType),
                 foregroundColor: Colors.white,
               ),
-              child: const Text('Add'),
+              child: Text('Add'),
             ),
           ],
         ),

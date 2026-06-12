@@ -298,6 +298,11 @@ bash silver/tests/test.sh
 
 ---
 
+NOTES ON SHORTCUTS
+dart run build_runner build --delete-conflicting-outputs
+flutter pub get
+dart run flutter_launcher_icons
+
 ## License
 
 Private — all rights reserved(2026, Meg).

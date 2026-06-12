@@ -2,8 +2,11 @@ import 'package:firebase_auth/firebase_auth.dart' as fb;
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:personal_haven/data/repositories/subscription_repository.dart';
 import 'package:personal_haven/data/repositories/user_repository.dart';
+import 'package:personal_haven/data/data_sources/local/shared_prefs_helper.dart';
 import 'package:personal_haven/services/social_auth_service.dart';
+import 'package:riverpod_annotation/riverpod_annotation.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+part 'auth_provider.g.dart';
 
 class AuthState {
   final bool isAuthenticated;
@@ -33,9 +36,13 @@ class AuthState {
   }
 }
 
-class AuthNotifier extends StateNotifier<AuthState> {
-  AuthNotifier() : super(AuthState()) {
-    checkAuthStatus();
+
+@riverpod
+class AuthNotifier extends _$AuthNotifier {
+  @override
+  AuthState build() {
+    Future.microtask(checkAuthStatus);
+    return AuthState();
   }
 
   Future<void> checkAuthStatus() async {
@@ -69,8 +76,17 @@ class AuthNotifier extends StateNotifier<AuthState> {
       }
 
       // Persist / update Firestore profile
-      await UserRepository().createOrUpdateFromAuth(fbUser,
-          displayName: result.displayName);
+          final user = await UserRepository().createOrUpdateFromAuth(fbUser,
+              displayName: result.displayName);
+
+          // Save profile to local preferences for offline display.
+          final prefs = await SharedPrefsHelper.getInstance();
+          await prefs.saveUserSession(user);
+
+          if (result.provider != null) {
+            final rawPrefs = await SharedPreferences.getInstance();
+            await rawPrefs.setString('authProvider', result.provider!);
+          }
 
       // Activate free trial on first sign-up (no-op if already used)
       try {
@@ -80,21 +96,6 @@ class AuthNotifier extends StateNotifier<AuthState> {
       } catch (_) {}
 
       // Cache minimal info for offline display
-      final prefs = await SharedPreferences.getInstance();
-      await prefs.setBool('isLoggedIn', true);
-      await prefs.setString('userId', fbUser.uid);
-      if (result.email != null) {
-        await prefs.setString('userEmail', result.email!);
-      }
-      if (result.displayName != null) {
-        await prefs.setString('userName', result.displayName!);
-      }
-      if (result.avatarUrl != null) {
-        await prefs.setString('avatarUrl', result.avatarUrl!);
-      }
-      if (result.provider != null) {
-        await prefs.setString('authProvider', result.provider!);
-      }
 
       state = state.copyWith(
         isAuthenticated: true,
@@ -114,16 +115,18 @@ class AuthNotifier extends StateNotifier<AuthState> {
       await SocialAuthService.instance.signOutGoogle();
       await fb.FirebaseAuth.instance.signOut();
     } catch (_) {}
-    final prefs = await SharedPreferences.getInstance();
-    await prefs.clear();
+    // Clear saved session from our helper (preserves other app prefs)
+    final helper = await SharedPrefsHelper.getInstance();
+    await helper.clearSession();
+
+    // Also remove any raw authProvider key stored directly in SharedPreferences
+    final rawPrefs = await SharedPreferences.getInstance();
+    await rawPrefs.remove('authProvider');
     state = AuthState(isAuthenticated: false, isLoading: false);
   }
 
   void clearError() => state = state.copyWith(error: null);
 }
-
-final authProvider =
-StateNotifierProvider<AuthNotifier, AuthState>((ref) => AuthNotifier());
 
 final currentUserIdProvider = Provider<String>((ref) {
   return ref.watch(authProvider).userId ??

@@ -3,6 +3,9 @@ import 'package:personal_haven/data/models/task.dart';
 import 'package:personal_haven/data/repositories/task_repository.dart';
 import 'package:personal_haven/providers/auth_provider.dart';
 import 'package:personal_haven/services/notification_service.dart';
+import 'package:riverpod_annotation/riverpod_annotation.dart';
+
+part 'task_provider.g.dart';
 
 /// Provider for TaskRepository
 final taskRepositoryProvider = Provider<TaskRepository>((ref) {
@@ -119,13 +122,19 @@ class TaskState {
   }
 }
 
-/// Task Notifier
-class TaskNotifier extends StateNotifier<TaskState> {
-  final TaskRepository _repository;
-  final String _userId;
 
-  TaskNotifier(this._repository, this._userId) : super(TaskState()) {
-    loadTasks();
+@riverpod
+class TaskNotifier extends _$TaskNotifier {
+  final TaskRepository _repository = TaskRepository();
+
+  String get _userId => ref.watch(currentUserIdProvider);
+
+  @override
+  TaskState build() {
+    if (_userId.isNotEmpty) {
+      Future.microtask(loadTasks);
+    }
+    return TaskState();
   }
 
   // ─────────────────────────────────────────────────────────────
@@ -345,13 +354,6 @@ class TaskNotifier extends StateNotifier<TaskState> {
 // PROVIDERS
 // ─────────────────────────────────────────────────────────────
 
-/// Main task provider
-final taskProvider = StateNotifierProvider<TaskNotifier, TaskState>((ref) {
-  final repository = ref.watch(taskRepositoryProvider);
-  final userId = ref.watch(currentUserIdProvider);
-
-  return TaskNotifier(repository, userId);
-});
 
 /// Provider for task statistics
 final taskStatsProvider = FutureProvider<Map<String, int>>((ref) async {

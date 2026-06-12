@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:personal_haven/core/theme/app_theme.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:personal_haven/presentation/screens/auth/login_screen.dart';
 import 'package:personal_haven/presentation/screens/legal/terms_screen.dart';
@@ -16,10 +17,12 @@ class SignUpScreen extends ConsumerStatefulWidget {
 class _SignUpScreenState extends ConsumerState<SignUpScreen> {
   bool _isLoading = false;
 
-  Future<void> _handleSocialSignUp(Future<SocialAuthResult> Function() signIn) async {
-  setState(() => _isLoading = true);
-  final result = await signIn();
-  print('SocialAuthResult: success=${result.success}, error=${result.error}'); 
+  Future<void> _handleSocialSignUp(
+    Future<SocialAuthResult> Function() signIn,
+  ) async {
+    setState(() => _isLoading = true);
+    final result = await signIn();
+    print('SocialAuthResult: success=${result.success}, error=${result.error}');
     if (!mounted) return;
 
     if (result.success) {
@@ -58,10 +61,13 @@ class _SignUpScreenState extends ConsumerState<SignUpScreen> {
               Row(
                 mainAxisAlignment: MainAxisAlignment.center,
                 children: [
-                  Icon(Icons.spa,
-                      color: Colors.white.withValues(alpha: 0.9), size: 28),
+                  Icon(
+                    Icons.spa,
+                    color: Colors.white.withValues(alpha: 0.9),
+                    size: 28,
+                  ),
                   const SizedBox(width: 8),
-                  const Text(
+                  Text(
                     'Personal Haven',
                     style: TextStyle(
                       fontSize: 18,
@@ -72,7 +78,7 @@ class _SignUpScreenState extends ConsumerState<SignUpScreen> {
                 ],
               ),
               const Spacer(),
-              const Text(
+              Text(
                 'Create Your Haven',
                 style: TextStyle(
                   fontSize: 32,
@@ -81,7 +87,7 @@ class _SignUpScreenState extends ConsumerState<SignUpScreen> {
                 ),
               ),
               const SizedBox(height: 8),
-              const Text(
+              Text(
                 "Let's personalize your space.",
                 style: TextStyle(fontSize: 16, color: Color(0xFF2D3E40)),
               ),
@@ -93,28 +99,31 @@ class _SignUpScreenState extends ConsumerState<SignUpScreen> {
                   label: 'Sign up with Google',
                   icon: _googleIcon(),
                   onTap: () => _handleSocialSignUp(
-                      SocialAuthService.instance.signInWithGoogle),
+                    SocialAuthService.instance.signInWithGoogle,
+                  ),
                 ),
                 const SizedBox(height: 16),
                 _SocialButton(
                   label: 'Sign up with Microsoft',
-                  icon: const Icon(Icons.window, size: 22, color: Color(0xFF00A4EF)),
+                  icon: Icon(Icons.window, size: 22, color: Color(0xFF00A4EF)),
                   onTap: () => _handleSocialSignUp(
-                      SocialAuthService.instance.signInWithMicrosoft),
+                    SocialAuthService.instance.signInWithMicrosoft,
+                  ),
                 ),
                 const SizedBox(height: 16),
                 _SocialButton(
                   label: 'Sign up with Apple',
-                  icon: const Icon(Icons.apple, size: 22),
+                  icon: Icon(Icons.apple, size: 22),
                   onTap: () => _handleSocialSignUp(
-                      SocialAuthService.instance.signInWithApple),
+                    SocialAuthService.instance.signInWithApple,
+                  ),
                 ),
               ],
               const Spacer(),
               Row(
                 mainAxisAlignment: MainAxisAlignment.center,
                 children: [
-                  const Text(
+                  Text(
                     'By signing up you agree to our ',
                     style: TextStyle(color: Color(0xFF2D3E40), fontSize: 12),
                   ),
@@ -124,30 +133,34 @@ class _SignUpScreenState extends ConsumerState<SignUpScreen> {
                       MaterialPageRoute(builder: (_) => const TermsScreen()),
                     ),
                     style: TextButton.styleFrom(padding: EdgeInsets.zero),
-                    child: const Text(
+                    child: Text(
                       'Terms',
                       style: TextStyle(
-                          color: Color(0xFF4ECDC4),
-                          fontSize: 12,
-                          fontWeight: FontWeight.bold),
+                        color: Color(0xFF4ECDC4),
+                        fontSize: 12,
+                        fontWeight: FontWeight.bold,
+                      ),
                     ),
                   ),
-                  const Text(' & ',
-                      style:
-                          TextStyle(color: Color(0xFF2D3E40), fontSize: 12)),
+                  Text(
+                    ' & ',
+                    style: TextStyle(color: Color(0xFF2D3E40), fontSize: 12),
+                  ),
                   TextButton(
                     onPressed: () => Navigator.push(
                       context,
                       MaterialPageRoute(
-                          builder: (_) => const PrivacyPolicyScreen()),
+                        builder: (_) => const PrivacyPolicyScreen(),
+                      ),
                     ),
                     style: TextButton.styleFrom(padding: EdgeInsets.zero),
-                    child: const Text(
+                    child: Text(
                       'Privacy Policy',
                       style: TextStyle(
-                          color: Color(0xFF4ECDC4),
-                          fontSize: 12,
-                          fontWeight: FontWeight.bold),
+                        color: Color(0xFF4ECDC4),
+                        fontSize: 12,
+                        fontWeight: FontWeight.bold,
+                      ),
                     ),
                   ),
                 ],
@@ -155,7 +168,7 @@ class _SignUpScreenState extends ConsumerState<SignUpScreen> {
               Row(
                 mainAxisAlignment: MainAxisAlignment.center,
                 children: [
-                  const Text(
+                  Text(
                     'Already have an account? ',
                     style: TextStyle(color: Color(0xFF2D3E40)),
                   ),
@@ -164,7 +177,7 @@ class _SignUpScreenState extends ConsumerState<SignUpScreen> {
                       context,
                       MaterialPageRoute(builder: (_) => const LoginScreen()),
                     ),
-                    child: const Text(
+                    child: Text(
                       'Log In',
                       style: TextStyle(
                         color: Color(0xFF4ECDC4),
@@ -188,7 +201,7 @@ class _SignUpScreenState extends ConsumerState<SignUpScreen> {
       width: 22,
       height: 22,
       errorBuilder: (_, _, _) =>
-          const Icon(Icons.g_mobiledata, size: 22, color: Color(0xFF4285F4)),
+          Icon(Icons.g_mobiledata, size: 22, color: Color(0xFF4285F4)),
     );
   }
 }
@@ -214,14 +227,14 @@ class _SocialButton extends StatelessWidget {
         icon: icon,
         label: Text(
           label,
-          style: const TextStyle(
+          style: TextStyle(
             fontSize: 16,
             fontWeight: FontWeight.w600,
             color: Color(0xFF2D3E40),
           ),
         ),
         style: OutlinedButton.styleFrom(
-          backgroundColor: Colors.white,
+          backgroundColor: context.colors.cardColor,
           side: BorderSide.none,
           shape: RoundedRectangleBorder(
             borderRadius: BorderRadius.circular(28),

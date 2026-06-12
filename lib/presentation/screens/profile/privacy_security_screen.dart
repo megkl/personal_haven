@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:personal_haven/core/theme/app_theme.dart';
 import 'package:personal_haven/core/constants/app_colors.dart';
 
 class PrivacySecurityScreen extends StatefulWidget {
@@ -9,16 +10,15 @@ class PrivacySecurityScreen extends StatefulWidget {
 }
 
 class _PrivacySecurityScreenState extends State<PrivacySecurityScreen> {
-
   bool _biometricLock = false;
   bool _cloudSync = true;
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: AppColors.background,
+      backgroundColor: Theme.of(context).scaffoldBackgroundColor,
       appBar: AppBar(
-        title: const Text('Privacy & Security'),
+        title: Text('Privacy & Security'),
         backgroundColor: AppColors.primary,
       ),
       body: ListView(
@@ -27,18 +27,18 @@ class _PrivacySecurityScreenState extends State<PrivacySecurityScreen> {
           Container(
             padding: const EdgeInsets.all(20),
             decoration: BoxDecoration(
-              color: Colors.white,
+              color: context.colors.cardColor,
               borderRadius: BorderRadius.circular(16),
             ),
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                const Text(
+                Text(
                   'Security',
                   style: TextStyle(
                     fontSize: 18,
                     fontWeight: FontWeight.bold,
-                    color: AppColors.textPrimary,
+                    color: context.colors.textPrimary,
                   ),
                 ),
                 const SizedBox(height: 16),
@@ -85,18 +85,18 @@ class _PrivacySecurityScreenState extends State<PrivacySecurityScreen> {
           Container(
             padding: const EdgeInsets.all(20),
             decoration: BoxDecoration(
-              color: Colors.white,
+              color: context.colors.cardColor,
               borderRadius: BorderRadius.circular(16),
             ),
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                const Text(
+                Text(
                   'Data Management',
                   style: TextStyle(
                     fontSize: 18,
                     fontWeight: FontWeight.bold,
-                    color: AppColors.textPrimary,
+                    color: context.colors.textPrimary,
                   ),
                 ),
                 const SizedBox(height: 16),
@@ -150,18 +150,18 @@ class _PrivacySecurityScreenState extends State<PrivacySecurityScreen> {
             children: [
               Text(
                 title,
-                style: const TextStyle(
+                style: TextStyle(
                   fontSize: 16,
                   fontWeight: FontWeight.w500,
-                  color: AppColors.textPrimary,
+                  color: context.colors.textPrimary,
                 ),
               ),
               const SizedBox(height: 4),
               Text(
                 subtitle,
-                style: const TextStyle(
+                style: TextStyle(
                   fontSize: 12,
-                  color: AppColors.textSecondary,
+                  color: context.colors.textSecondary,
                 ),
               ),
             ],
@@ -190,24 +190,24 @@ class _PrivacySecurityScreenState extends State<PrivacySecurityScreen> {
               children: [
                 Text(
                   title,
-                  style: const TextStyle(
+                  style: TextStyle(
                     fontSize: 16,
                     fontWeight: FontWeight.w500,
-                    color: AppColors.textPrimary,
+                    color: context.colors.textPrimary,
                   ),
                 ),
                 const SizedBox(height: 4),
                 Text(
                   subtitle,
-                  style: const TextStyle(
+                  style: TextStyle(
                     fontSize: 12,
-                    color: AppColors.textSecondary,
+                    color: context.colors.textSecondary,
                   ),
                 ),
               ],
             ),
           ),
-          const Icon(Icons.chevron_right, color: Colors.grey),
+          Icon(Icons.chevron_right, color: context.colors.textSecondary),
         ],
       ),
     );

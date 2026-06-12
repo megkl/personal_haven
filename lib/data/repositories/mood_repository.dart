@@ -1,11 +1,16 @@
 import 'package:personal_haven/data/models/mood_log.dart';
+import 'package:personal_haven/data/data_sources/local/cache_helper.dart';
 import 'package:personal_haven/services/firestore_service.dart';
 import 'package:uuid/uuid.dart';
 
 class MoodRepository {
   final _fs = FirestoreService.instance;
+  final _cache = CacheHelper();
   final _uuid = const Uuid();
   static const _col = 'mood_logs';
+  static const _cacheDuration = Duration(hours: 1);
+
+  // ── WRITE ─────────────────────────────────────────────────────────────────
 
   Future<MoodLog> logMood({
     required String userId,
@@ -24,41 +29,59 @@ class MoodRepository {
       notes: notes,
     );
     await _fs.set(userId, _col, log.id, log.toFirestore());
+    // Invalidate so the next read reflects the new mood
+    await _cache.clearData(userId, _col);
     return log;
   }
 
-  Future<MoodLog?> getTodayMood(String userId) async {
-    final now = DateTime.now();
-    final start = DateTime(now.year, now.month, now.day).toIso8601String();
-    final end = DateTime(now.year, now.month, now.day + 1).toIso8601String();
-    final snap = await _fs.query(
+  // ── READ ──────────────────────────────────────────────────────────────────
+
+  /// Fetches all mood logs for the user, using the cache when available.
+  Future<List<MoodLog>> getAllMoods(
+    String userId, {
+    bool forceRefresh = false,
+  }) async {
+    if (!forceRefresh) {
+      final cached = await _cache.getData(
         userId,
         _col,
-        (c) => c
-            .where('timestamp', isGreaterThanOrEqualTo: start)
-            .where('timestamp', isLessThan: end)
-            .orderBy('timestamp', descending: true)
-            .limit(1));
-    if (snap.docs.isEmpty) return null;
-    return MoodLog.fromFirestore(snap.docs.first);
+        fromJson: (json) => MoodLog.fromJson(json as Map<String, dynamic>),
+        expiry: _cacheDuration,
+      );
+      if (cached != null) return cached;
+    }
+
+    final snap = await _fs.query(
+        userId, _col, (c) => c.orderBy('timestamp', descending: true));
+    final moods = snap.docs.map((d) => MoodLog.fromFirestore(d)).toList();
+
+    await _cache.saveData(userId, _col, moods,
+        toJson: (m) => m.toJson());
+
+    return moods;
+  }
+
+  Future<MoodLog?> getTodayMood(String userId) async {
+    final all = await getAllMoods(userId);
+    final now = DateTime.now();
+    final todayStart = DateTime(now.year, now.month, now.day);
+    try {
+      return all.firstWhere((m) => m.timestamp.isAfter(todayStart));
+    } catch (_) {
+      return null;
+    }
   }
 
   Future<List<MoodLog>> getWeekMoods(String userId) async {
-    final weekAgo =
-        DateTime.now().subtract(const Duration(days: 7)).toIso8601String();
-    final snap = await _fs.query(userId, _col,
-        (c) => c.where('timestamp', isGreaterThanOrEqualTo: weekAgo)
-            .orderBy('timestamp', descending: true));
-    return snap.docs.map((d) => MoodLog.fromFirestore(d)).toList();
+    final all = await getAllMoods(userId);
+    final weekAgo = DateTime.now().subtract(const Duration(days: 7));
+    return all.where((m) => m.timestamp.isAfter(weekAgo)).toList();
   }
 
   Future<List<MoodLog>> getMonthMoods(String userId) async {
-    final monthAgo =
-        DateTime.now().subtract(const Duration(days: 30)).toIso8601String();
-    final snap = await _fs.query(userId, _col,
-        (c) => c.where('timestamp', isGreaterThanOrEqualTo: monthAgo)
-            .orderBy('timestamp', descending: true));
-    return snap.docs.map((d) => MoodLog.fromFirestore(d)).toList();
+    final all = await getAllMoods(userId);
+    final monthAgo = DateTime.now().subtract(const Duration(days: 30));
+    return all.where((m) => m.timestamp.isAfter(monthAgo)).toList();
   }
 
   Future<Map<String, int>> getWeekMoodStats(String userId) async {
