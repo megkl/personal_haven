@@ -66,8 +66,8 @@ class BudgetScreen extends ConsumerWidget {
     double balance,
   ) {
     return Container(
-      margin: const EdgeInsets.all(16),
-      padding: const EdgeInsets.all(20),
+      margin: const EdgeInsets.fromLTRB(12, 10, 12, 8),
+      padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
         gradient: LinearGradient(
           colors: balance >= 0
@@ -76,13 +76,13 @@ class BudgetScreen extends ConsumerWidget {
           begin: Alignment.topLeft,
           end: Alignment.bottomRight,
         ),
-        borderRadius: BorderRadius.circular(20),
+        borderRadius: BorderRadius.circular(18),
         boxShadow: [
           BoxShadow(
             color: (balance >= 0 ? const Color(0xFF4ECDC4) : Colors.red)
                 .withValues(alpha: 0.3),
-            blurRadius: 15,
-            offset: const Offset(0, 8),
+            blurRadius: 12,
+            offset: const Offset(0, 6),
           ),
         ],
       ),
@@ -93,13 +93,10 @@ class BudgetScreen extends ConsumerWidget {
             children: [
               Text(
                 DateFormat('MMMM yyyy').format(DateTime.now()),
-                style: TextStyle(fontSize: 14, color: Colors.white70),
+                style: TextStyle(fontSize: 12, color: Colors.white70),
               ),
               Container(
-                padding: const EdgeInsets.symmetric(
-                  horizontal: 10,
-                  vertical: 4,
-                ),
+                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
                 decoration: BoxDecoration(
                   color: context.colors.cardColor.withValues(alpha: 0.2),
                   borderRadius: BorderRadius.circular(12),
@@ -107,7 +104,7 @@ class BudgetScreen extends ConsumerWidget {
                 child: Text(
                   balance >= 0 ? '✓ On Track' : '⛔ Over Budget',
                   style: TextStyle(
-                    fontSize: 12,
+                    fontSize: 10,
                     color: Colors.white,
                     fontWeight: FontWeight.w600,
                   ),
@@ -115,20 +112,37 @@ class BudgetScreen extends ConsumerWidget {
               ),
             ],
           ),
-          const SizedBox(height: 16),
-          Text(
-            '\$${balance.abs().toStringAsFixed(2)}',
-            style: TextStyle(
-              fontSize: 44,
-              fontWeight: FontWeight.bold,
-              color: Colors.white,
-            ),
+          const SizedBox(height: 10),
+          Row(
+            crossAxisAlignment: CrossAxisAlignment.end,
+            children: [
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      balance >= 0 ? 'Available Balance' : 'Over Budget',
+                      style: TextStyle(fontSize: 11, color: Colors.white70),
+                    ),
+                    const SizedBox(height: 2),
+                    FittedBox(
+                      fit: BoxFit.scaleDown,
+                      alignment: Alignment.centerLeft,
+                      child: Text(
+                        '\$${balance.abs().toStringAsFixed(2)}',
+                        style: TextStyle(
+                          fontSize: 30,
+                          fontWeight: FontWeight.bold,
+                          color: Colors.white,
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ],
           ),
-          Text(
-            balance >= 0 ? 'Available Balance' : 'Over Budget',
-            style: TextStyle(fontSize: 14, color: Colors.white70),
-          ),
-          const SizedBox(height: 24),
+          const SizedBox(height: 12),
           Row(
             children: [
               Expanded(
@@ -141,7 +155,7 @@ class BudgetScreen extends ConsumerWidget {
               ),
               Container(
                 width: 1,
-                height: 50,
+                height: 34,
                 color: Colors.white.withValues(alpha: 0.2),
               ),
               Expanded(
@@ -170,16 +184,16 @@ class BudgetScreen extends ConsumerWidget {
         Row(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
-            Icon(icon, color: iconColor, size: 18),
-            const SizedBox(width: 6),
-            Text(label, style: TextStyle(fontSize: 13, color: Colors.white70)),
+            Icon(icon, color: iconColor, size: 14),
+            const SizedBox(width: 4),
+            Text(label, style: TextStyle(fontSize: 10, color: Colors.white70)),
           ],
         ),
-        const SizedBox(height: 6),
+        const SizedBox(height: 2),
         Text(
           '\$${amount.toStringAsFixed(2)}',
           style: TextStyle(
-            fontSize: 20,
+            fontSize: 15,
             fontWeight: FontWeight.bold,
             color: Colors.white,
           ),

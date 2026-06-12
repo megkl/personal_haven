@@ -93,6 +93,7 @@ class _FoodDiaryScreenState extends ConsumerState<FoodDiaryScreen> {
               ],
             ),
       floatingActionButton: FloatingActionButton(
+        heroTag: 'wellness_food_add',
         onPressed: () => _showAddFoodDialog(context, ref),
         backgroundColor: AppColors.primary,
         child: Icon(Icons.add, color: Colors.white),
@@ -105,8 +106,8 @@ class _FoodDiaryScreenState extends ConsumerState<FoodDiaryScreen> {
     final remaining = _calorieGoal - todayCalories;
 
     return Container(
-      margin: const EdgeInsets.all(16),
-      padding: const EdgeInsets.all(20),
+      margin: const EdgeInsets.fromLTRB(12, 10, 12, 8),
+      padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
         gradient: LinearGradient(
           colors: remaining >= 0
@@ -115,12 +116,12 @@ class _FoodDiaryScreenState extends ConsumerState<FoodDiaryScreen> {
           begin: Alignment.topLeft,
           end: Alignment.bottomRight,
         ),
-        borderRadius: BorderRadius.circular(20),
+        borderRadius: BorderRadius.circular(18),
         boxShadow: [
           BoxShadow(
             color: const Color(0xFF4ECDC4).withValues(alpha: 0.3),
-            blurRadius: 15,
-            offset: const Offset(0, 8),
+            blurRadius: 12,
+            offset: const Offset(0, 6),
           ),
         ],
       ),
@@ -134,16 +135,16 @@ class _FoodDiaryScreenState extends ConsumerState<FoodDiaryScreen> {
                   children: [
                     Text(
                       'Today\'s Calories',
-                      style: TextStyle(fontSize: 14, color: Colors.white70),
+                      style: TextStyle(fontSize: 12, color: Colors.white70),
                     ),
-                    const SizedBox(height: 8),
+                    const SizedBox(height: 3),
                     Row(
                       crossAxisAlignment: CrossAxisAlignment.end,
                       children: [
                         Text(
                           '$todayCalories',
                           style: TextStyle(
-                            fontSize: 36,
+                            fontSize: 30,
                             fontWeight: FontWeight.bold,
                             color: Colors.white,
                           ),
@@ -153,36 +154,36 @@ class _FoodDiaryScreenState extends ConsumerState<FoodDiaryScreen> {
                           child: Text(
                             '/ $_calorieGoal',
                             style: TextStyle(
-                              fontSize: 16,
+                              fontSize: 13,
                               color: Colors.white70,
                             ),
                           ),
                         ),
                       ],
                     ),
-                    const SizedBox(height: 4),
+                    const SizedBox(height: 2),
                     Text(
                       remaining >= 0
                           ? '$remaining cal remaining'
                           : '${remaining.abs()} cal over',
-                      style: TextStyle(fontSize: 13, color: Colors.white70),
+                      style: TextStyle(fontSize: 11, color: Colors.white70),
                     ),
                   ],
                 ),
               ),
               // Progress circle
               SizedBox(
-                width: 90,
-                height: 90,
+                width: 68,
+                height: 68,
                 child: Stack(
                   children: [
                     Center(
                       child: SizedBox(
-                        width: 80,
-                        height: 80,
+                        width: 62,
+                        height: 62,
                         child: CircularProgressIndicator(
                           value: percentage / 100,
-                          strokeWidth: 10,
+                          strokeWidth: 7,
                           backgroundColor: context.colors.cardColor.withValues(
                             alpha: 0.2,
                           ),
@@ -197,7 +198,7 @@ class _FoodDiaryScreenState extends ConsumerState<FoodDiaryScreen> {
                       child: Text(
                         '${percentage.toInt()}%',
                         style: TextStyle(
-                          fontSize: 18,
+                          fontSize: 15,
                           fontWeight: FontWeight.bold,
                           color: Colors.white,
                         ),
@@ -208,7 +209,7 @@ class _FoodDiaryScreenState extends ConsumerState<FoodDiaryScreen> {
               ),
             ],
           ),
-          const SizedBox(height: 16),
+          const SizedBox(height: 10),
           // Macros row
           Row(
             mainAxisAlignment: MainAxisAlignment.spaceAround,
@@ -224,19 +225,26 @@ class _FoodDiaryScreenState extends ConsumerState<FoodDiaryScreen> {
   }
 
   Widget _buildMacroItem(String label, String value, String emoji) {
-    return Column(
+    return Row(
+      mainAxisSize: MainAxisSize.min,
       children: [
-        Text(emoji, style: TextStyle(fontSize: 20)),
-        const SizedBox(height: 4),
-        Text(
-          value,
-          style: TextStyle(
-            fontSize: 16,
-            fontWeight: FontWeight.bold,
-            color: Colors.white,
-          ),
+        Text(emoji, style: TextStyle(fontSize: 15)),
+        const SizedBox(width: 5),
+        Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(
+              value,
+              style: TextStyle(
+                fontSize: 13,
+                fontWeight: FontWeight.bold,
+                color: Colors.white,
+                height: 1,
+              ),
+            ),
+            Text(label, style: TextStyle(fontSize: 9, color: Colors.white70)),
+          ],
         ),
-        Text(label, style: TextStyle(fontSize: 11, color: Colors.white70)),
       ],
     );
   }

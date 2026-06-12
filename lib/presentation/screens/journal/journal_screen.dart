@@ -96,6 +96,7 @@ class _JournalScreenState extends ConsumerState<JournalScreen> {
         ],
       ),
       floatingActionButton: FloatingActionButton.extended(
+        heroTag: 'journal_entry_add',
         onPressed: () => _showAddEntrySheet(context),
         backgroundColor: AppColors.primary,
         icon: Icon(Icons.add, color: Colors.white),

@@ -65,6 +65,7 @@ class _TasksScreenState extends ConsumerState<TasksScreen>
         ],
       ),
       floatingActionButton: FloatingActionButton(
+        heroTag: 'rituals_tasks_add',
         onPressed: () => _showAddTaskSheet(context),
         backgroundColor: AppColors.primary,
         child: Icon(Icons.add, color: Colors.white),

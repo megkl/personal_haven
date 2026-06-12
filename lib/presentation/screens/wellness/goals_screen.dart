@@ -70,6 +70,7 @@ class _GoalsScreenState extends ConsumerState<GoalsScreen>
               ],
             ),
       floatingActionButton: FloatingActionButton(
+        heroTag: 'wellness_goals_add',
         onPressed: () => _showAddGoalDialog(context, ref),
         backgroundColor: AppColors.primary,
         child: Icon(Icons.add, color: Colors.white),
@@ -94,20 +95,20 @@ class _GoalsScreenState extends ConsumerState<GoalsScreen>
     }
 
     return Container(
-      margin: const EdgeInsets.fromLTRB(12, 12, 12, 10),
-      padding: const EdgeInsets.all(18),
+      margin: const EdgeInsets.fromLTRB(12, 10, 12, 8),
+      padding: const EdgeInsets.all(15),
       decoration: BoxDecoration(
         gradient: const LinearGradient(
           colors: [Color(0xFF667eea), Color(0xFF764ba2)],
           begin: Alignment.topLeft,
           end: Alignment.bottomRight,
         ),
-        borderRadius: BorderRadius.circular(20),
+        borderRadius: BorderRadius.circular(18),
         boxShadow: [
           BoxShadow(
             color: const Color(0xFF667eea).withValues(alpha: 0.4),
-            blurRadius: 15,
-            offset: const Offset(0, 8),
+            blurRadius: 12,
+            offset: const Offset(0, 6),
           ),
         ],
       ),
@@ -121,22 +122,22 @@ class _GoalsScreenState extends ConsumerState<GoalsScreen>
                   children: [
                     Text(
                       '🎯 Goals Progress',
-                      style: TextStyle(fontSize: 14, color: Colors.white70),
+                      style: TextStyle(fontSize: 12, color: Colors.white70),
                     ),
-                    const SizedBox(height: 8),
+                    const SizedBox(height: 3),
                     Text(
                       '$completed of $total',
                       style: TextStyle(
-                        fontSize: 36,
+                        fontSize: 30,
                         fontWeight: FontWeight.bold,
                         color: Colors.white,
                       ),
                     ),
-                    const SizedBox(height: 4),
+                    const SizedBox(height: 2),
                     Text(
                       'goals completed',
                       style: TextStyle(
-                        fontSize: 14,
+                        fontSize: 11,
                         color: Colors.white.withValues(alpha: 0.8),
                       ),
                     ),
@@ -145,17 +146,17 @@ class _GoalsScreenState extends ConsumerState<GoalsScreen>
               ),
               // Progress circle
               SizedBox(
-                width: 88,
-                height: 88,
+                width: 68,
+                height: 68,
                 child: Stack(
                   children: [
                     Center(
                       child: SizedBox(
-                        width: 78,
-                        height: 78,
+                        width: 62,
+                        height: 62,
                         child: CircularProgressIndicator(
                           value: overallProgress / 100,
-                          strokeWidth: 10,
+                          strokeWidth: 7,
                           backgroundColor: context.colors.cardColor.withValues(
                             alpha: 0.2,
                           ),
@@ -173,7 +174,7 @@ class _GoalsScreenState extends ConsumerState<GoalsScreen>
                           Text(
                             '${overallProgress.toInt()}%',
                             style: TextStyle(
-                              fontSize: 20,
+                              fontSize: 16,
                               fontWeight: FontWeight.bold,
                               color: Colors.white,
                             ),
@@ -181,7 +182,7 @@ class _GoalsScreenState extends ConsumerState<GoalsScreen>
                           Text(
                             'avg',
                             style: TextStyle(
-                              fontSize: 10,
+                              fontSize: 8,
                               color: Colors.white70,
                             ),
                           ),
@@ -193,13 +194,13 @@ class _GoalsScreenState extends ConsumerState<GoalsScreen>
               ),
             ],
           ),
-          const SizedBox(height: 14),
+          const SizedBox(height: 10),
           Row(
             children: [
               _buildStatItem('🔥 Active', active.toString(), Colors.orange),
-              const SizedBox(width: 10),
+              const SizedBox(width: 8),
               _buildStatItem('✅ Done', completed.toString(), Colors.green),
-              const SizedBox(width: 10),
+              const SizedBox(width: 8),
               _buildStatItem('📊 Rate', '$completionRate%', Colors.blue),
             ],
           ),
@@ -211,23 +212,23 @@ class _GoalsScreenState extends ConsumerState<GoalsScreen>
   Widget _buildStatItem(String label, String value, Color color) {
     return Expanded(
       child: Container(
-        padding: const EdgeInsets.symmetric(vertical: 12),
+        padding: const EdgeInsets.symmetric(vertical: 7),
         decoration: BoxDecoration(
           color: context.colors.cardColor.withValues(alpha: 0.15),
-          borderRadius: BorderRadius.circular(12),
+          borderRadius: BorderRadius.circular(10),
         ),
         child: Column(
           children: [
             Text(
               value,
               style: TextStyle(
-                fontSize: 20,
+                fontSize: 15,
                 fontWeight: FontWeight.bold,
                 color: Colors.white,
               ),
             ),
-            const SizedBox(height: 2),
-            Text(label, style: TextStyle(fontSize: 11, color: Colors.white70)),
+            const SizedBox(height: 1),
+            Text(label, style: TextStyle(fontSize: 9, color: Colors.white70)),
           ],
         ),
       ),

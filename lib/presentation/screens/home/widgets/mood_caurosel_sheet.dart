@@ -1,21 +1,12 @@
 import 'package:flutter/material.dart';
+import 'package:personal_haven/core/constants/app_colors.dart';
 import 'package:personal_haven/core/theme/app_theme.dart';
 import 'package:personal_haven/data/models/mood_log.dart';
-
-// ─────────────────────────────────────────────────────────────────────────────
-// MOOD CHECK-IN OVERLAY
-//
-// A full-screen widget that slides up seamlessly over the home content.
-// Used both on first open (no mood yet) and when editing today's mood via
-// the mood card tap — no bottom sheet, no navigation needed.
-// ─────────────────────────────────────────────────────────────────────────────
 
 class MoodCheckInOverlay extends StatefulWidget {
   final void Function(MoodOption mood, String? note) onSaved;
   final VoidCallback? onSkipped;
   final bool canSkip;
-
-  /// Pre-selected mood when editing an existing entry.
   final MoodLog? existingMood;
 
   const MoodCheckInOverlay({
@@ -32,373 +23,278 @@ class MoodCheckInOverlay extends StatefulWidget {
 
 class _MoodCheckInOverlayState extends State<MoodCheckInOverlay>
     with TickerProviderStateMixin {
-  late PageController _pageController;
+  late final List<MoodOption> _moods;
+  late final PageController _pageController;
+  late final AnimationController _entranceController;
+  late final AnimationController _exitController;
+  late final TextEditingController _noteController;
+
   late int _selectedIndex;
-  final TextEditingController _noteController = TextEditingController();
+  double _moodPosition = 0;
   bool _showNote = false;
   bool _isExiting = false;
-
-  // Entrance — slides up from bottom
-  late AnimationController _entranceCtrl;
-  late Animation<Offset> _entranceSlide;
-  late Animation<double> _entranceFade;
-
-  // Exit — shrinks and fades away
-  late AnimationController _exitCtrl;
-  late Animation<double> _exitFade;
-  late Animation<double> _exitScale;
-
-  // Emoji bounce on page change
-  late AnimationController _bounceCtrl;
-  late Animation<double> _bounceAnim;
-
-  // Smooth background color shift per mood
-  late AnimationController _colorCtrl;
-  late Animation<Color?> _bgColorAnim;
-  Color _fromColor = const Color(0xFFB8E6E3);
-  Color _toColor = const Color(0xFFB8E6E3);
 
   @override
   void initState() {
     super.initState();
+    _moods = [...MoodOptions.all]
+      ..sort((a, b) {
+        final levelComparison = a.level.compareTo(b.level);
+        if (levelComparison != 0) return levelComparison;
+        return MoodOptions.all.indexOf(a).compareTo(MoodOptions.all.indexOf(b));
+      });
 
-    // Resolve starting index
-    if (widget.existingMood != null) {
-      final idx = MoodOptions.all.indexWhere(
-        (m) => m.emoji == widget.existingMood!.moodEmoji,
-      );
-      _selectedIndex = idx < 0 ? 4 : idx;
-    } else {
-      _selectedIndex = 4; // Neutral
-    }
+    final existingIndex = widget.existingMood == null
+        ? -1
+        : _moods.indexWhere(
+            (mood) => mood.emoji == widget.existingMood!.moodEmoji,
+          );
+    final neutralIndex = _moods.indexWhere((mood) => mood.label == 'Neutral');
+    _selectedIndex = existingIndex >= 0 ? existingIndex : neutralIndex;
+    _moodPosition = _selectedIndex.toDouble();
 
     _pageController = PageController(
-      viewportFraction: 0.44,
+      viewportFraction: 0.52,
       initialPage: _selectedIndex,
+    )..addListener(_syncMoodPosition);
+    _noteController = TextEditingController(
+      text: widget.existingMood?.notes ?? '',
     );
+    _showNote = _noteController.text.isNotEmpty;
 
-    if (widget.existingMood?.notes != null) {
-      _noteController.text = widget.existingMood!.notes!;
-      _showNote = true;
-    }
-
-    // Entrance: slides up from slightly below
-    _entranceCtrl = AnimationController(
+    _entranceController = AnimationController(
       vsync: this,
-      duration: const Duration(milliseconds: 480),
-    );
-    _entranceFade = CurvedAnimation(
-      parent: _entranceCtrl,
-      curve: Curves.easeOut,
-    );
-    _entranceSlide =
-        Tween<Offset>(begin: const Offset(0, 0.08), end: Offset.zero).animate(
-          CurvedAnimation(parent: _entranceCtrl, curve: Curves.easeOutCubic),
-        );
-
-    // Exit: scales down and fades
-    _exitCtrl = AnimationController(
+      duration: const Duration(milliseconds: 460),
+    )..forward();
+    _exitController = AnimationController(
       vsync: this,
-      duration: const Duration(milliseconds: 380),
+      duration: const Duration(milliseconds: 260),
     );
-    _exitFade = Tween<double>(
-      begin: 1,
-      end: 0,
-    ).animate(CurvedAnimation(parent: _exitCtrl, curve: Curves.easeIn));
-    _exitScale = Tween<double>(
-      begin: 1.0,
-      end: 0.94,
-    ).animate(CurvedAnimation(parent: _exitCtrl, curve: Curves.easeIn));
-
-    // Bounce
-    _bounceCtrl = AnimationController(
-      vsync: this,
-      duration: const Duration(milliseconds: 500),
-    );
-    _bounceAnim = Tween<double>(
-      begin: 1.0,
-      end: 1.13,
-    ).animate(CurvedAnimation(parent: _bounceCtrl, curve: Curves.elasticOut));
-
-    // Background color
-    _colorCtrl = AnimationController(
-      vsync: this,
-      duration: const Duration(milliseconds: 380),
-    );
-    _initColor(_selectedIndex);
-    _bgColorAnim = ColorTween(
-      begin: _fromColor,
-      end: _toColor,
-    ).animate(_colorCtrl);
-
-    _entranceCtrl.forward();
-  }
-
-  void _initColor(int index) {
-    final c = MoodOptions.all[index].color.withValues(alpha: 0.20);
-    _fromColor = c;
-    _toColor = c;
   }
 
   @override
   void dispose() {
-    _pageController.dispose();
+    _pageController
+      ..removeListener(_syncMoodPosition)
+      ..dispose();
     _noteController.dispose();
-    _entranceCtrl.dispose();
-    _exitCtrl.dispose();
-    _bounceCtrl.dispose();
-    _colorCtrl.dispose();
+    _entranceController.dispose();
+    _exitController.dispose();
     super.dispose();
   }
 
-  void _onPageChanged(int i) {
-    final newColor = MoodOptions.all[i].color.withValues(alpha: 0.20);
-    _fromColor = _bgColorAnim.value ?? _fromColor;
-    _toColor = newColor;
-    _bgColorAnim = ColorTween(
-      begin: _fromColor,
-      end: _toColor,
-    ).animate(_colorCtrl);
-    _colorCtrl.forward(from: 0);
-    _bounceCtrl.forward(from: 0);
-    setState(() => _selectedIndex = i);
-  }
-
-  Future<void> _save() async {
-    if (_isExiting) return;
-    _isExiting = true;
-    await _exitCtrl.forward();
-    if (mounted) {
-      widget.onSaved(
-        MoodOptions.all[_selectedIndex],
-        _noteController.text.trim().isEmpty
-            ? null
-            : _noteController.text.trim(),
-      );
+  void _syncMoodPosition() {
+    if (!_pageController.hasClients ||
+        !_pageController.position.haveDimensions) {
+      return;
     }
+    final page = _pageController.page ?? _selectedIndex.toDouble();
+    final nextIndex = page.round().clamp(0, _moods.length - 1);
+    if ((_moodPosition - page).abs() < 0.001 && nextIndex == _selectedIndex) {
+      return;
+    }
+    setState(() {
+      _moodPosition = page.clamp(0, (_moods.length - 1).toDouble());
+      _selectedIndex = nextIndex;
+    });
   }
 
-  Future<void> _skip() async {
+  void _selectMood(double value) {
+    final index = value.round().clamp(0, _moods.length - 1);
+    setState(() {
+      _moodPosition = value;
+      _selectedIndex = index;
+    });
+    _pageController.animateToPage(
+      index,
+      duration: const Duration(milliseconds: 260),
+      curve: Curves.easeOutCubic,
+    );
+  }
+
+  Future<void> _finish(VoidCallback callback) async {
     if (_isExiting) return;
     _isExiting = true;
-    await _exitCtrl.forward();
-    if (mounted) widget.onSkipped?.call();
+    FocusScope.of(context).unfocus();
+    await _exitController.forward();
+    if (mounted) callback();
+  }
+
+  Future<void> _save() {
+    return _finish(() {
+      final note = _noteController.text.trim();
+      widget.onSaved(_moods[_selectedIndex], note.isEmpty ? null : note);
+    });
+  }
+
+  Future<void> _skip() {
+    return _finish(() => widget.onSkipped?.call());
   }
 
   @override
   Widget build(BuildContext context) {
-    final selected = MoodOptions.all[_selectedIndex];
-    final size = MediaQuery.of(context).size;
-    final bottomPad = MediaQuery.of(context).viewInsets.bottom;
+    final selected = _moods[_selectedIndex];
+    final keyboardInset = MediaQuery.viewInsetsOf(context).bottom;
 
     return AnimatedBuilder(
-      animation: Listenable.merge([
-        _entranceCtrl,
-        _exitCtrl,
-        _colorCtrl,
-        _bounceCtrl,
-      ]),
+      animation: Listenable.merge([_entranceController, _exitController]),
       builder: (context, child) {
-        final bg = _bgColorAnim.value ?? selected.color.withValues(alpha: 0.18);
+        final entrance = CurvedAnimation(
+          parent: _entranceController,
+          curve: Curves.easeOutCubic,
+        ).value;
+        final exit =
+            1 -
+            CurvedAnimation(
+              parent: _exitController,
+              curve: Curves.easeIn,
+            ).value;
 
         return Opacity(
-          opacity: (_entranceFade.value * _exitFade.value).clamp(0.0, 1.0),
-          child: Transform.scale(
-            scale: _exitScale.value,
-            child: FractionalTranslation(
-              translation: _entranceSlide.value,
-              child: Container(
-                width: size.width,
-                height: size.height,
-                decoration: BoxDecoration(
-                  gradient: LinearGradient(
-                    begin: Alignment.topCenter,
-                    end: Alignment.bottomCenter,
-                    colors: [
-                      bg,
-                      Color.lerp(bg, Colors.white, 0.50)!,
-                      Colors.white,
-                    ],
-                    stops: const [0.0, 0.40, 1.0],
-                  ),
-                ),
-                child: child,
-              ),
-            ),
+          opacity: entrance * exit,
+          child: Transform.translate(
+            offset: Offset(0, 28 * (1 - entrance)),
+            child: Transform.scale(scale: 0.97 + (0.03 * exit), child: child),
           ),
         );
       },
-      child: SafeArea(
-        child: Padding(
-          padding: EdgeInsets.only(bottom: bottomPad),
-          child: Column(
-            children: [
-              const SizedBox(height: 28),
-              _buildBranding(),
-              const SizedBox(height: 10),
-              _buildTitle(),
-              const Spacer(flex: 2),
-              _buildCarousel(),
-              const SizedBox(height: 18),
-              _buildMoodLabel(selected),
-              const SizedBox(height: 14),
-              _buildDots(),
-              const Spacer(flex: 3),
-              _buildNoteSection(),
-              const SizedBox(height: 6),
-              _buildSaveButton(selected),
-              if (widget.canSkip) _buildSkipButton(),
-              const SizedBox(height: 20),
-            ],
+      child: AnimatedContainer(
+        duration: const Duration(milliseconds: 320),
+        curve: Curves.easeOutCubic,
+        color: Color.alphaBlend(
+          selected.color.withValues(alpha: context.isDark ? 0.16 : 0.12),
+          context.colors.homeBackground,
+        ),
+        child: SafeArea(
+          child: LayoutBuilder(
+            builder: (context, constraints) {
+              return SingleChildScrollView(
+                padding: EdgeInsets.fromLTRB(20, 12, 20, 20 + keyboardInset),
+                child: ConstrainedBox(
+                  constraints: BoxConstraints(
+                    minHeight: constraints.maxHeight - 32,
+                  ),
+                  child: IntrinsicHeight(
+                    child: Column(
+                      children: [
+                        _buildTopBar(),
+                        const SizedBox(height: 18),
+                        _buildTitle(),
+                        const Spacer(),
+                        _buildCarousel(),
+                        const SizedBox(height: 12),
+                        _buildMoodLabel(selected),
+                        const SizedBox(height: 20),
+                        _buildMoodSlider(selected),
+                        const Spacer(),
+                        _buildNoteSection(),
+                        const SizedBox(height: 14),
+                        _buildSaveButton(),
+                        if (widget.canSkip) _buildSkipButton(),
+                      ],
+                    ),
+                  ),
+                ),
+              );
+            },
           ),
         ),
       ),
     );
   }
 
-  // ── Branding ──────────────────────────────────────────────────
-
-  Widget _buildBranding() {
+  Widget _buildTopBar() {
     return Row(
-      mainAxisAlignment: MainAxisAlignment.center,
       children: [
         Container(
-          padding: const EdgeInsets.all(7),
+          width: 38,
+          height: 38,
           decoration: BoxDecoration(
-            color: const Color(0xFF4ECDC4).withValues(alpha: 0.15),
+            color: AppColors.primary.withValues(alpha: 0.14),
             shape: BoxShape.circle,
           ),
-          child: Text('🌿', style: TextStyle(fontSize: 16)),
-        ),
-        const SizedBox(width: 8),
-        Text(
-          'Personal Haven',
-          style: TextStyle(
-            fontSize: 14,
-            fontWeight: FontWeight.w600,
-            color: Color(0xFF2D3E40),
+          child: const Icon(
+            Icons.spa_rounded,
+            color: AppColors.primaryDark,
+            size: 20,
           ),
         ),
+        const SizedBox(width: 10),
+        const Expanded(
+          child: Text(
+            'Personal Haven',
+            style: TextStyle(fontSize: 15, fontWeight: FontWeight.w700),
+          ),
+        ),
+        if (widget.canSkip)
+          IconButton(
+            tooltip: 'Close mood check-in',
+            onPressed: _skip,
+            icon: const Icon(Icons.close_rounded),
+          ),
       ],
     );
   }
 
   Widget _buildTitle() {
     final isEditing = widget.existingMood != null;
-    return Padding(
-      padding: const EdgeInsets.symmetric(horizontal: 32),
-      child: Column(
-        children: [
-          Text(
-            isEditing ? 'Update Your Mood.' : 'Know Your Mind.',
-            style: TextStyle(
-              fontSize: 26,
-              fontWeight: FontWeight.bold,
-              color: Color(0xFF2D3E40),
-              letterSpacing: -0.4,
-            ),
+    return Column(
+      children: [
+        Text(
+          isEditing ? 'How do you feel now?' : 'Meet Your Mood.',
+          textAlign: TextAlign.center,
+          style: TextStyle(
+            fontSize: 28,
+            fontWeight: FontWeight.w800,
+            color: context.colors.textPrimary,
           ),
-          const SizedBox(height: 6),
-          Text(
-            isEditing
-                ? 'Swipe to how you\'re feeling now'
-                : 'Check in with yourself — how are you feeling?',
-            style: TextStyle(
-              fontSize: 13,
-              color: context.colors.textSecondary,
-              height: 1.4,
-            ),
-            textAlign: TextAlign.center,
+        ),
+        const SizedBox(height: 6),
+        Text(
+          isEditing
+              ? 'Take a breath and choose what feels closest.'
+              : 'A small check-in can make the day feel lighter.',
+          textAlign: TextAlign.center,
+          style: TextStyle(
+            fontSize: 13,
+            height: 1.4,
+            color: context.colors.textSecondary,
           ),
-        ],
-      ),
+        ),
+      ],
     );
   }
-
-  // ── Carousel ──────────────────────────────────────────────────
 
   Widget _buildCarousel() {
     return SizedBox(
       height: 210,
       child: PageView.builder(
         controller: _pageController,
-        onPageChanged: _onPageChanged,
-        itemCount: MoodOptions.all.length,
-        itemBuilder: (context, i) {
-          return GestureDetector(
-            onTap: () {
-              if (i != _selectedIndex) {
-                _pageController.animateToPage(
-                  i,
-                  duration: const Duration(milliseconds: 320),
-                  curve: Curves.easeInOut,
-                );
-              }
+        physics: const BouncingScrollPhysics(),
+        itemCount: _moods.length,
+        itemBuilder: (context, index) {
+          return AnimatedBuilder(
+            animation: _pageController,
+            builder: (context, child) {
+              final page =
+                  _pageController.hasClients &&
+                      _pageController.position.haveDimensions
+                  ? _pageController.page ?? _selectedIndex.toDouble()
+                  : _selectedIndex.toDouble();
+              final distance = (page - index).abs();
+              final scale = (1 - distance * 0.32).clamp(0.62, 1.0);
+              final opacity = (1 - distance * 0.42).clamp(0.42, 1.0);
+              return Transform.scale(
+                scale: scale,
+                child: Opacity(opacity: opacity, child: child),
+              );
             },
-            child: AnimatedBuilder(
-              animation: Listenable.merge([_pageController, _bounceCtrl]),
-              builder: (context, _) {
-                double scale;
-                double opacity;
-
-                if (_pageController.position.haveDimensions) {
-                  final page =
-                      _pageController.page ?? _selectedIndex.toDouble();
-                  final diff = (page - i).abs();
-                  scale = (1.0 - diff * 0.26).clamp(0.58, 1.0);
-                  opacity = (1.0 - diff * 0.55).clamp(0.30, 1.0);
-                } else {
-                  scale = i == _selectedIndex ? 1.0 : 0.58;
-                  opacity = i == _selectedIndex ? 1.0 : 0.38;
-                }
-
-                final isCenter = i == _selectedIndex;
-                final mood = MoodOptions.all[i];
-                final finalScale = isCenter ? scale * _bounceAnim.value : scale;
-
-                return Transform.scale(
-                  scale: finalScale,
-                  child: Opacity(
-                    opacity: opacity,
-                    child: Container(
-                      margin: const EdgeInsets.symmetric(horizontal: 4),
-                      decoration: BoxDecoration(
-                        gradient: RadialGradient(
-                          colors: [
-                            mood.color.withValues(
-                              alpha: isCenter ? 0.52 : 0.30,
-                            ),
-                            mood.color.withValues(
-                              alpha: isCenter ? 0.18 : 0.06,
-                            ),
-                          ],
-                          radius: 0.80,
-                        ),
-                        shape: BoxShape.circle,
-                        boxShadow: isCenter
-                            ? [
-                                BoxShadow(
-                                  color: mood.color.withValues(alpha: 0.32),
-                                  blurRadius: 32,
-                                  offset: const Offset(0, 14),
-                                  spreadRadius: 2,
-                                ),
-                              ]
-                            : [],
-                      ),
-                      child: Center(
-                        child: Text(
-                          mood.emoji,
-                          style: TextStyle(
-                            fontSize: isCenter ? 82 : 54,
-                            height: 1,
-                          ),
-                        ),
-                      ),
-                    ),
-                  ),
-                );
-              },
+            child: GestureDetector(
+              onTap: () => _selectMood(index.toDouble()),
+              child: _MoodFace(
+                mood: _moods[index],
+                isSelected: index == _selectedIndex,
+              ),
             ),
           );
         },
@@ -406,154 +302,151 @@ class _MoodCheckInOverlayState extends State<MoodCheckInOverlay>
     );
   }
 
-  // ── Mood label ────────────────────────────────────────────────
-
   Widget _buildMoodLabel(MoodOption selected) {
     return AnimatedSwitcher(
       duration: const Duration(milliseconds: 220),
-      transitionBuilder: (child, anim) => ScaleTransition(
-        scale: anim,
-        child: FadeTransition(opacity: anim, child: child),
+      transitionBuilder: (child, animation) => FadeTransition(
+        opacity: animation,
+        child: ScaleTransition(scale: animation, child: child),
       ),
       child: Container(
         key: ValueKey(selected.label),
-        padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 10),
+        padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 8),
         decoration: BoxDecoration(
-          color: selected.color.withValues(alpha: 0.14),
-          borderRadius: BorderRadius.circular(32),
+          color: context.colors.cardColor,
+          borderRadius: BorderRadius.circular(20),
           border: Border.all(
-            color: selected.color.withValues(alpha: 0.38),
+            color: selected.color.withValues(alpha: 0.65),
             width: 1.5,
           ),
+          boxShadow: [
+            BoxShadow(
+              color: selected.color.withValues(alpha: 0.12),
+              blurRadius: 12,
+              offset: const Offset(0, 4),
+            ),
+          ],
         ),
         child: Text(
-          'I feel ${selected.label}',
+          'I feel ${selected.label.toLowerCase()}',
           style: TextStyle(
-            fontSize: 16,
+            fontSize: 14,
             fontWeight: FontWeight.w700,
-            color: _darken(selected.color),
+            color: context.colors.textPrimary,
           ),
         ),
       ),
     );
   }
 
-  // ── Dots ──────────────────────────────────────────────────────
-
-  Widget _buildDots() {
-    return Row(
-      mainAxisAlignment: MainAxisAlignment.center,
-      children: List.generate(MoodOptions.all.length, (i) {
-        final isSelected = i == _selectedIndex;
-        return AnimatedContainer(
-          duration: const Duration(milliseconds: 220),
-          margin: const EdgeInsets.symmetric(horizontal: 2.5),
-          width: isSelected ? 22 : 6,
-          height: 6,
-          decoration: BoxDecoration(
-            color: isSelected
-                ? MoodOptions.all[i].color
-                : context.colors.divider,
-            borderRadius: BorderRadius.circular(3),
+  Widget _buildMoodSlider(MoodOption selected) {
+    return Column(
+      children: [
+        SliderTheme(
+          data: SliderTheme.of(context).copyWith(
+            trackHeight: 9,
+            activeTrackColor: selected.color,
+            inactiveTrackColor: context.colors.divider,
+            thumbColor: selected.color,
+            overlayColor: selected.color.withValues(alpha: 0.16),
+            thumbShape: const RoundSliderThumbShape(enabledThumbRadius: 15),
+            overlayShape: const RoundSliderOverlayShape(overlayRadius: 24),
+            tickMarkShape: SliderTickMarkShape.noTickMark,
           ),
-        );
-      }),
-    );
-  }
-
-  // ── Note section ──────────────────────────────────────────────
-
-  Widget _buildNoteSection() {
-    return Padding(
-      padding: const EdgeInsets.symmetric(horizontal: 28),
-      child: Column(
-        children: [
-          GestureDetector(
-            onTap: () => setState(() => _showNote = !_showNote),
-            child: Row(
-              mainAxisAlignment: MainAxisAlignment.center,
-              children: [
-                Icon(
-                  _showNote
-                      ? Icons.keyboard_arrow_up_rounded
-                      : Icons.edit_note_rounded,
-                  size: 18,
+          child: Slider(
+            value: _moodPosition.clamp(0, (_moods.length - 1).toDouble()),
+            min: 0,
+            max: (_moods.length - 1).toDouble(),
+            divisions: _moods.length - 1,
+            onChanged: _selectMood,
+          ),
+        ),
+        Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 12),
+          child: Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              Text(
+                'Heavy',
+                style: TextStyle(
+                  fontSize: 11,
                   color: context.colors.textSecondary,
                 ),
-                const SizedBox(width: 5),
-                Text(
-                  _showNote ? 'Hide note' : 'Add a note (optional)',
-                  style: TextStyle(
-                    fontSize: 13,
-                    color: context.colors.textSecondary,
-                  ),
+              ),
+              Text(
+                'Bright',
+                style: TextStyle(
+                  fontSize: 11,
+                  color: context.colors.textSecondary,
                 ),
-              ],
-            ),
+              ),
+            ],
           ),
-          AnimatedSize(
-            duration: const Duration(milliseconds: 260),
-            curve: Curves.easeInOut,
-            child: _showNote
-                ? Padding(
-                    padding: const EdgeInsets.only(top: 10),
-                    child: TextField(
-                      controller: _noteController,
-                      maxLines: 2,
-                      maxLength: 200,
-                      autofocus: false,
-                      decoration: InputDecoration(
-                        hintText: "What's on your mind?",
-                        hintStyle: TextStyle(
-                          color: context.colors.textSecondary,
-                          fontSize: 14,
-                        ),
-                        filled: true,
-                        fillColor: context.colors.cardColor.withValues(
-                          alpha: 0.7,
-                        ),
-                        border: OutlineInputBorder(
-                          borderRadius: BorderRadius.circular(16),
-                          borderSide: BorderSide.none,
-                        ),
-                        contentPadding: const EdgeInsets.all(14),
-                        counterStyle: TextStyle(fontSize: 10),
-                      ),
-                    ),
-                  )
-                : const SizedBox(height: 4),
-          ),
-        ],
-      ),
+        ),
+      ],
     );
   }
 
-  // ── Buttons ───────────────────────────────────────────────────
-
-  Widget _buildSaveButton(MoodOption selected) {
-    return Padding(
-      padding: const EdgeInsets.fromLTRB(28, 8, 28, 0),
-      child: SizedBox(
-        width: double.infinity,
-        height: 56,
-        child: ElevatedButton(
-          onPressed: _save,
-          style: ElevatedButton.styleFrom(
-            backgroundColor: const Color(0xFF4ECDC4),
-            foregroundColor: Colors.white,
-            elevation: 6,
-            shadowColor: const Color(0xFF4ECDC4).withValues(alpha: 0.40),
-            shape: RoundedRectangleBorder(
-              borderRadius: BorderRadius.circular(32),
-            ),
+  Widget _buildNoteSection() {
+    return Column(
+      children: [
+        TextButton.icon(
+          onPressed: () => setState(() => _showNote = !_showNote),
+          icon: Icon(
+            _showNote
+                ? Icons.keyboard_arrow_up_rounded
+                : Icons.edit_note_rounded,
+            size: 18,
           ),
-          child: Text(
-            widget.existingMood != null ? 'Update Mood' : 'Save Mood',
-            style: TextStyle(
-              fontSize: 17,
-              fontWeight: FontWeight.bold,
-              letterSpacing: 0.3,
-            ),
+          label: Text(_showNote ? 'Hide note' : 'Add a note'),
+          style: TextButton.styleFrom(
+            foregroundColor: context.colors.textSecondary,
+          ),
+        ),
+        AnimatedSize(
+          duration: const Duration(milliseconds: 240),
+          curve: Curves.easeOutCubic,
+          child: _showNote
+              ? TextField(
+                  controller: _noteController,
+                  maxLines: 2,
+                  maxLength: 200,
+                  decoration: InputDecoration(
+                    hintText: 'What is shaping this feeling?',
+                    filled: true,
+                    fillColor: context.colors.cardColor,
+                    border: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(14),
+                      borderSide: BorderSide(color: context.colors.divider),
+                    ),
+                    enabledBorder: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(14),
+                      borderSide: BorderSide(color: context.colors.divider),
+                    ),
+                  ),
+                )
+              : const SizedBox.shrink(),
+        ),
+      ],
+    );
+  }
+
+  Widget _buildSaveButton() {
+    return SizedBox(
+      width: double.infinity,
+      height: 54,
+      child: FilledButton.icon(
+        onPressed: _save,
+        icon: const Icon(Icons.check_rounded),
+        label: Text(
+          widget.existingMood == null ? 'Save Check-in' : 'Update Check-in',
+          style: const TextStyle(fontSize: 15, fontWeight: FontWeight.w700),
+        ),
+        style: FilledButton.styleFrom(
+          backgroundColor: AppColors.primary,
+          foregroundColor: Colors.white,
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(16),
           ),
         ),
       ),
@@ -565,16 +458,47 @@ class _MoodCheckInOverlayState extends State<MoodCheckInOverlay>
       onPressed: _skip,
       style: TextButton.styleFrom(
         foregroundColor: context.colors.textSecondary,
-        padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 8),
       ),
-      child: Text('Skip for now', style: TextStyle(fontSize: 13)),
+      child: const Text('Maybe later'),
     );
   }
+}
 
-  // ── Util ──────────────────────────────────────────────────────
+class _MoodFace extends StatelessWidget {
+  final MoodOption mood;
+  final bool isSelected;
 
-  Color _darken(Color c) {
-    final hsl = HSLColor.fromColor(c);
-    return hsl.withLightness((hsl.lightness - 0.22).clamp(0.0, 1.0)).toColor();
+  const _MoodFace({required this.mood, required this.isSelected});
+
+  @override
+  Widget build(BuildContext context) {
+    return Center(
+      child: AnimatedContainer(
+        duration: const Duration(milliseconds: 220),
+        width: isSelected ? 170 : 132,
+        height: isSelected ? 170 : 132,
+        decoration: BoxDecoration(
+          color: mood.color,
+          shape: BoxShape.circle,
+          border: Border.all(
+            color: Colors.white.withValues(alpha: 0.65),
+            width: isSelected ? 5 : 3,
+          ),
+          boxShadow: [
+            BoxShadow(
+              color: mood.color.withValues(alpha: isSelected ? 0.34 : 0.16),
+              blurRadius: isSelected ? 28 : 14,
+              offset: const Offset(0, 12),
+            ),
+          ],
+        ),
+        child: Center(
+          child: Text(
+            mood.emoji,
+            style: TextStyle(fontSize: isSelected ? 76 : 52, height: 1),
+          ),
+        ),
+      ),
+    );
   }
 }

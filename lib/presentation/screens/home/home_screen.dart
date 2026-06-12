@@ -1,5 +1,4 @@
 import 'dart:math' as math;
-import 'dart:ui' as ui;
 
 import 'package:flutter/material.dart';
 import 'package:personal_haven/core/theme/app_theme.dart';
@@ -13,6 +12,7 @@ import 'package:personal_haven/data/models/goal.dart';
 import 'package:personal_haven/data/models/journal_entry.dart';
 import 'package:personal_haven/data/models/mood_log.dart';
 import 'package:personal_haven/data/models/task.dart';
+import 'package:personal_haven/presentation/screens/home/widgets/haven_ai_chat_sheet.dart';
 import 'package:personal_haven/presentation/screens/home/widgets/mood_caurosel_sheet.dart';
 import 'package:personal_haven/presentation/screens/profile/main_navigation_screen.dart';
 import 'package:personal_haven/providers/event_provider.dart';
@@ -40,12 +40,10 @@ class _HomeScreenState extends ConsumerState<HomeScreen>
 
   // Animation controllers
   late AnimationController _staggerController;
-  late AnimationController _floatController;
   late AnimationController _pulseController;
 
   final List<Animation<double>> _fadeAnims = [];
   final List<Animation<Offset>> _slideAnims = [];
-  late Animation<double> _floatAnim;
   late Animation<double> _pulseAnim;
 
   static const int _cardCount = 6;
@@ -59,19 +57,10 @@ class _HomeScreenState extends ConsumerState<HomeScreen>
       duration: const Duration(milliseconds: 1200),
     );
 
-    _floatController = AnimationController(
-      vsync: this,
-      duration: const Duration(milliseconds: 3000),
-    )..repeat(reverse: true);
-
     _pulseController = AnimationController(
       vsync: this,
       duration: const Duration(milliseconds: 2000),
     )..repeat(reverse: true);
-
-    _floatAnim = Tween<double>(begin: -4, end: 4).animate(
-      CurvedAnimation(parent: _floatController, curve: Curves.easeInOut),
-    );
 
     _pulseAnim = Tween<double>(begin: 0.97, end: 1.03).animate(
       CurvedAnimation(parent: _pulseController, curve: Curves.easeInOut),
@@ -106,7 +95,6 @@ class _HomeScreenState extends ConsumerState<HomeScreen>
   @override
   void dispose() {
     _staggerController.dispose();
-    _floatController.dispose();
     _pulseController.dispose();
     super.dispose();
   }
@@ -149,12 +137,6 @@ class _HomeScreenState extends ConsumerState<HomeScreen>
   Future<void> _loadAffirmation() async {
     final affirmation = await AffirmationsHelper.getTodayAffirmation();
     if (mounted) setState(() => _todayAffirmation = affirmation);
-  }
-
-  /// Shows the mood overlay — used both for first-open check-in
-  /// and when the user taps the mood card to edit.
-  void _openMoodOverlay() {
-    setState(() => _showMoodOverlay = true);
   }
 
   Future<void> _onMoodOverlaySaved(MoodOption mood, String? note) async {
@@ -207,12 +189,9 @@ class _HomeScreenState extends ConsumerState<HomeScreen>
     }
 
     return Scaffold(
-      backgroundColor: const Color(0xFFB8E6E3),
+      backgroundColor: context.colors.homeBackground,
       body: Stack(
         children: [
-          // ── Home content ───────────────────────────────────────
-          _buildBackgroundDecor(),
-
           SafeArea(
             child: Column(
               children: [
@@ -223,7 +202,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen>
                     color: AppColors.primaryDark,
                     child: SingleChildScrollView(
                       physics: const AlwaysScrollableScrollPhysics(),
-                      padding: const EdgeInsets.fromLTRB(20, 4, 20, 24),
+                      padding: const EdgeInsets.fromLTRB(20, 4, 20, 104),
                       child: Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
@@ -297,6 +276,9 @@ class _HomeScreenState extends ConsumerState<HomeScreen>
             ),
           ),
 
+          if (!_showMoodOverlay)
+            Positioned(right: 18, bottom: 18, child: _buildAssistantButton()),
+
           // ── Mood check-in overlay (seamless, no bottom sheet) ──
           if (_showMoodOverlay)
             Positioned.fill(
@@ -312,47 +294,76 @@ class _HomeScreenState extends ConsumerState<HomeScreen>
     );
   }
 
-  // ─── BACKGROUND DECORATION ────────────────────────────────────
+  // ─── HEADER ───────────────────────────────────────────────────
 
-  Widget _buildBackgroundDecor() {
-    return AnimatedBuilder(
-      animation: _floatAnim,
-      builder: (context, child) {
-        return Stack(
-          children: [
-            Positioned(
-              top: -60 + _floatAnim.value * 0.5,
-              right: -40,
-              child: _blob(160, const Color(0xFF4ECDC4), 0.18),
+  Widget _buildAssistantButton() {
+    return Semantics(
+      button: true,
+      label: 'Open Haven assistant',
+      child: Material(
+        color: Colors.transparent,
+        child: InkWell(
+          borderRadius: BorderRadius.circular(18),
+          onTap: _openAssistant,
+          child: Container(
+            height: 54,
+            padding: const EdgeInsets.fromLTRB(10, 0, 16, 0),
+            decoration: BoxDecoration(
+              gradient: const LinearGradient(
+                colors: [AppColors.primary, AppColors.primaryDark],
+              ),
+              borderRadius: BorderRadius.circular(18),
+              border: Border.all(color: Colors.white.withValues(alpha: 0.35)),
+              boxShadow: [
+                BoxShadow(
+                  color: AppColors.primaryDark.withValues(alpha: 0.32),
+                  blurRadius: 18,
+                  offset: const Offset(0, 7),
+                ),
+              ],
             ),
-            Positioned(
-              top: 180 + _floatAnim.value,
-              left: -50,
-              child: _blob(120, const Color(0xFFFFB347), 0.12),
+            child: Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Container(
+                  width: 36,
+                  height: 36,
+                  decoration: BoxDecoration(
+                    color: Colors.white.withValues(alpha: 0.2),
+                    shape: BoxShape.circle,
+                  ),
+                  child: const Icon(
+                    Icons.auto_awesome_rounded,
+                    color: Colors.white,
+                    size: 19,
+                  ),
+                ),
+                const SizedBox(width: 9),
+                const Text(
+                  'Ask Haven',
+                  style: TextStyle(
+                    color: Colors.white,
+                    fontSize: 13,
+                    fontWeight: FontWeight.w700,
+                  ),
+                ),
+              ],
             ),
-            Positioned(
-              bottom: 200 - _floatAnim.value * 0.6,
-              right: -30,
-              child: _blob(100, const Color(0xFFFF9A9E), 0.15),
-            ),
-          ],
-        );
-      },
-    );
-  }
-
-  Widget _blob(double size, Color color, double opacity) {
-    return Container(
-      width: size,
-      height: size,
-      decoration: BoxDecoration(
-        shape: BoxShape.circle,
-        color: color.withValues(alpha: opacity),
+          ),
+        ),
       ),
     );
   }
 
-  // ─── HEADER ───────────────────────────────────────────────────
+  void _openAssistant() {
+    showModalBottomSheet<void>(
+      context: context,
+      isScrollControlled: true,
+      useSafeArea: false,
+      backgroundColor: Colors.transparent,
+      builder: (_) => const HavenAiChatSheet(),
+    );
+  }
 
   Widget _buildHeader(StreakState streakState) {
     return Padding(
@@ -499,181 +510,6 @@ class _HomeScreenState extends ConsumerState<HomeScreen>
             ],
           ),
         ],
-      ),
-    );
-  }
-
-  // ─── MOOD CARD ────────────────────────────────────────────────
-
-  Widget _buildMoodCard(MoodLog? todayMood) {
-    final baseColor = todayMood != null
-        ? MoodOptions.getByEmoji(todayMood.moodEmoji)?.color ??
-              AppColors.primary
-        : AppColors.primary;
-
-    return GestureDetector(
-      onTap: _openMoodOverlay,
-      child: AnimatedBuilder(
-        animation: _floatAnim,
-        builder: (ctx, child) => Transform.translate(
-          offset: Offset(0, _floatAnim.value * 0.4),
-          child: child,
-        ),
-        child: ClipRRect(
-          borderRadius: BorderRadius.circular(20),
-          child: BackdropFilter(
-            filter: ui.ImageFilter.blur(sigmaX: 16, sigmaY: 16),
-            child: Container(
-              width: double.infinity,
-              padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 18),
-              decoration: BoxDecoration(
-                gradient: LinearGradient(
-                  colors: [
-                    baseColor.withValues(alpha: 0.30),
-                    baseColor.withValues(alpha: 0.12),
-                  ],
-                  begin: Alignment.topLeft,
-                  end: Alignment.bottomRight,
-                ),
-                borderRadius: BorderRadius.circular(20),
-                border: Border.all(color: Colors.white.withValues(alpha: 0.35)),
-                boxShadow: [
-                  BoxShadow(
-                    color: baseColor.withValues(alpha: 0.15),
-                    blurRadius: 24,
-                    offset: const Offset(0, 10),
-                  ),
-                ],
-              ),
-              child: todayMood != null
-                  ? Row(
-                      children: [
-                        // Big emoji with glow
-                        Container(
-                          padding: const EdgeInsets.all(10),
-                          decoration: BoxDecoration(
-                            color: baseColor.withValues(alpha: 0.2),
-                            shape: BoxShape.circle,
-                          ),
-                          child: Text(
-                            todayMood.moodEmoji,
-                            style: TextStyle(fontSize: 36),
-                          ),
-                        ),
-                        const SizedBox(width: 16),
-                        Expanded(
-                          child: Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                              Text(
-                                "Today's Mood",
-                                style: TextStyle(
-                                  fontSize: 11,
-                                  color: Colors.white.withValues(alpha: 0.85),
-                                  fontWeight: FontWeight.w500,
-                                  letterSpacing: 0.5,
-                                ),
-                              ),
-                              const SizedBox(height: 2),
-                              Text(
-                                todayMood.moodLabel ?? '',
-                                style: TextStyle(
-                                  fontSize: 22,
-                                  fontWeight: FontWeight.bold,
-                                  color: Colors.white,
-                                ),
-                              ),
-                              if (todayMood.notes != null &&
-                                  todayMood.notes!.isNotEmpty)
-                                Text(
-                                  '"${todayMood.notes}"',
-                                  style: TextStyle(
-                                    fontSize: 12,
-                                    fontStyle: FontStyle.italic,
-                                    color: Colors.white.withValues(alpha: 0.85),
-                                  ),
-                                  maxLines: 1,
-                                  overflow: TextOverflow.ellipsis,
-                                ),
-                            ],
-                          ),
-                        ),
-                        Container(
-                          padding: const EdgeInsets.all(6),
-                          decoration: BoxDecoration(
-                            color: context.colors.cardColor.withValues(
-                              alpha: 0.2,
-                            ),
-                            shape: BoxShape.circle,
-                          ),
-                          child: Icon(
-                            Icons.edit_outlined,
-                            color: Colors.white.withValues(alpha: 0.9),
-                            size: 16,
-                          ),
-                        ),
-                      ],
-                    )
-                  : Row(
-                      children: [
-                        Container(
-                          padding: const EdgeInsets.all(10),
-                          decoration: BoxDecoration(
-                            color: context.colors.cardColor.withValues(
-                              alpha: 0.2,
-                            ),
-                            shape: BoxShape.circle,
-                          ),
-                          child: Text('🌸', style: TextStyle(fontSize: 30)),
-                        ),
-                        const SizedBox(width: 14),
-                        Expanded(
-                          child: Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                              Text(
-                                'How are you feeling today?',
-                                style: TextStyle(
-                                  fontSize: 17,
-                                  fontWeight: FontWeight.bold,
-                                  color: Colors.white,
-                                ),
-                              ),
-                              Text(
-                                'Tap to check in',
-                                style: TextStyle(
-                                  fontSize: 12,
-                                  color: Colors.white.withValues(alpha: 0.8),
-                                ),
-                              ),
-                            ],
-                          ),
-                        ),
-                        Container(
-                          padding: const EdgeInsets.symmetric(
-                            horizontal: 12,
-                            vertical: 6,
-                          ),
-                          decoration: BoxDecoration(
-                            color: context.colors.cardColor.withValues(
-                              alpha: 0.25,
-                            ),
-                            borderRadius: BorderRadius.circular(20),
-                          ),
-                          child: Text(
-                            'Log',
-                            style: TextStyle(
-                              color: Colors.white,
-                              fontWeight: FontWeight.w600,
-                              fontSize: 12,
-                            ),
-                          ),
-                        ),
-                      ],
-                    ),
-            ),
-          ),
-        ),
       ),
     );
   }
@@ -1130,7 +966,10 @@ class _HomeScreenState extends ConsumerState<HomeScreen>
           const SizedBox(height: 12),
           ...goals.map((goal) => _buildGoalItem(goal)),
           if (goalState.activeGoals.length > 3)
-            _viewAllButton('View all ${goalState.activeCount} goals', () {}),
+            _viewAllButton(
+              'View all ${goalState.activeCount} goals',
+              () => _navigateTo(2),
+            ),
         ],
       ),
     );
@@ -1319,7 +1158,10 @@ class _HomeScreenState extends ConsumerState<HomeScreen>
           else
             ...pendingTasks.map((task) => _buildTaskItem(task)),
           if (taskState.pendingCount > 3)
-            _viewAllButton('View all ${taskState.pendingCount} tasks', () {}),
+            _viewAllButton(
+              'View all ${taskState.pendingCount} tasks',
+              () => _navigateTo(3),
+            ),
         ],
       ),
     );
@@ -1471,6 +1313,11 @@ class _HomeScreenState extends ConsumerState<HomeScreen>
                 ),
               );
             }),
+          if (events.length > 3)
+            _viewAllButton(
+              'View all ${events.length} events',
+              () => _navigateTo(3),
+            ),
         ],
       ),
     );
@@ -1616,15 +1463,16 @@ class _HomeScreenState extends ConsumerState<HomeScreen>
   Widget _glassCard({required Widget child}) {
     return Container(
       width: double.infinity,
-      padding: const EdgeInsets.all(20),
+      padding: const EdgeInsets.all(18),
       decoration: BoxDecoration(
         color: context.colors.cardColor,
-        borderRadius: BorderRadius.circular(20),
+        borderRadius: BorderRadius.circular(18),
+        border: Border.all(color: context.colors.divider),
         boxShadow: [
           BoxShadow(
-            color: Colors.black.withValues(alpha: 0.05),
-            blurRadius: 20,
-            offset: const Offset(0, 4),
+            color: Colors.black.withValues(alpha: context.isDark ? 0.16 : 0.04),
+            blurRadius: 14,
+            offset: const Offset(0, 3),
           ),
         ],
       ),
@@ -1633,15 +1481,37 @@ class _HomeScreenState extends ConsumerState<HomeScreen>
   }
 
   Widget _cardHeader(String title, String? trailing) {
+    final icon = switch (title) {
+      "Today's Progress" => Icons.insights_outlined,
+      'Active Goals' => Icons.flag_outlined,
+      "This Week's Moods" => Icons.mood_outlined,
+      'Tasks' => Icons.task_alt_outlined,
+      'Upcoming Events' => Icons.calendar_month_outlined,
+      'Journal' => Icons.menu_book_outlined,
+      "Today's Meals" => Icons.restaurant_outlined,
+      _ => Icons.spa_outlined,
+    };
+
     return Row(
-      mainAxisAlignment: MainAxisAlignment.spaceBetween,
       children: [
-        Text(
-          title,
-          style: TextStyle(
-            fontSize: 16,
-            fontWeight: FontWeight.bold,
-            color: Color(0xFF2D3E40),
+        Container(
+          width: 34,
+          height: 34,
+          decoration: BoxDecoration(
+            color: AppColors.primary.withValues(alpha: 0.12),
+            borderRadius: BorderRadius.circular(10),
+          ),
+          child: Icon(icon, size: 18, color: AppColors.primaryDark),
+        ),
+        const SizedBox(width: 10),
+        Expanded(
+          child: Text(
+            title,
+            style: TextStyle(
+              fontSize: 15,
+              fontWeight: FontWeight.w700,
+              color: context.colors.textPrimary,
+            ),
           ),
         ),
         if (trailing != null)
