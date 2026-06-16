@@ -106,121 +106,72 @@ class _FoodDiaryScreenState extends ConsumerState<FoodDiaryScreen> {
     final remaining = _calorieGoal - todayCalories;
 
     return Container(
-      margin: const EdgeInsets.fromLTRB(12, 10, 12, 8),
-      padding: const EdgeInsets.all(14),
+      margin: const EdgeInsets.fromLTRB(16, 8, 16, 8),
+      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
       decoration: BoxDecoration(
         color: context.colors.cardColor,
         borderRadius: BorderRadius.circular(16),
         border: Border.all(color: context.colors.divider),
       ),
-      child: Column(
+      child: Row(
         children: [
-          Row(
-            children: [
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      'Today\'s Calories',
-                      style: TextStyle(
-                        fontSize: 12,
-                        color: context.colors.textSecondary,
-                      ),
-                    ),
-                    const SizedBox(height: 3),
-                    Row(
-                      crossAxisAlignment: CrossAxisAlignment.end,
-                      children: [
-                        Text(
-                          '$todayCalories',
-                          style: TextStyle(
-                            fontSize: 23,
-                            fontWeight: FontWeight.w800,
-                            color: context.colors.textPrimary,
-                          ),
-                        ),
-                        Padding(
-                          padding: const EdgeInsets.only(bottom: 6, left: 4),
-                          child: Text(
-                            '/ $_calorieGoal',
-                            style: TextStyle(
-                              fontSize: 13,
-                              color: context.colors.textSecondary,
-                            ),
-                          ),
-                        ),
-                      ],
-                    ),
-                    const SizedBox(height: 2),
-                    Text(
-                      remaining >= 0
-                          ? '$remaining cal remaining'
-                          : '${remaining.abs()} cal over',
-                      style: TextStyle(
-                        fontSize: 11,
-                        color: context.colors.textSecondary,
-                      ),
-                    ),
-                  ],
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  'Calories',
+                  style: TextStyle(
+                    fontSize: 11,
+                    color: context.colors.textSecondary,
+                  ),
                 ),
-              ),
-              // Progress circle
-              SizedBox(
-                width: 68,
-                height: 68,
-                child: Stack(
-                  children: [
-                    Center(
-                      child: SizedBox(
-                        width: 62,
-                        height: 62,
-                        child: CircularProgressIndicator(
-                          value: percentage / 100,
-                          strokeWidth: 6,
-                          backgroundColor: context.colors.divider,
-                          valueColor: AlwaysStoppedAnimation<Color>(
-                            remaining >= 0 ? AppColors.primary : Colors.orange,
-                          ),
-                          strokeCap: StrokeCap.round,
-                        ),
-                      ),
-                    ),
-                    Center(
-                      child: Text(
-                        '${percentage.toInt()}%',
-                        style: TextStyle(
-                          fontSize: 15,
-                          fontWeight: FontWeight.bold,
-                          color: context.colors.textPrimary,
-                        ),
-                      ),
-                    ),
-                  ],
+                const SizedBox(height: 2),
+                Text(
+                  '$todayCalories / $_calorieGoal',
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: TextStyle(
+                    fontSize: 16,
+                    fontWeight: FontWeight.w800,
+                    color: context.colors.textPrimary,
+                  ),
                 ),
-              ),
-            ],
+                Text(
+                  remaining >= 0
+                      ? '$remaining cal left'
+                      : '${remaining.abs()} cal over',
+                  style: TextStyle(
+                    fontSize: 10,
+                    color: remaining >= 0 ? AppColors.primaryDark : Colors.red,
+                    fontWeight: FontWeight.w600,
+                  ),
+                ),
+              ],
+            ),
           ),
-          const SizedBox(height: 10),
-          // Macros row
-          Row(
-            mainAxisAlignment: MainAxisAlignment.spaceAround,
-            children: [
-              _buildMacroItem(
-                context,
-                'Protein',
-                '${foodState.todayProtein}g',
-                '🥩',
+          const SizedBox(width: 8),
+          Container(
+            padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 7),
+            decoration: BoxDecoration(
+              color: AppColors.primary.withValues(alpha: 0.1),
+              borderRadius: BorderRadius.circular(12),
+            ),
+            child: Text(
+              '${percentage.toInt()}%',
+              style: const TextStyle(
+                color: AppColors.primaryDark,
+                fontSize: 12,
+                fontWeight: FontWeight.w800,
               ),
-              _buildMacroItem(
-                context,
-                'Carbs',
-                '${foodState.todayCarbs}g',
-                '🍞',
-              ),
-              _buildMacroItem(context, 'Fat', '${foodState.todayFat}g', '🥑'),
-            ],
+            ),
           ),
+          const SizedBox(width: 6),
+          _buildMacroItem(context, 'P', '${foodState.todayProtein}g', '🥩'),
+          const SizedBox(width: 6),
+          _buildMacroItem(context, 'C', '${foodState.todayCarbs}g', '🍞'),
+          const SizedBox(width: 6),
+          _buildMacroItem(context, 'F', '${foodState.todayFat}g', '🥑'),
         ],
       ),
     );
@@ -232,33 +183,33 @@ class _FoodDiaryScreenState extends ConsumerState<FoodDiaryScreen> {
     String value,
     String emoji,
   ) {
-    return Row(
-      mainAxisSize: MainAxisSize.min,
-      children: [
-        Text(emoji, style: TextStyle(fontSize: 15)),
-        const SizedBox(width: 5),
-        Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Text(
-              value,
-              style: TextStyle(
-                fontSize: 13,
-                fontWeight: FontWeight.bold,
-                color: context.colors.textPrimary,
-                height: 1,
-              ),
+    return Container(
+      constraints: const BoxConstraints(minWidth: 44),
+      padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 6),
+      decoration: BoxDecoration(
+        color: context.colors.cardColor2,
+        borderRadius: BorderRadius.circular(12),
+      ),
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Text(emoji, style: TextStyle(fontSize: 13)),
+          const SizedBox(height: 1),
+          Text(
+            value,
+            style: TextStyle(
+              fontSize: 10,
+              fontWeight: FontWeight.w800,
+              color: context.colors.textPrimary,
+              height: 1,
             ),
-            Text(
-              label,
-              style: TextStyle(
-                fontSize: 9,
-                color: context.colors.textSecondary,
-              ),
-            ),
-          ],
-        ),
-      ],
+          ),
+          Text(
+            label,
+            style: TextStyle(fontSize: 8, color: context.colors.textSecondary),
+          ),
+        ],
+      ),
     );
   }
 

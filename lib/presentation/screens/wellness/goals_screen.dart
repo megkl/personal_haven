@@ -81,10 +81,8 @@ class _GoalsScreenState extends ConsumerState<GoalsScreen>
   }
 
   Widget _buildStatsCard(GoalState goalState) {
-    final total = goalState.goals.length;
     final active = goalState.activeCount;
     final completed = goalState.completedCount;
-    final completionRate = total > 0 ? (completed / total * 100).toInt() : 0;
 
     // Calculate overall progress
     double overallProgress = 0;
@@ -97,105 +95,23 @@ class _GoalsScreenState extends ConsumerState<GoalsScreen>
     }
 
     return Container(
-      margin: const EdgeInsets.fromLTRB(12, 10, 12, 8),
-      padding: const EdgeInsets.all(14),
+      margin: const EdgeInsets.fromLTRB(16, 8, 16, 8),
+      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
       decoration: BoxDecoration(
         color: context.colors.cardColor,
         borderRadius: BorderRadius.circular(16),
         border: Border.all(color: context.colors.divider),
       ),
-      child: Column(
+      child: Row(
         children: [
-          Row(
-            children: [
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      '🎯 Goals Progress',
-                      style: TextStyle(
-                        fontSize: 12,
-                        color: context.colors.textSecondary,
-                      ),
-                    ),
-                    const SizedBox(height: 3),
-                    Text(
-                      '$completed of $total',
-                      style: TextStyle(
-                        fontSize: 23,
-                        fontWeight: FontWeight.w800,
-                        color: context.colors.textPrimary,
-                      ),
-                    ),
-                    const SizedBox(height: 2),
-                    Text(
-                      'goals completed',
-                      style: TextStyle(
-                        fontSize: 11,
-                        color: context.colors.textSecondary,
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-              // Progress circle
-              SizedBox(
-                width: 60,
-                height: 60,
-                child: Stack(
-                  children: [
-                    Center(
-                      child: SizedBox(
-                        width: 54,
-                        height: 54,
-                        child: CircularProgressIndicator(
-                          value: overallProgress / 100,
-                          strokeWidth: 6,
-                          backgroundColor: context.colors.divider,
-                          valueColor: const AlwaysStoppedAnimation<Color>(
-                            AppColors.primary,
-                          ),
-                          strokeCap: StrokeCap.round,
-                        ),
-                      ),
-                    ),
-                    Center(
-                      child: Column(
-                        mainAxisSize: MainAxisSize.min,
-                        children: [
-                          Text(
-                            '${overallProgress.toInt()}%',
-                            style: TextStyle(
-                              fontSize: 16,
-                              fontWeight: FontWeight.bold,
-                              color: context.colors.textPrimary,
-                            ),
-                          ),
-                          Text(
-                            'avg',
-                            style: TextStyle(
-                              fontSize: 8,
-                              color: context.colors.textSecondary,
-                            ),
-                          ),
-                        ],
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-            ],
-          ),
-          const SizedBox(height: 10),
-          Row(
-            children: [
-              _buildStatItem('Active', active.toString(), Colors.orange),
-              const SizedBox(width: 8),
-              _buildStatItem('Done', completed.toString(), Colors.green),
-              const SizedBox(width: 8),
-              _buildStatItem('Rate', '$completionRate%', Colors.blue),
-            ],
+          _buildStatItem('Active', active.toString(), Colors.orange),
+          const SizedBox(width: 8),
+          _buildStatItem('Completed', '$completed', Colors.green),
+          const SizedBox(width: 8),
+          _buildStatItem(
+            'Avg rate',
+            '${overallProgress.toInt()}%',
+            Colors.blue,
           ),
         ],
       ),
@@ -205,24 +121,28 @@ class _GoalsScreenState extends ConsumerState<GoalsScreen>
   Widget _buildStatItem(String label, String value, Color color) {
     return Expanded(
       child: Container(
-        padding: const EdgeInsets.symmetric(vertical: 7),
+        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 7),
         decoration: BoxDecoration(
           color: color.withValues(alpha: 0.1),
-          borderRadius: BorderRadius.circular(10),
+          borderRadius: BorderRadius.circular(12),
         ),
         child: Column(
+          mainAxisSize: MainAxisSize.min,
           children: [
             Text(
               value,
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
               style: TextStyle(
-                fontSize: 15,
+                fontSize: 12,
                 fontWeight: FontWeight.w800,
                 color: color,
               ),
             ),
-            const SizedBox(height: 1),
             Text(
               label,
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
               style: TextStyle(
                 fontSize: 9,
                 color: context.colors.textSecondary,

@@ -46,9 +46,9 @@ class _TasksScreenState extends ConsumerState<TasksScreen>
       body: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          _buildProgressCard(taskState),
-          _buildSearchBar(),
-          _buildTabBar(),
+                    _buildSearchBar(),
+
+          _buildTabBar(taskState),
           Expanded(
             child: TabBarView(
               controller: _tabController,
@@ -73,145 +73,6 @@ class _TasksScreenState extends ConsumerState<TasksScreen>
     );
   }
 
-  // ─── PROGRESS CARD ────────────────────────────────────────────
-
-  Widget _buildProgressCard(TaskState taskState) {
-    final pct = taskState.completionPercentage;
-    final isUrgent = taskState.urgentCount > 0;
-
-    const gradientColors = [AppColors.primary, AppColors.primaryDark];
-
-    return Container(
-      margin: const EdgeInsets.fromLTRB(16, 12, 16, 8),
-      padding: const EdgeInsets.all(20),
-      decoration: BoxDecoration(
-        gradient: LinearGradient(
-          colors: gradientColors,
-          begin: Alignment.topLeft,
-          end: Alignment.bottomRight,
-        ),
-        borderRadius: BorderRadius.circular(24),
-        boxShadow: [
-          BoxShadow(
-            color: gradientColors.first.withValues(alpha: 0.35),
-            blurRadius: 20,
-            offset: const Offset(0, 8),
-          ),
-        ],
-      ),
-      child: Row(
-        children: [
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  isUrgent
-                      ? '⚡ ${taskState.urgentCount} urgent task${taskState.urgentCount != 1 ? 's' : ''}'
-                      : '✨ Keep it up!',
-                  style: TextStyle(fontSize: 13, color: Colors.white70),
-                ),
-                const SizedBox(height: 6),
-                RichText(
-                  text: TextSpan(
-                    children: [
-                      TextSpan(
-                        text: '${taskState.completedCount}',
-                        style: TextStyle(
-                          fontSize: 36,
-                          fontWeight: FontWeight.bold,
-                          color: Colors.white,
-                        ),
-                      ),
-                      TextSpan(
-                        text: '/${taskState.tasks.length}',
-                        style: TextStyle(fontSize: 18, color: Colors.white70),
-                      ),
-                    ],
-                  ),
-                ),
-                Text(
-                  'completed today',
-                  style: TextStyle(fontSize: 13, color: Colors.white70),
-                ),
-                if (taskState.overdueCount > 0) ...[
-                  const SizedBox(height: 10),
-                  Container(
-                    padding: const EdgeInsets.symmetric(
-                      horizontal: 10,
-                      vertical: 5,
-                    ),
-                    decoration: BoxDecoration(
-                      color: context.colors.cardColor.withValues(alpha: 0.2),
-                      borderRadius: BorderRadius.circular(10),
-                    ),
-                    child: Row(
-                      mainAxisSize: MainAxisSize.min,
-                      children: [
-                        Icon(
-                          Icons.warning_amber_rounded,
-                          color: Colors.white,
-                          size: 14,
-                        ),
-                        const SizedBox(width: 5),
-                        Text(
-                          '${taskState.overdueCount} overdue',
-                          style: TextStyle(
-                            color: Colors.white,
-                            fontSize: 12,
-                            fontWeight: FontWeight.w600,
-                          ),
-                        ),
-                      ],
-                    ),
-                  ),
-                ],
-              ],
-            ),
-          ),
-          // Circular progress
-          SizedBox(
-            width: 90,
-            height: 90,
-            child: Stack(
-              alignment: Alignment.center,
-              children: [
-                SizedBox(
-                  width: 80,
-                  height: 80,
-                  child: TweenAnimationBuilder<double>(
-                    tween: Tween(begin: 0, end: pct / 100),
-                    duration: const Duration(milliseconds: 900),
-                    curve: Curves.easeOutCubic,
-                    builder: (_, value, __) => CircularProgressIndicator(
-                      value: value,
-                      strokeWidth: 8,
-                      backgroundColor: context.colors.cardColor.withValues(
-                        alpha: 0.2,
-                      ),
-                      valueColor: const AlwaysStoppedAnimation<Color>(
-                        Colors.white,
-                      ),
-                      strokeCap: StrokeCap.round,
-                    ),
-                  ),
-                ),
-                Text(
-                  '${pct.toInt()}%',
-                  style: TextStyle(
-                    fontSize: 18,
-                    fontWeight: FontWeight.bold,
-                    color: Colors.white,
-                  ),
-                ),
-              ],
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-
   // ─── SEARCH BAR ───────────────────────────────────────────────
 
   Widget _buildSearchBar() {
@@ -222,7 +83,7 @@ class _TasksScreenState extends ConsumerState<TasksScreen>
         decoration: InputDecoration(
           hintText: 'Search tasks...',
           prefixIcon: const Icon(
-            Icons.search,
+            Icons.find_replace,
             color: AppColors.primary,
             size: 20,
           ),
@@ -291,21 +152,22 @@ class _TasksScreenState extends ConsumerState<TasksScreen>
 
   // ─── TAB BAR ──────────────────────────────────────────────────
 
-  Widget _buildTabBar() {
+  Widget _buildTabBar(TaskState taskState) {
+    final counts = [
+      taskState.tasks.length,
+      taskState.pendingCount,
+      taskState.completedCount,
+      taskState.urgentCount,
+    ];
+
     return Container(
-      height: 48,
-      margin: const EdgeInsets.fromLTRB(16, 8, 16, 8),
-      padding: const EdgeInsets.all(4),
+      height: 46,
+      margin: const EdgeInsets.fromLTRB(16, 10, 16, 6),
+      padding: const EdgeInsets.all(3),
       decoration: BoxDecoration(
         color: context.colors.cardColor,
         borderRadius: BorderRadius.circular(14),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withValues(alpha: 0.05),
-            blurRadius: 8,
-            offset: const Offset(0, 2),
-          ),
-        ],
+        border: Border.all(color: context.colors.divider),
       ),
       child: LayoutBuilder(
         builder: (context, constraints) {
@@ -330,7 +192,7 @@ class _TasksScreenState extends ConsumerState<TasksScreen>
                     child: DecoratedBox(
                       decoration: BoxDecoration(
                         color: AppColors.primary,
-                        borderRadius: BorderRadius.circular(10),
+                        borderRadius: BorderRadius.circular(11),
                       ),
                     ),
                   ),
@@ -338,33 +200,70 @@ class _TasksScreenState extends ConsumerState<TasksScreen>
                     children: _taskTabs.asMap().entries.map((entry) {
                       final index = entry.key;
                       final isSelected = selectedIndex == index;
+                      final count = counts[index];
 
                       return Expanded(
                         child: Semantics(
                           button: true,
                           selected: isSelected,
-                          label: '${entry.value} tasks',
+                          label: '${entry.value} tasks, $count',
                           child: InkWell(
-                            borderRadius: BorderRadius.circular(10),
+                            borderRadius: BorderRadius.circular(11),
                             onTap: () => _tabController.animateTo(
                               index,
                               duration: const Duration(milliseconds: 280),
                               curve: Curves.easeOutCubic,
                             ),
                             child: Center(
-                              child: Text(
-                                entry.value,
-                                maxLines: 1,
-                                textAlign: TextAlign.center,
-                                style: TextStyle(
-                                  fontSize: 12,
-                                  fontWeight: isSelected
-                                      ? FontWeight.w700
-                                      : FontWeight.w500,
-                                  color: isSelected
-                                      ? Colors.white
-                                      : context.colors.textSecondary,
-                                ),
+                              child: Row(
+                                mainAxisAlignment: MainAxisAlignment.center,
+                                mainAxisSize: MainAxisSize.min,
+                                children: [
+                                  Flexible(
+                                    child: Text(
+                                      entry.value,
+                                      maxLines: 1,
+                                      overflow: TextOverflow.ellipsis,
+                                      textAlign: TextAlign.center,
+                                      style: TextStyle(
+                                        fontSize: 12,
+                                        fontWeight: isSelected
+                                            ? FontWeight.w700
+                                            : FontWeight.w500,
+                                        color: isSelected
+                                            ? Colors.white
+                                            : context.colors.textSecondary,
+                                      ),
+                                    ),
+                                  ),
+                                  const SizedBox(width: 4),
+                                  Container(
+                                    constraints: const BoxConstraints(
+                                      minWidth: 18,
+                                    ),
+                                    padding: const EdgeInsets.symmetric(
+                                      horizontal: 5,
+                                      vertical: 1,
+                                    ),
+                                    decoration: BoxDecoration(
+                                      color: isSelected
+                                          ? Colors.white.withValues(alpha: 0.2)
+                                          : context.colors.cardColor2,
+                                      borderRadius: BorderRadius.circular(8),
+                                    ),
+                                    child: Text(
+                                      '$count',
+                                      textAlign: TextAlign.center,
+                                      style: TextStyle(
+                                        fontSize: 10,
+                                        fontWeight: FontWeight.w800,
+                                        color: isSelected
+                                            ? Colors.white
+                                            : context.colors.textSecondary,
+                                      ),
+                                    ),
+                                  ),
+                                ],
                               ),
                             ),
                           ),

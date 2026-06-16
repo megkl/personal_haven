@@ -28,13 +28,12 @@ class BudgetScreen extends ConsumerWidget {
               children: [
                 _buildOverviewCard(
                   context,
+                  ref,
                   income,
                   expenses,
                   balance,
                   currencyCode,
                 ),
-                _buildQuickActions(context, ref),
-                const SizedBox(height: 8),
 
                 // Category breakdown (if has expenses)
                 if (transactionState.expensesByCategory.isNotEmpty)
@@ -73,172 +72,142 @@ class BudgetScreen extends ConsumerWidget {
 
   Widget _buildOverviewCard(
     BuildContext context,
+    WidgetRef ref,
     double income,
     double expenses,
     double balance,
     String currencyCode,
   ) {
     return Container(
-      margin: const EdgeInsets.fromLTRB(12, 10, 12, 8),
-      padding: const EdgeInsets.all(14),
+      margin: const EdgeInsets.fromLTRB(16, 8, 16, 8),
+      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
       decoration: BoxDecoration(
         color: context.colors.cardColor,
         borderRadius: BorderRadius.circular(16),
         border: Border.all(color: context.colors.divider),
       ),
       child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Row(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
-              Text(
-                DateFormat('MMMM yyyy').format(DateTime.now()),
-                style: TextStyle(
-                  fontSize: 12,
-                  color: context.colors.textSecondary,
+              Expanded(
+                child: Text(
+                  DateFormat('MMM yyyy').format(DateTime.now()),
+                  style: TextStyle(
+                    fontSize: 11,
+                    color: context.colors.textSecondary,
+                  ),
                 ),
               ),
               Container(
-                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 3),
                 decoration: BoxDecoration(
                   color: (balance >= 0 ? AppColors.primary : Colors.red)
                       .withValues(alpha: 0.1),
-                  borderRadius: BorderRadius.circular(12),
+                  borderRadius: BorderRadius.circular(10),
                 ),
                 child: Text(
-                  balance >= 0 ? 'On track' : 'Over budget',
+                  balance >= 0 ? 'On track' : 'Over',
                   style: TextStyle(
-                    fontSize: 10,
+                    fontSize: 9,
                     color: balance >= 0 ? AppColors.primaryDark : Colors.red,
-                    fontWeight: FontWeight.w600,
+                    fontWeight: FontWeight.w700,
                   ),
                 ),
               ),
             ],
           ),
-          const SizedBox(height: 10),
-          Row(
-            crossAxisAlignment: CrossAxisAlignment.end,
-            children: [
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      balance >= 0 ? 'Available Balance' : 'Over Budget',
-                      style: TextStyle(
-                        fontSize: 11,
-                        color: context.colors.textSecondary,
-                      ),
-                    ),
-                    const SizedBox(height: 2),
-                    FittedBox(
-                      fit: BoxFit.scaleDown,
-                      alignment: Alignment.centerLeft,
-                      child: Text(
-                        CurrencyFormatter.format(balance.abs(), currencyCode),
-                        style: TextStyle(
-                          fontSize: 22,
-                          fontWeight: FontWeight.w800,
-                          color: context.colors.textPrimary,
-                        ),
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-            ],
+          const SizedBox(height: 8),
+          Text(
+            CurrencyFormatter.format(balance.abs(), currencyCode),
+            maxLines: 1,
+            overflow: TextOverflow.ellipsis,
+            style: TextStyle(
+              fontSize: 17,
+              fontWeight: FontWeight.w800,
+              color: context.colors.textPrimary,
+            ),
           ),
-          const SizedBox(height: 12),
-          Row(
-            children: [
-              Expanded(
-                child: _buildOverviewItem(
-                  context: context,
-                  icon: Icons.arrow_downward_rounded,
-                  label: 'Income',
-                  amount: income,
-                  currencyCode: currencyCode,
-                  iconColor: Colors.greenAccent,
-                ),
-              ),
-              Container(width: 1, height: 34, color: context.colors.divider),
-              Expanded(
-                child: _buildOverviewItem(
-                  context: context,
-                  icon: Icons.arrow_upward_rounded,
-                  label: 'Expenses',
-                  amount: expenses,
-                  currencyCode: currencyCode,
-                  iconColor: Colors.redAccent,
-                ),
-              ),
-            ],
+          const SizedBox(height: 10),
+          _buildOverviewRow(
+            context: context,
+            icon: Icons.arrow_downward_rounded,
+            label: 'Income',
+            amount: income,
+            currencyCode: currencyCode,
+            color: Colors.green,
+            actionLabel: 'Add',
+            actionIcon: Icons.add_rounded,
+            onTap: () => _showAddTransactionDialog(context, ref, 'income'),
+          ),
+          const SizedBox(height: 8),
+          _buildOverviewRow(
+            context: context,
+            icon: Icons.arrow_upward_rounded,
+            label: 'Expenses',
+            amount: expenses,
+            currencyCode: currencyCode,
+            color: Colors.red,
+            actionLabel: 'Add',
+            actionIcon: Icons.add_rounded,
+            onTap: () => _showAddTransactionDialog(context, ref, 'expense'),
           ),
         ],
       ),
     );
   }
 
-  Widget _buildOverviewItem({
+  Widget _buildOverviewRow({
     required BuildContext context,
     required IconData icon,
     required String label,
     required double amount,
     required String currencyCode,
-    required Color iconColor,
+    required Color color,
+    required String actionLabel,
+    required IconData actionIcon,
+    required VoidCallback onTap,
   }) {
-    return Column(
+    return Row(
       children: [
-        Row(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            Icon(icon, color: iconColor, size: 13),
-            const SizedBox(width: 4),
-            Text(
-              label,
-              style: TextStyle(
-                fontSize: 10,
-                color: context.colors.textSecondary,
-              ),
+        Expanded(
+          child: Container(
+            padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 9),
+            decoration: BoxDecoration(
+              color: color.withValues(alpha: 0.08),
+              borderRadius: BorderRadius.circular(12),
             ),
-          ],
-        ),
-        const SizedBox(height: 2),
-        Text(
-          CurrencyFormatter.format(amount, currencyCode),
-          style: TextStyle(
-            fontSize: 12,
-            fontWeight: FontWeight.w700,
-            color: context.colors.textPrimary,
+            child: Row(
+              children: [
+                Icon(icon, color: color, size: 15),
+                const SizedBox(width: 8),
+                Expanded(
+                  child: Text(
+                    label,
+                    style: TextStyle(
+                      fontSize: 12,
+                      color: context.colors.textSecondary,
+                    ),
+                  ),
+                ),
+                Text(
+                  CurrencyFormatter.format(amount, currencyCode),
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: TextStyle(
+                    fontSize: 12,
+                    fontWeight: FontWeight.w800,
+                    color: context.colors.textPrimary,
+                  ),
+                ),
+              ],
+            ),
           ),
         ),
+        const SizedBox(width: 8),
+        _buildActionButton(label: actionLabel, icon: actionIcon, onTap: onTap),
       ],
-    );
-  }
-
-  Widget _buildQuickActions(BuildContext context, WidgetRef ref) {
-    return Padding(
-      padding: const EdgeInsets.symmetric(horizontal: 16),
-      child: Row(
-        children: [
-          Expanded(
-            child: _buildActionButton(
-              label: 'Add Income',
-              icon: Icons.add_circle_outline,
-              onTap: () => _showAddTransactionDialog(context, ref, 'income'),
-            ),
-          ),
-          const SizedBox(width: 12),
-          Expanded(
-            child: _buildActionButton(
-              label: 'Add Expense',
-              icon: Icons.remove_circle_outline,
-              onTap: () => _showAddTransactionDialog(context, ref, 'expense'),
-            ),
-          ),
-        ],
-      ),
     );
   }
 
@@ -254,7 +223,7 @@ class BudgetScreen extends ConsumerWidget {
         onTap: onTap,
         borderRadius: BorderRadius.circular(12),
         child: Container(
-          padding: const EdgeInsets.symmetric(vertical: 11),
+          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 9),
           decoration: BoxDecoration(
             border: Border.all(color: AppColors.primary, width: 1.3),
             borderRadius: BorderRadius.circular(12),
@@ -262,14 +231,14 @@ class BudgetScreen extends ConsumerWidget {
           child: Row(
             mainAxisAlignment: MainAxisAlignment.center,
             children: [
-              Icon(icon, color: AppColors.primaryDark, size: 18),
-              const SizedBox(width: 7),
+              Icon(icon, color: AppColors.primaryDark, size: 16),
+              const SizedBox(width: 4),
               Text(
                 label,
                 style: const TextStyle(
                   color: AppColors.primaryDark,
                   fontWeight: FontWeight.w600,
-                  fontSize: 13,
+                  fontSize: 12,
                 ),
               ),
             ],
@@ -362,7 +331,7 @@ class BudgetScreen extends ConsumerWidget {
     final sortedKeys = grouped.keys.toList()..sort((a, b) => b.compareTo(a));
 
     return ListView.builder(
-      padding: const EdgeInsets.all(16),
+      padding: const EdgeInsets.fromLTRB(16, 10, 16, 100),
       itemCount: sortedKeys.length,
       itemBuilder: (context, index) {
         final dateKey = sortedKeys[index];
@@ -416,7 +385,7 @@ class BudgetScreen extends ConsumerWidget {
       key: Key(transaction.id),
       direction: DismissDirection.endToStart,
       background: Container(
-        margin: const EdgeInsets.only(bottom: 12),
+        margin: const EdgeInsets.only(bottom: 8),
         alignment: Alignment.centerRight,
         padding: const EdgeInsets.only(right: 20),
         decoration: BoxDecoration(
@@ -456,8 +425,8 @@ class BudgetScreen extends ConsumerWidget {
         );
       },
       child: Container(
-        margin: const EdgeInsets.only(bottom: 12),
-        padding: const EdgeInsets.all(16),
+        margin: const EdgeInsets.only(bottom: 8),
+        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
         decoration: BoxDecoration(
           color: context.colors.cardColor,
           borderRadius: BorderRadius.circular(12),
@@ -473,17 +442,17 @@ class BudgetScreen extends ConsumerWidget {
           children: [
             // Category icon
             Container(
-              width: 48,
-              height: 48,
+              width: 38,
+              height: 38,
               decoration: BoxDecoration(
                 color: (isIncome ? Colors.green : Colors.red).withValues(
                   alpha: 0.1,
                 ),
                 borderRadius: BorderRadius.circular(12),
               ),
-              child: Center(child: Text(icon, style: TextStyle(fontSize: 24))),
+              child: Center(child: Text(icon, style: TextStyle(fontSize: 19))),
             ),
-            const SizedBox(width: 14),
+            const SizedBox(width: 10),
             // Details
             Expanded(
               child: Column(
@@ -504,7 +473,7 @@ class BudgetScreen extends ConsumerWidget {
                       child: Text(
                         transaction.description!,
                         style: TextStyle(
-                          fontSize: 12,
+                          fontSize: 11,
                           color: context.colors.textSecondary,
                         ),
                         maxLines: 1,
@@ -516,7 +485,7 @@ class BudgetScreen extends ConsumerWidget {
                     child: Text(
                       DateFormat('h:mm a').format(transaction.transactionDate),
                       style: TextStyle(
-                        fontSize: 11,
+                        fontSize: 10,
                         color: context.colors.textSecondary,
                       ),
                     ),
@@ -528,7 +497,7 @@ class BudgetScreen extends ConsumerWidget {
             Text(
               '${isIncome ? '+' : '-'}${CurrencyFormatter.format(transaction.amount, currencyCode)}',
               style: TextStyle(
-                fontSize: 14,
+                fontSize: 13,
                 fontWeight: FontWeight.w700,
                 color: isIncome ? Colors.green : Colors.red,
               ),
@@ -571,103 +540,6 @@ class BudgetScreen extends ConsumerWidget {
             style: TextStyle(fontSize: 14, color: context.colors.textSecondary),
           ),
         ],
-      ),
-    );
-  }
-
-  void _showAddTransactionSheet(BuildContext context, WidgetRef ref) {
-    showModalBottomSheet(
-      context: context,
-      backgroundColor: Colors.transparent,
-      builder: (context) => Container(
-        padding: const EdgeInsets.all(24),
-        decoration: BoxDecoration(
-          color: context.colors.cardColor,
-          borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
-        ),
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Container(
-              width: 40,
-              height: 4,
-              decoration: BoxDecoration(
-                color: context.colors.divider,
-                borderRadius: BorderRadius.circular(2),
-              ),
-            ),
-            const SizedBox(height: 24),
-            Text(
-              'Add Transaction',
-              style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
-            ),
-            const SizedBox(height: 24),
-            // Row(
-            //   children: [
-            //     Expanded(
-            //       child: _buildSheetOption(
-            //         context: context,
-            //         icon: Icons.arrow_downward_rounded,
-            //         label: 'Income',
-            //         color: Colors.green,
-            //         onTap: () {
-            //           Navigator.pop(context);
-            //           _showAddTransactionDialog(context, ref, 'income');
-            //         },
-            //       ),
-            //     ),
-            //     const SizedBox(width: 16),
-            //     Expanded(
-            //       child: _buildSheetOption(
-            //         context: context,
-            //         icon: Icons.arrow_upward_rounded,
-            //         label: 'Expense',
-            //         color: Colors.red,
-            //         onTap: () {
-            //           Navigator.pop(context);
-            //           _showAddTransactionDialog(context, ref, 'expense');
-            //         },
-            //       ),
-            //     ),
-            //   ],
-            // ),
-            // const SizedBox(height: 16),
-          ],
-        ),
-      ),
-    );
-  }
-
-  Widget _buildSheetOption({
-    required BuildContext context,
-    required IconData icon,
-    required String label,
-    required Color color,
-    required VoidCallback onTap,
-  }) {
-    return Material(
-      color: color.withValues(alpha: 0.1),
-      borderRadius: BorderRadius.circular(16),
-      child: InkWell(
-        onTap: onTap,
-        borderRadius: BorderRadius.circular(16),
-        child: Padding(
-          padding: const EdgeInsets.symmetric(vertical: 24),
-          child: Column(
-            children: [
-              Icon(icon, color: color, size: 32),
-              const SizedBox(height: 8),
-              Text(
-                label,
-                style: TextStyle(
-                  fontSize: 16,
-                  fontWeight: FontWeight.w600,
-                  color: color,
-                ),
-              ),
-            ],
-          ),
-        ),
       ),
     );
   }
