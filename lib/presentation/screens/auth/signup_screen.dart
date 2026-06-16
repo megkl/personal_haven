@@ -31,7 +31,9 @@ class _SignUpScreenState extends ConsumerState<SignUpScreen> {
       if (ok) {
         Navigator.pushReplacement(
           context,
-          MaterialPageRoute(builder: (_) => const MainNavigationScreen()),
+          MaterialPageRoute(
+            builder: (_) => const MainNavigationScreen(currentIndex: 0),
+          ),
         );
         return;
       }
