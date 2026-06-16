@@ -20,15 +20,15 @@ class NotificationPrefs {
   final int weeklyInsightsMinute;
 
   const NotificationPrefs({
-    this.masterEnabled = true,
-    this.dailyReminders = true,
-    this.moodReminder = true,
-    this.journalReminder = true,
-    this.taskReminders = true,
-    this.goalReminders = true,
-    this.eventReminders = true,
-    this.subscriptionAlerts = true,
-    this.weeklyInsights = true,
+    this.masterEnabled = false,
+    this.dailyReminders = false,
+    this.moodReminder = false,
+    this.journalReminder = false,
+    this.taskReminders = false,
+    this.goalReminders = false,
+    this.eventReminders = false,
+    this.subscriptionAlerts = false,
+    this.weeklyInsights = false,
     this.morningReminderMinute = 8 * 60,
     this.eveningReminderMinute = 20 * 60,
     this.journalReminderMinute = 21 * 60,
@@ -86,15 +86,15 @@ class NotificationPrefs {
   };
 
   factory NotificationPrefs.fromMap(Map<String, bool> m) => NotificationPrefs(
-    masterEnabled: m['masterEnabled'] ?? true,
-    dailyReminders: m['dailyReminders'] ?? true,
-    moodReminder: m['moodReminder'] ?? true,
-    journalReminder: m['journalReminder'] ?? true,
-    taskReminders: m['taskReminders'] ?? true,
-    goalReminders: m['goalReminders'] ?? true,
-    eventReminders: m['eventReminders'] ?? true,
-    subscriptionAlerts: m['subscriptionAlerts'] ?? true,
-    weeklyInsights: m['weeklyInsights'] ?? true,
+    masterEnabled: m['masterEnabled'] ?? false,
+    dailyReminders: m['dailyReminders'] ?? false,
+    moodReminder: m['moodReminder'] ?? false,
+    journalReminder: m['journalReminder'] ?? false,
+    taskReminders: m['taskReminders'] ?? false,
+    goalReminders: m['goalReminders'] ?? false,
+    eventReminders: m['eventReminders'] ?? false,
+    subscriptionAlerts: m['subscriptionAlerts'] ?? false,
+    weeklyInsights: m['weeklyInsights'] ?? false,
   );
 
   Map<String, int> timeMap() => {
@@ -191,28 +191,28 @@ class NotificationNotifier extends _$NotificationNotifier {
     await _rescheduleAll();
   }
 
-  Future<bool> sendTestNotification() async {
-    if (!state.masterEnabled) {
-      await setMaster(true);
-    } else {
-      final granted = await NotificationService.instance.requestPermission(
-        includeExactAlarms: false,
-      );
-      if (!granted) return false;
-    }
-    await NotificationService.instance.showTestNotification();
-    return true;
-  }
+  // Future<bool> sendTestNotification() async {
+  //   if (!state.masterEnabled) {
+  //     await setMaster(true);
+  //   } else {
+  //     final granted = await NotificationService.instance.requestPermission(
+  //       includeExactAlarms: false,
+  //     );
+  //     if (!granted) return false;
+  //   }
+  //   await NotificationService.instance.showTestNotification();
+  //   return true;
+  // }
 
-  Future<bool> scheduleTestNotification() async {
-    if (!state.masterEnabled) {
-      await setMaster(true);
-    }
-    final granted = await NotificationService.instance.requestPermission();
-    if (!granted) return false;
-    await NotificationService.instance.scheduleTestNotificationInFiveSeconds();
-    return true;
-  }
+  // Future<bool> scheduleTestNotification() async {
+  //   if (!state.masterEnabled) {
+  //     await setMaster(true);
+  //   }
+  //   final granted = await NotificationService.instance.requestPermission();
+  //   if (!granted) return false;
+  //   await NotificationService.instance.scheduleTestNotificationInFiveSeconds();
+  //   return true;
+  // }
 
   NotificationPrefs _applyKey(String key, bool value) {
     switch (key) {
@@ -262,9 +262,9 @@ class NotificationNotifier extends _$NotificationNotifier {
     if (state.dailyReminders) {
       await svc.scheduleDailyReminders(
         morningMinuteOfDay: state.morningReminderMinute,
-        eveningMinuteOfDay: state.eveningReminderMinute,
+        //eveningMinuteOfDay: state.eveningReminderMinute,
         journalMinuteOfDay: state.journalReminderMinute,
-        mealMinuteOfDay: state.mealReminderMinute,
+        //mealMinuteOfDay: state.mealReminderMinute,
       );
       if (!state.moodReminder) {
         await svc.cancelMoodReminders();

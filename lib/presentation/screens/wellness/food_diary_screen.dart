@@ -107,23 +107,11 @@ class _FoodDiaryScreenState extends ConsumerState<FoodDiaryScreen> {
 
     return Container(
       margin: const EdgeInsets.fromLTRB(12, 10, 12, 8),
-      padding: const EdgeInsets.all(16),
+      padding: const EdgeInsets.all(14),
       decoration: BoxDecoration(
-        gradient: LinearGradient(
-          colors: remaining >= 0
-              ? [const Color(0xFF4ECDC4), const Color(0xFF44A3AA)]
-              : [Colors.orange.shade400, Colors.red.shade400],
-          begin: Alignment.topLeft,
-          end: Alignment.bottomRight,
-        ),
-        borderRadius: BorderRadius.circular(18),
-        boxShadow: [
-          BoxShadow(
-            color: const Color(0xFF4ECDC4).withValues(alpha: 0.3),
-            blurRadius: 12,
-            offset: const Offset(0, 6),
-          ),
-        ],
+        color: context.colors.cardColor,
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(color: context.colors.divider),
       ),
       child: Column(
         children: [
@@ -135,7 +123,10 @@ class _FoodDiaryScreenState extends ConsumerState<FoodDiaryScreen> {
                   children: [
                     Text(
                       'Today\'s Calories',
-                      style: TextStyle(fontSize: 12, color: Colors.white70),
+                      style: TextStyle(
+                        fontSize: 12,
+                        color: context.colors.textSecondary,
+                      ),
                     ),
                     const SizedBox(height: 3),
                     Row(
@@ -144,9 +135,9 @@ class _FoodDiaryScreenState extends ConsumerState<FoodDiaryScreen> {
                         Text(
                           '$todayCalories',
                           style: TextStyle(
-                            fontSize: 30,
-                            fontWeight: FontWeight.bold,
-                            color: Colors.white,
+                            fontSize: 23,
+                            fontWeight: FontWeight.w800,
+                            color: context.colors.textPrimary,
                           ),
                         ),
                         Padding(
@@ -155,7 +146,7 @@ class _FoodDiaryScreenState extends ConsumerState<FoodDiaryScreen> {
                             '/ $_calorieGoal',
                             style: TextStyle(
                               fontSize: 13,
-                              color: Colors.white70,
+                              color: context.colors.textSecondary,
                             ),
                           ),
                         ),
@@ -166,7 +157,10 @@ class _FoodDiaryScreenState extends ConsumerState<FoodDiaryScreen> {
                       remaining >= 0
                           ? '$remaining cal remaining'
                           : '${remaining.abs()} cal over',
-                      style: TextStyle(fontSize: 11, color: Colors.white70),
+                      style: TextStyle(
+                        fontSize: 11,
+                        color: context.colors.textSecondary,
+                      ),
                     ),
                   ],
                 ),
@@ -183,12 +177,10 @@ class _FoodDiaryScreenState extends ConsumerState<FoodDiaryScreen> {
                         height: 62,
                         child: CircularProgressIndicator(
                           value: percentage / 100,
-                          strokeWidth: 7,
-                          backgroundColor: context.colors.cardColor.withValues(
-                            alpha: 0.2,
-                          ),
-                          valueColor: const AlwaysStoppedAnimation<Color>(
-                            Colors.white,
+                          strokeWidth: 6,
+                          backgroundColor: context.colors.divider,
+                          valueColor: AlwaysStoppedAnimation<Color>(
+                            remaining >= 0 ? AppColors.primary : Colors.orange,
                           ),
                           strokeCap: StrokeCap.round,
                         ),
@@ -200,7 +192,7 @@ class _FoodDiaryScreenState extends ConsumerState<FoodDiaryScreen> {
                         style: TextStyle(
                           fontSize: 15,
                           fontWeight: FontWeight.bold,
-                          color: Colors.white,
+                          color: context.colors.textPrimary,
                         ),
                       ),
                     ),
@@ -214,9 +206,19 @@ class _FoodDiaryScreenState extends ConsumerState<FoodDiaryScreen> {
           Row(
             mainAxisAlignment: MainAxisAlignment.spaceAround,
             children: [
-              _buildMacroItem('Protein', '${foodState.todayProtein}g', '🥩'),
-              _buildMacroItem('Carbs', '${foodState.todayCarbs}g', '🍞'),
-              _buildMacroItem('Fat', '${foodState.todayFat}g', '🥑'),
+              _buildMacroItem(
+                context,
+                'Protein',
+                '${foodState.todayProtein}g',
+                '🥩',
+              ),
+              _buildMacroItem(
+                context,
+                'Carbs',
+                '${foodState.todayCarbs}g',
+                '🍞',
+              ),
+              _buildMacroItem(context, 'Fat', '${foodState.todayFat}g', '🥑'),
             ],
           ),
         ],
@@ -224,7 +226,12 @@ class _FoodDiaryScreenState extends ConsumerState<FoodDiaryScreen> {
     );
   }
 
-  Widget _buildMacroItem(String label, String value, String emoji) {
+  Widget _buildMacroItem(
+    BuildContext context,
+    String label,
+    String value,
+    String emoji,
+  ) {
     return Row(
       mainAxisSize: MainAxisSize.min,
       children: [
@@ -238,11 +245,17 @@ class _FoodDiaryScreenState extends ConsumerState<FoodDiaryScreen> {
               style: TextStyle(
                 fontSize: 13,
                 fontWeight: FontWeight.bold,
-                color: Colors.white,
+                color: context.colors.textPrimary,
                 height: 1,
               ),
             ),
-            Text(label, style: TextStyle(fontSize: 9, color: Colors.white70)),
+            Text(
+              label,
+              style: TextStyle(
+                fontSize: 9,
+                color: context.colors.textSecondary,
+              ),
+            ),
           ],
         ),
       ],

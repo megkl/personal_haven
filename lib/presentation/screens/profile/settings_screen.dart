@@ -140,41 +140,41 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
                   style: TextStyle(fontSize: 13, color: colors.textSecondary),
                 ),
                 const SizedBox(height: 12),
-                Row(
-                  children: [
-                    Expanded(
-                      child: OutlinedButton.icon(
-                        onPressed: () => _sendTestNotification(context),
-                        icon: const Icon(Icons.notifications_active_outlined),
-                        label: const Text('Test now'),
-                        style: OutlinedButton.styleFrom(
-                          foregroundColor: AppColors.primary,
-                          side: BorderSide(color: AppColors.primary),
-                          padding: const EdgeInsets.symmetric(vertical: 12),
-                          shape: RoundedRectangleBorder(
-                            borderRadius: BorderRadius.circular(14),
-                          ),
-                        ),
-                      ),
-                    ),
-                    const SizedBox(width: 10),
-                    Expanded(
-                      child: OutlinedButton.icon(
-                        onPressed: () => _scheduleTestNotification(context),
-                        icon: const Icon(Icons.schedule_outlined),
-                        label: const Text('Test 5 sec'),
-                        style: OutlinedButton.styleFrom(
-                          foregroundColor: AppColors.primary,
-                          side: BorderSide(color: AppColors.primary),
-                          padding: const EdgeInsets.symmetric(vertical: 12),
-                          shape: RoundedRectangleBorder(
-                            borderRadius: BorderRadius.circular(14),
-                          ),
-                        ),
-                      ),
-                    ),
-                  ],
-                ),
+                // Row(
+                //   children: [
+                //     Expanded(
+                //       child: OutlinedButton.icon(
+                //         onPressed: () => _sendTestNotification(context),
+                //         icon: const Icon(Icons.notifications_active_outlined),
+                //         label: const Text('Test now'),
+                //         style: OutlinedButton.styleFrom(
+                //           foregroundColor: AppColors.primary,
+                //           side: BorderSide(color: AppColors.primary),
+                //           padding: const EdgeInsets.symmetric(vertical: 12),
+                //           shape: RoundedRectangleBorder(
+                //             borderRadius: BorderRadius.circular(14),
+                //           ),
+                //         ),
+                //       ),
+                //     ),
+                //     const SizedBox(width: 10),
+                //     Expanded(
+                //       child: OutlinedButton.icon(
+                //         onPressed: () => _scheduleTestNotification(context),
+                //         icon: const Icon(Icons.schedule_outlined),
+                //         label: const Text('Test 5 sec'),
+                //         style: OutlinedButton.styleFrom(
+                //           foregroundColor: AppColors.primary,
+                //           side: BorderSide(color: AppColors.primary),
+                //           padding: const EdgeInsets.symmetric(vertical: 12),
+                //           shape: RoundedRectangleBorder(
+                //             borderRadius: BorderRadius.circular(14),
+                //           ),
+                //         ),
+                //       ),
+                //     ),
+                //   ],
+                // ),
                 const SizedBox(height: 12),
                 _notificationToggle(
                   context,
@@ -190,7 +190,7 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
                 _notificationToggle(
                   context,
                   title: 'Mood check-ins',
-                  subtitle: 'Morning and evening mood prompts',
+                  subtitle: 'Mood prompts notification',
                   icon: Icons.mood_outlined,
                   value: notificationPrefs.moodReminder,
                   enabled:
@@ -202,7 +202,7 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
                 ),
                 _notificationTimeRow(
                   context,
-                  title: 'Morning check-in',
+                  title: 'Mood check-in time',
                   minuteOfDay: notificationPrefs.morningReminderMinute,
                   enabled:
                       notificationPrefs.masterEnabled &&
@@ -214,24 +214,24 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
                     minuteOfDay: notificationPrefs.morningReminderMinute,
                   ),
                 ),
-                _notificationTimeRow(
-                  context,
-                  title: 'Evening check-in',
-                  minuteOfDay: notificationPrefs.eveningReminderMinute,
-                  enabled:
-                      notificationPrefs.masterEnabled &&
-                      notificationPrefs.dailyReminders &&
-                      notificationPrefs.moodReminder,
-                  onTap: () => _pickNotificationTime(
-                    context,
-                    key: 'eveningReminderMinute',
-                    minuteOfDay: notificationPrefs.eveningReminderMinute,
-                  ),
-                ),
+                // _notificationTimeRow(
+                //   context,
+                //   title: 'Evening check-in',
+                //   minuteOfDay: notificationPrefs.eveningReminderMinute,
+                //   enabled:
+                //       notificationPrefs.masterEnabled &&
+                //       notificationPrefs.dailyReminders &&
+                //       notificationPrefs.moodReminder,
+                //   onTap: () => _pickNotificationTime(
+                //     context,
+                //     key: 'eveningReminderMinute',
+                //     minuteOfDay: notificationPrefs.eveningReminderMinute,
+                //   ),
+                // ),
                 _notificationToggle(
                   context,
                   title: 'Journal prompts',
-                  subtitle: 'A gentle evening writing reminder',
+                  subtitle: 'A gentle journal writing reminder',
                   icon: Icons.edit_note_outlined,
                   value: notificationPrefs.journalReminder,
                   enabled:
@@ -255,19 +255,19 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
                     minuteOfDay: notificationPrefs.journalReminderMinute,
                   ),
                 ),
-                _notificationTimeRow(
-                  context,
-                  title: 'Meal reminder',
-                  minuteOfDay: notificationPrefs.mealReminderMinute,
-                  enabled:
-                      notificationPrefs.masterEnabled &&
-                      notificationPrefs.dailyReminders,
-                  onTap: () => _pickNotificationTime(
-                    context,
-                    key: 'mealReminderMinute',
-                    minuteOfDay: notificationPrefs.mealReminderMinute,
-                  ),
-                ),
+                // _notificationTimeRow(
+                //   context,
+                //   title: 'Meal reminder',
+                //   minuteOfDay: notificationPrefs.mealReminderMinute,
+                //   enabled:
+                //       notificationPrefs.masterEnabled &&
+                //       notificationPrefs.dailyReminders,
+                //   onTap: () => _pickNotificationTime(
+                //     context,
+                //     key: 'mealReminderMinute',
+                //     minuteOfDay: notificationPrefs.mealReminderMinute,
+                //   ),
+                // ),
                 _notificationToggle(
                   context,
                   title: 'Task reminders',
@@ -559,41 +559,41 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
         .setReminderMinute(key, picked.hour * 60 + picked.minute);
   }
 
-  Future<void> _sendTestNotification(BuildContext context) async {
-    final granted = await ref
-        .read(notificationProvider.notifier)
-        .sendTestNotification();
-    if (!context.mounted) return;
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-        content: Text(
-          granted
-              ? 'Test notification sent'
-              : 'Notification permission was not granted',
-        ),
-        backgroundColor: granted ? AppColors.primary : Colors.red,
-        behavior: SnackBarBehavior.floating,
-      ),
-    );
-  }
+  // Future<void> _sendTestNotification(BuildContext context) async {
+  //   final granted = await ref
+  //       .read(notificationProvider.notifier)
+  //       .sendTestNotification();
+  //   if (!context.mounted) return;
+  //   ScaffoldMessenger.of(context).showSnackBar(
+  //     SnackBar(
+  //       content: Text(
+  //         granted
+  //             ? 'Test notification sent'
+  //             : 'Notification permission was not granted',
+  //       ),
+  //       backgroundColor: granted ? AppColors.primary : Colors.red,
+  //       behavior: SnackBarBehavior.floating,
+  //     ),
+  //   );
+  // }
 
-  Future<void> _scheduleTestNotification(BuildContext context) async {
-    final granted = await ref
-        .read(notificationProvider.notifier)
-        .scheduleTestNotification();
-    if (!context.mounted) return;
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-        content: Text(
-          granted
-              ? 'Scheduled test notification for 5 seconds from now'
-              : 'Notification or exact alarm permission was not granted',
-        ),
-        backgroundColor: granted ? AppColors.primary : Colors.red,
-        behavior: SnackBarBehavior.floating,
-      ),
-    );
-  }
+  // Future<void> _scheduleTestNotification(BuildContext context) async {
+  //   final granted = await ref
+  //       .read(notificationProvider.notifier)
+  //       .scheduleTestNotification();
+  //   if (!context.mounted) return;
+  //   ScaffoldMessenger.of(context).showSnackBar(
+  //     SnackBar(
+  //       content: Text(
+  //         granted
+  //             ? 'Scheduled test notification for 5 seconds from now'
+  //             : 'Notification or exact alarm permission was not granted',
+  //       ),
+  //       backgroundColor: granted ? AppColors.primary : Colors.red,
+  //       behavior: SnackBarBehavior.floating,
+  //     ),
+  //   );
+  // }
 
   String _formatMinuteOfDay(BuildContext context, int minuteOfDay) {
     return TimeOfDay(

@@ -404,7 +404,7 @@ class _TasksScreenState extends ConsumerState<TasksScreen>
       'low': Colors.grey,
     };
     final categoryEmojis = {
-      'personal': '🌿',
+      'personal': '',
       'work': '💼',
       'wellness': '💪',
       'finance': '💰',
@@ -1159,7 +1159,7 @@ class _AddEditTaskSheetState extends State<_AddEditTaskSheet> {
     'low': '⚪',
   };
   final _categoryEmojis = {
-    'personal': '🌿',
+    'personal': '',
     'work': '💼',
     'wellness': '💪',
     'finance': '💰',

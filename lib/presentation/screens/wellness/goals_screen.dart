@@ -98,21 +98,11 @@ class _GoalsScreenState extends ConsumerState<GoalsScreen>
 
     return Container(
       margin: const EdgeInsets.fromLTRB(12, 10, 12, 8),
-      padding: const EdgeInsets.all(15),
+      padding: const EdgeInsets.all(14),
       decoration: BoxDecoration(
-        gradient: const LinearGradient(
-          colors: [AppColors.primary, AppColors.primaryDark],
-          begin: Alignment.topLeft,
-          end: Alignment.bottomRight,
-        ),
-        borderRadius: BorderRadius.circular(18),
-        boxShadow: [
-          BoxShadow(
-            color: AppColors.primary.withValues(alpha: 0.32),
-            blurRadius: 12,
-            offset: const Offset(0, 6),
-          ),
-        ],
+        color: context.colors.cardColor,
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(color: context.colors.divider),
       ),
       child: Column(
         children: [
@@ -124,15 +114,18 @@ class _GoalsScreenState extends ConsumerState<GoalsScreen>
                   children: [
                     Text(
                       '🎯 Goals Progress',
-                      style: TextStyle(fontSize: 12, color: Colors.white70),
+                      style: TextStyle(
+                        fontSize: 12,
+                        color: context.colors.textSecondary,
+                      ),
                     ),
                     const SizedBox(height: 3),
                     Text(
                       '$completed of $total',
                       style: TextStyle(
-                        fontSize: 30,
-                        fontWeight: FontWeight.bold,
-                        color: Colors.white,
+                        fontSize: 23,
+                        fontWeight: FontWeight.w800,
+                        color: context.colors.textPrimary,
                       ),
                     ),
                     const SizedBox(height: 2),
@@ -140,7 +133,7 @@ class _GoalsScreenState extends ConsumerState<GoalsScreen>
                       'goals completed',
                       style: TextStyle(
                         fontSize: 11,
-                        color: Colors.white.withValues(alpha: 0.8),
+                        color: context.colors.textSecondary,
                       ),
                     ),
                   ],
@@ -148,22 +141,20 @@ class _GoalsScreenState extends ConsumerState<GoalsScreen>
               ),
               // Progress circle
               SizedBox(
-                width: 68,
-                height: 68,
+                width: 60,
+                height: 60,
                 child: Stack(
                   children: [
                     Center(
                       child: SizedBox(
-                        width: 62,
-                        height: 62,
+                        width: 54,
+                        height: 54,
                         child: CircularProgressIndicator(
                           value: overallProgress / 100,
-                          strokeWidth: 7,
-                          backgroundColor: context.colors.cardColor.withValues(
-                            alpha: 0.2,
-                          ),
+                          strokeWidth: 6,
+                          backgroundColor: context.colors.divider,
                           valueColor: const AlwaysStoppedAnimation<Color>(
-                            Colors.white,
+                            AppColors.primary,
                           ),
                           strokeCap: StrokeCap.round,
                         ),
@@ -178,14 +169,14 @@ class _GoalsScreenState extends ConsumerState<GoalsScreen>
                             style: TextStyle(
                               fontSize: 16,
                               fontWeight: FontWeight.bold,
-                              color: Colors.white,
+                              color: context.colors.textPrimary,
                             ),
                           ),
                           Text(
                             'avg',
                             style: TextStyle(
                               fontSize: 8,
-                              color: Colors.white70,
+                              color: context.colors.textSecondary,
                             ),
                           ),
                         ],
@@ -199,11 +190,11 @@ class _GoalsScreenState extends ConsumerState<GoalsScreen>
           const SizedBox(height: 10),
           Row(
             children: [
-              _buildStatItem('🔥 Active', active.toString(), Colors.orange),
+              _buildStatItem('Active', active.toString(), Colors.orange),
               const SizedBox(width: 8),
-              _buildStatItem('✅ Done', completed.toString(), Colors.green),
+              _buildStatItem('Done', completed.toString(), Colors.green),
               const SizedBox(width: 8),
-              _buildStatItem('📊 Rate', '$completionRate%', Colors.blue),
+              _buildStatItem('Rate', '$completionRate%', Colors.blue),
             ],
           ),
         ],
@@ -216,7 +207,7 @@ class _GoalsScreenState extends ConsumerState<GoalsScreen>
       child: Container(
         padding: const EdgeInsets.symmetric(vertical: 7),
         decoration: BoxDecoration(
-          color: context.colors.cardColor.withValues(alpha: 0.15),
+          color: color.withValues(alpha: 0.1),
           borderRadius: BorderRadius.circular(10),
         ),
         child: Column(
@@ -225,12 +216,18 @@ class _GoalsScreenState extends ConsumerState<GoalsScreen>
               value,
               style: TextStyle(
                 fontSize: 15,
-                fontWeight: FontWeight.bold,
-                color: Colors.white,
+                fontWeight: FontWeight.w800,
+                color: color,
               ),
             ),
             const SizedBox(height: 1),
-            Text(label, style: TextStyle(fontSize: 9, color: Colors.white70)),
+            Text(
+              label,
+              style: TextStyle(
+                fontSize: 9,
+                color: context.colors.textSecondary,
+              ),
+            ),
           ],
         ),
       ),
@@ -241,10 +238,10 @@ class _GoalsScreenState extends ConsumerState<GoalsScreen>
     return Container(
       height: 48,
       margin: const EdgeInsets.fromLTRB(16, 0, 16, 8),
-      padding: const EdgeInsets.all(4),
+      padding: const EdgeInsets.all(3),
       decoration: BoxDecoration(
         color: context.colors.cardColor,
-        borderRadius: BorderRadius.circular(15),
+        borderRadius: BorderRadius.circular(14),
         border: Border.all(color: context.colors.divider),
       ),
       child: ListView.builder(
@@ -275,7 +272,7 @@ class _GoalsScreenState extends ConsumerState<GoalsScreen>
                 padding: const EdgeInsets.symmetric(horizontal: 12),
                 decoration: BoxDecoration(
                   color: isSelected ? AppColors.primary : Colors.transparent,
-                  borderRadius: BorderRadius.circular(11),
+                  borderRadius: BorderRadius.circular(10),
                 ),
                 child: Row(
                   children: [
@@ -330,7 +327,7 @@ class _GoalsScreenState extends ConsumerState<GoalsScreen>
     return Container(
       height: 48,
       margin: const EdgeInsets.fromLTRB(16, 0, 16, 8),
-      padding: const EdgeInsets.all(4),
+      padding: const EdgeInsets.all(3),
       decoration: BoxDecoration(
         color: context.colors.cardColor2,
         borderRadius: BorderRadius.circular(14),
