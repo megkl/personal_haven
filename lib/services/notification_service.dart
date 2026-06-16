@@ -16,6 +16,7 @@ class NotificationIds {
   static const eventReminderBase = 400;
   static const streakEncouragement = 500;
   static const weeklyMoodSummary = 501;
+  static const testNotification = 900;
 }
 
 class NotificationChannels {
@@ -31,6 +32,8 @@ class NotificationChannels {
   static const eventsName = 'Event Reminders';
   static const wellnessId = 'wellness';
   static const wellnessName = 'Wellness Insights';
+  static const testId = 'test_notifications';
+  static const testName = 'Test Notifications';
 }
 
 class NotificationService {
@@ -52,7 +55,7 @@ class NotificationService {
       requestSoundPermission: true,
     );
     await _plugin.initialize(
-      settings:InitializationSettings(android: android, iOS: ios),
+      settings: InitializationSettings(android: android, iOS: ios),
       onDidReceiveNotificationResponse: _onTap,
     );
     _initialized = true;
@@ -60,16 +63,25 @@ class NotificationService {
 
   void _onTap(NotificationResponse response) {}
 
-  Future<bool> requestPermission() async {
+  Future<bool> requestPermission({bool includeExactAlarms = true}) async {
     final ios = await _plugin
         .resolvePlatformSpecificImplementation<
-            IOSFlutterLocalNotificationsPlugin>()
+          IOSFlutterLocalNotificationsPlugin
+        >()
         ?.requestPermissions(alert: true, badge: true, sound: true);
     final android = await _plugin
         .resolvePlatformSpecificImplementation<
-            AndroidFlutterLocalNotificationsPlugin>()
+          AndroidFlutterLocalNotificationsPlugin
+        >()
         ?.requestNotificationsPermission();
-    return (ios ?? true) && (android ?? true);
+    final exactAlarms = includeExactAlarms
+        ? await _plugin
+              .resolvePlatformSpecificImplementation<
+                AndroidFlutterLocalNotificationsPlugin
+              >()
+              ?.requestExactAlarmsPermission()
+        : true;
+    return (ios ?? true) && (android ?? true) && (exactAlarms ?? true);
   }
 
   NotificationDetails _details(
@@ -96,8 +108,14 @@ class NotificationService {
 
   tz.TZDateTime _nextInstanceOfTime(int hour, int minute) {
     final now = tz.TZDateTime.now(tz.local);
-    var scheduled =
-        tz.TZDateTime(tz.local, now.year, now.month, now.day, hour, minute);
+    var scheduled = tz.TZDateTime(
+      tz.local,
+      now.year,
+      now.month,
+      now.day,
+      hour,
+      minute,
+    );
     if (scheduled.isBefore(now)) {
       scheduled = scheduled.add(const Duration(days: 1));
     }
@@ -115,16 +133,27 @@ class NotificationService {
     String channelId = NotificationChannels.dailyId,
     String channelName = NotificationChannels.dailyName,
   }) async {
-    await _plugin.show(id: id, title: title, body: body, payload: null,
-        notificationDetails: _details(channelId, channelName));
+    await _plugin.show(
+      id: id,
+      title: title,
+      body: body,
+      payload: null,
+      notificationDetails: _details(channelId, channelName),
+    );
   }
 
   // ── Daily recurring ───────────────────────────────────────────────────────
 
-  Future<void> scheduleDailyReminders() async {
+  Future<void> scheduleDailyReminders({
+    int morningMinuteOfDay = 8 * 60,
+    int eveningMinuteOfDay = 20 * 60,
+    int journalMinuteOfDay = 21 * 60,
+    int mealMinuteOfDay = 13 * 60,
+  }) async {
     await _scheduleDailyAt(
       id: NotificationIds.morningCheckin,
-      hour: 8, minute: 0,
+      hour: morningMinuteOfDay ~/ 60,
+      minute: morningMinuteOfDay % 60,
       title: '🌅 Good morning!',
       body: 'How are you feeling today? Log your mood to start the day right.',
       channelId: NotificationChannels.dailyId,
@@ -132,7 +161,8 @@ class NotificationService {
     );
     await _scheduleDailyAt(
       id: NotificationIds.eveningMood,
-      hour: 20, minute: 0,
+      hour: eveningMinuteOfDay ~/ 60,
+      minute: eveningMinuteOfDay % 60,
       title: '🌙 Evening check-in',
       body: 'Take a moment to reflect — log your mood before the day ends.',
       channelId: NotificationChannels.dailyId,
@@ -140,7 +170,8 @@ class NotificationService {
     );
     await _scheduleDailyAt(
       id: NotificationIds.journalPrompt,
-      hour: 21, minute: 0,
+      hour: journalMinuteOfDay ~/ 60,
+      minute: journalMinuteOfDay % 60,
       title: '📓 Journal time',
       body: 'Write down your thoughts. Even a few lines can make a difference.',
       channelId: NotificationChannels.dailyId,
@@ -148,7 +179,8 @@ class NotificationService {
     );
     await _scheduleDailyAt(
       id: NotificationIds.mealReminder,
-      hour: 13, minute: 0,
+      hour: mealMinuteOfDay ~/ 60,
+      minute: mealMinuteOfDay % 60,
       title: '🥗 Lunch check',
       body: "Don't forget to log your meals in your food diary.",
       channelId: NotificationChannels.wellnessId,
@@ -187,24 +219,50 @@ class NotificationService {
     }
   }
 
+  Future<void> cancelMoodReminders() async {
+    await _plugin.cancel(id: NotificationIds.morningCheckin);
+    await _plugin.cancel(id: NotificationIds.eveningMood);
+  }
+
+  Future<void> cancelJournalReminders() async {
+    await _plugin.cancel(id: NotificationIds.journalPrompt);
+  }
+
+  Future<void> cancelMealReminders() async {
+    await _plugin.cancel(id: NotificationIds.mealReminder);
+  }
+
   // ── Weekly ────────────────────────────────────────────────────────────────
 
-  Future<void> scheduleWeeklyMoodSummary() async {
+  Future<void> scheduleWeeklyMoodSummary({int minuteOfDay = 18 * 60}) async {
     final now = tz.TZDateTime.now(tz.local);
     var daysUntilSunday = DateTime.sunday - now.weekday;
     if (daysUntilSunday <= 0) daysUntilSunday += 7;
     final nextSunday = tz.TZDateTime(
-        tz.local, now.year, now.month, now.day + daysUntilSunday, 18, 0);
+      tz.local,
+      now.year,
+      now.month,
+      now.day + daysUntilSunday,
+      minuteOfDay ~/ 60,
+      minuteOfDay % 60,
+    );
 
     await _plugin.zonedSchedule(
-      id: 1,
+      id: NotificationIds.weeklyMoodSummary,
       title: '📊 Your weekly mood summary',
       body: 'Check your mood insights to see how your week went.',
       scheduledDate: nextSunday,
-      notificationDetails: _details(NotificationChannels.wellnessId, NotificationChannels.wellnessName),
+      notificationDetails: _details(
+        NotificationChannels.wellnessId,
+        NotificationChannels.wellnessName,
+      ),
       androidScheduleMode: AndroidScheduleMode.exactAllowWhileIdle,
       matchDateTimeComponents: DateTimeComponents.dayOfWeekAndTime,
     );
+  }
+
+  Future<void> cancelWeeklyMoodSummary() async {
+    await _plugin.cancel(id: NotificationIds.weeklyMoodSummary);
   }
 
   // ── Tasks ─────────────────────────────────────────────────────────────────
@@ -229,14 +287,25 @@ class NotificationService {
     );
   }
 
+  Future<void> cancelTaskNotifications() async {
+    for (var i = 0; i < 100; i++) {
+      await _plugin.cancel(id: NotificationIds.taskDueTodayBase + i);
+      await _plugin.cancel(id: NotificationIds.taskOverdueBase + i);
+    }
+  }
+
   // ── Goals ─────────────────────────────────────────────────────────────────
 
   Future<void> notifyGoalDeadlineApproaching(
-      String goalId, String goalTitle, int daysLeft) async {
+    String goalId,
+    String goalTitle,
+    int daysLeft,
+  ) async {
     await show(
       id: NotificationIds.goalDeadlineBase + goalId.hashCode.abs() % 100,
       title: '🎯 Goal deadline approaching',
-      body: '"$goalTitle" is due in $daysLeft day${daysLeft == 1 ? '' : 's'}. Keep pushing!',
+      body:
+          '"$goalTitle" is due in $daysLeft day${daysLeft == 1 ? '' : 's'}. Keep pushing!',
       channelId: NotificationChannels.goalsId,
       channelName: NotificationChannels.goalsName,
     );
@@ -250,6 +319,12 @@ class NotificationService {
       channelId: NotificationChannels.goalsId,
       channelName: NotificationChannels.goalsName,
     );
+  }
+
+  Future<void> cancelGoalNotifications() async {
+    for (var i = 0; i < 100; i++) {
+      await _plugin.cancel(id: NotificationIds.goalDeadlineBase + i);
+    }
   }
 
   // ── Events ────────────────────────────────────────────────────────────────
@@ -285,6 +360,12 @@ class NotificationService {
     );
   }
 
+  Future<void> cancelEventReminders() async {
+    for (var i = 0; i < 100; i++) {
+      await _plugin.cancel(id: NotificationIds.eventReminderBase + i);
+    }
+  }
+
   // ── Subscription ─────────────────────────────────────────────────────────
 
   Future<void> scheduleSubscriptionReminders(DateTime expiryDate) async {
@@ -296,7 +377,8 @@ class NotificationService {
       await _plugin.zonedSchedule(
         id: NotificationIds.trialExpiring3Days,
         title: '⏳ Your subscription expires soon',
-        body: 'Your Personal Haven access expires in 3 days. Renew to keep your haven.',
+        body:
+            'Your Personal Haven access expires in 3 days. Renew to keep your haven.',
         scheduledDate: _scheduleAt(threeDays),
         notificationDetails: _details(
           NotificationChannels.subscriptionId,
@@ -312,7 +394,8 @@ class NotificationService {
       await _plugin.zonedSchedule(
         id: NotificationIds.trialExpiring1Day,
         title: '🔔 Last day of your subscription',
-        body: 'Your access expires tomorrow. Subscribe now to avoid interruption.',
+        body:
+            'Your access expires tomorrow. Subscribe now to avoid interruption.',
         scheduledDate: _scheduleAt(oneDay),
         notificationDetails: _details(
           NotificationChannels.subscriptionId,
@@ -335,6 +418,12 @@ class NotificationService {
     );
   }
 
+  Future<void> cancelSubscriptionNotifications() async {
+    await _plugin.cancel(id: NotificationIds.trialExpiring3Days);
+    await _plugin.cancel(id: NotificationIds.trialExpiring1Day);
+    await _plugin.cancel(id: NotificationIds.subscriptionExpired);
+  }
+
   // ── Streaks ───────────────────────────────────────────────────────────────
 
   Future<void> notifyJournalStreak(int days) async {
@@ -350,6 +439,39 @@ class NotificationService {
       id: NotificationIds.eveningMood + 1,
       title: '$emoji Mood logged',
       body: 'Great job checking in with yourself today.',
+    );
+  }
+
+  Future<void> showTestNotification() async {
+    await _plugin.show(
+      id: NotificationIds.testNotification,
+      title: '🔔 Test notification',
+      body: 'Notifications are working in Personal Haven.',
+      payload: null,
+      notificationDetails: _details(
+        NotificationChannels.testId,
+        NotificationChannels.testName,
+        importance: Importance.high,
+        priority: Priority.high,
+      ),
+    );
+  }
+
+  Future<void> scheduleTestNotificationInFiveSeconds() async {
+    await _plugin.zonedSchedule(
+      id: NotificationIds.testNotification + 1,
+      title: '⏰ Scheduled test',
+      body: 'This notification was scheduled 5 seconds ago.',
+      scheduledDate: tz.TZDateTime.now(
+        tz.local,
+      ).add(const Duration(seconds: 5)),
+      notificationDetails: _details(
+        NotificationChannels.testId,
+        NotificationChannels.testName,
+        importance: Importance.high,
+        priority: Priority.high,
+      ),
+      androidScheduleMode: AndroidScheduleMode.exactAllowWhileIdle,
     );
   }
 

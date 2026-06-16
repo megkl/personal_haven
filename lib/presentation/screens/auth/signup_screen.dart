@@ -41,9 +41,10 @@ class _SignUpScreenState extends ConsumerState<SignUpScreen> {
 
     setState(() => _isLoading = false);
     if (mounted) {
+      final authError = ref.read(authProvider).error;
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
-          content: Text(result.error ?? 'Sign-up failed'),
+          content: Text(authError ?? result.error ?? 'Sign-up failed'),
           backgroundColor: Colors.red,
         ),
       );
@@ -104,7 +105,6 @@ class _SignUpScreenState extends ConsumerState<SignUpScreen> {
                     SocialAuthService.instance.signInWithGoogle,
                   ),
                 ),
-              
               ],
               const Spacer(),
               Row(

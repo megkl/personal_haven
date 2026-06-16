@@ -4,7 +4,6 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:personal_haven/presentation/screens/auth/signup_screen.dart';
 import 'package:personal_haven/presentation/screens/profile/main_navigation_screen.dart';
 import 'package:personal_haven/providers/auth_provider.dart';
-import 'package:personal_haven/providers/biometric_provider.dart';
 import 'package:personal_haven/services/biometric_service.dart';
 import 'package:personal_haven/services/social_auth_service.dart';
 import 'package:shared_preferences/shared_preferences.dart';
@@ -89,9 +88,10 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
 
     setState(() => _isLoading = false);
     if (mounted) {
+      final authError = ref.read(authProvider).error;
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
-          content: Text(result.error ?? 'Sign-in failed'),
+          content: Text(authError ?? result.error ?? 'Sign-in failed'),
           backgroundColor: Colors.red,
         ),
       );
@@ -220,10 +220,6 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
       errorBuilder: (_, _, _) =>
           Icon(Icons.g_mobiledata, size: 22, color: Color(0xFF4285F4)),
     );
-  }
-
-  Widget _microsoftIcon() {
-    return Icon(Icons.window, size: 22, color: Color(0xFF00A4EF));
   }
 }
 

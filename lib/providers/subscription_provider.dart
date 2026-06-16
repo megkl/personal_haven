@@ -2,19 +2,17 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:personal_haven/data/models/subscription.dart';
 import 'package:personal_haven/data/repositories/subscription_repository.dart';
 import 'package:personal_haven/providers/auth_provider.dart';
+import 'package:personal_haven/providers/notification_provider.dart';
 import 'package:personal_haven/services/notification_service.dart';
 import 'package:riverpod_annotation/riverpod_annotation.dart';
 part 'subscription_provider.g.dart';
+
 class SubscriptionState {
   final Subscription? active;
   final bool isLoading;
   final String? error;
 
-  const SubscriptionState({
-    this.active,
-    this.isLoading = true,
-    this.error,
-  });
+  const SubscriptionState({this.active, this.isLoading = true, this.error});
 
   bool get isPremium => active?.isActive ?? false;
 
@@ -49,14 +47,24 @@ class SubscriptionNotifier extends _$SubscriptionNotifier {
       return;
     }
     try {
+      final previousActive = state.active;
       final active = await _repo.getActive(_userId);
       state = SubscriptionState(active: active, isLoading: false);
+      final notificationPrefs = ref.read(notificationProvider);
+      final subscriptionNotificationsEnabled =
+          notificationPrefs.masterEnabled &&
+          notificationPrefs.subscriptionAlerts;
 
       // Schedule expiry reminders whenever we load an active subscription
-      if (active != null && active.isActive) {
-        await NotificationService.instance
-            .scheduleSubscriptionReminders(active.expiryDate);
-      } else if (active == null && state.active != null) {
+      if (subscriptionNotificationsEnabled &&
+          active != null &&
+          active.isActive) {
+        await NotificationService.instance.scheduleSubscriptionReminders(
+          active.expiryDate,
+        );
+      } else if (subscriptionNotificationsEnabled &&
+          active == null &&
+          previousActive != null) {
         // Was active, now expired
         await NotificationService.instance.notifySubscriptionExpired();
       }
@@ -94,9 +102,14 @@ class SubscriptionNotifier extends _$SubscriptionNotifier {
         transactionRef: transactionRef,
       );
       state = SubscriptionState(active: sub, isLoading: false);
-      // Schedule expiry reminders for the new subscription
-      await NotificationService.instance
-          .scheduleSubscriptionReminders(sub.expiryDate);
+      final notificationPrefs = ref.read(notificationProvider);
+      if (notificationPrefs.masterEnabled &&
+          notificationPrefs.subscriptionAlerts) {
+        // Schedule expiry reminders for the new subscription
+        await NotificationService.instance.scheduleSubscriptionReminders(
+          sub.expiryDate,
+        );
+      }
     } catch (e) {
       state = state.copyWith(isLoading: false, error: e.toString());
     }
@@ -106,7 +119,6 @@ class SubscriptionNotifier extends _$SubscriptionNotifier {
 
   void clearError() => state = state.copyWith(error: null);
 }
-
 
 /// Convenience — true when user has an active paid/trial subscription.
 final isPremiumProvider = Provider<bool>((ref) {

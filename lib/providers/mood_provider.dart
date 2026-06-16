@@ -2,9 +2,11 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:personal_haven/data/models/mood_log.dart';
 import 'package:personal_haven/data/repositories/mood_repository.dart';
 import 'package:personal_haven/providers/auth_provider.dart';
+import 'package:personal_haven/providers/notification_provider.dart';
 import 'package:personal_haven/services/notification_service.dart';
 import 'package:riverpod_annotation/riverpod_annotation.dart';
 part 'mood_provider.g.dart';
+
 final moodRepositoryProvider = Provider<MoodRepository>((ref) {
   return MoodRepository();
 });
@@ -69,7 +71,12 @@ class MoodNotifier extends _$MoodNotifier {
     }
   }
 
-  Future<void> logMood(int moodLevel, String moodEmoji, {String? moodLabel, String? notes}) async {
+  Future<void> logMood(
+    int moodLevel,
+    String moodEmoji, {
+    String? moodLabel,
+    String? notes,
+  }) async {
     try {
       final log = await _repository.logMood(
         userId: _userId,
@@ -80,8 +87,11 @@ class MoodNotifier extends _$MoodNotifier {
       );
       state = state.copyWith(todayMood: log);
       await loadTodayMood();
-      // Notify after logging mood
-      await NotificationService.instance.notifyMoodLogged(moodEmoji);
+      final notificationPrefs = ref.read(notificationProvider);
+      if (notificationPrefs.masterEnabled && notificationPrefs.moodReminder) {
+        // Notify after logging mood
+        await NotificationService.instance.notifyMoodLogged(moodEmoji);
+      }
     } catch (e) {
       state = state.copyWith(error: 'Failed to log mood: ${e.toString()}');
     }

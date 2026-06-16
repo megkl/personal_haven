@@ -60,8 +60,8 @@ class _MainNavigationScreenState extends ConsumerState<MainNavigationScreen> {
           child: Row(
             mainAxisAlignment: MainAxisAlignment.spaceEvenly,
             children: [
-              _buildNavItem(Icons.home, 'Home', 0),
-              _buildNavItem(Icons.book, 'Journal', 1),
+              _buildNavItem(Icons.home_rounded, 'Home', 0),
+              _buildNavItem(Icons.menu_book_outlined, 'Journal', 1),
               _buildNavItem(Icons.spa, 'Wellness', 2),
               _buildNavItem(Icons.rice_bowl, 'Rituals', 3),
               _buildNavItem(Icons.person, 'Profile', 4),

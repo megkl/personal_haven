@@ -155,7 +155,7 @@ class _JournalScreenState extends ConsumerState<JournalScreen> {
                   color: context.colors.cardColor.withValues(alpha: 0.2),
                   shape: BoxShape.circle,
                 ),
-                child: Icon(Icons.edit_rounded, color: Colors.white, size: 22),
+                child: Icon(Icons.menu_book_outlined, color: Colors.white, size: 22),
               ),
             ],
           ),
