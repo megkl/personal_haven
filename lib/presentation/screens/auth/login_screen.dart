@@ -152,22 +152,6 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                     SocialAuthService.instance.signInWithGoogle,
                   ),
                 ),
-                const SizedBox(height: 16),
-                _SocialButton(
-                  label: 'Continue with Microsoft',
-                  icon: _microsoftIcon(),
-                  onTap: () => _handleSocialLogin(
-                    SocialAuthService.instance.signInWithMicrosoft,
-                  ),
-                ),
-                const SizedBox(height: 16),
-                _SocialButton(
-                  label: 'Continue with Apple',
-                  icon: Icon(Icons.apple, size: 22),
-                  onTap: () => _handleSocialLogin(
-                    SocialAuthService.instance.signInWithApple,
-                  ),
-                ),
                 if (_biometricAvailable) ...[
                   const SizedBox(height: 24),
                   Row(

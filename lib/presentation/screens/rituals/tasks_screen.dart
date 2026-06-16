@@ -17,7 +17,6 @@ class _TasksScreenState extends ConsumerState<TasksScreen>
     with SingleTickerProviderStateMixin {
   late final TabController _tabController;
   final _searchController = TextEditingController();
-  bool _isSearching = false;
 
   static const _taskTabs = ['All', 'Pending', 'Done', 'Urgent'];
 
@@ -48,7 +47,7 @@ class _TasksScreenState extends ConsumerState<TasksScreen>
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           _buildProgressCard(taskState),
-          _buildSearchBar(taskState),
+          _buildSearchBar(),
           _buildTabBar(),
           Expanded(
             child: TabBarView(
@@ -80,9 +79,7 @@ class _TasksScreenState extends ConsumerState<TasksScreen>
     final pct = taskState.completionPercentage;
     final isUrgent = taskState.urgentCount > 0;
 
-    final gradientColors = isUrgent
-        ? [Colors.orange.shade400, Colors.red.shade400]
-        : [const Color(0xFF6BCB77), const Color(0xFF4AA96C)];
+    const gradientColors = [AppColors.primary, AppColors.primaryDark];
 
     return Container(
       margin: const EdgeInsets.fromLTRB(16, 12, 16, 8),
@@ -217,106 +214,78 @@ class _TasksScreenState extends ConsumerState<TasksScreen>
 
   // ─── SEARCH BAR ───────────────────────────────────────────────
 
-  Widget _buildSearchBar(TaskState taskState) {
-    return AnimatedSwitcher(
-      duration: const Duration(milliseconds: 200),
-      child: _isSearching
-          ? Padding(
-              padding: const EdgeInsets.fromLTRB(16, 4, 16, 0),
-              child: Row(
-                children: [
-                  Expanded(
-                    child: TextField(
-                      controller: _searchController,
-                      autofocus: true,
-                      decoration: InputDecoration(
-                        hintText: 'Search tasks...',
-                        prefixIcon: Icon(
-                          Icons.search,
-                          color: AppColors.primary,
-                          size: 20,
-                        ),
-                        filled: true,
-                        fillColor: context.colors.cardColor,
-                        border: OutlineInputBorder(
-                          borderRadius: BorderRadius.circular(14),
-                          borderSide: BorderSide.none,
-                        ),
-                        contentPadding: const EdgeInsets.symmetric(vertical: 0),
-                      ),
-                      onChanged: (q) =>
-                          ref.read(taskProvider.notifier).searchTasks(q),
+  Widget _buildSearchBar() {
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(16, 4, 16, 0),
+      child: TextField(
+        controller: _searchController,
+        decoration: InputDecoration(
+          hintText: 'Search tasks...',
+          prefixIcon: const Icon(
+            Icons.search,
+            color: AppColors.primary,
+            size: 20,
+          ),
+          suffixIcon: Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              if (_searchController.text.isNotEmpty)
+                IconButton(
+                  tooltip: 'Clear search',
+                  icon: const Icon(Icons.close_rounded, size: 18),
+                  onPressed: () {
+                    _searchController.clear();
+                    ref.read(taskProvider.notifier).clearSearch();
+                    setState(() {});
+                  },
+                ),
+              PopupMenuButton<String>(
+                tooltip: 'Task options',
+                icon: Icon(
+                  Icons.more_horiz,
+                  color: context.colors.textSecondary,
+                  size: 20,
+                ),
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(12),
+                ),
+                onSelected: (value) {
+                  if (value == 'clear_completed') {
+                    _confirmClearCompleted();
+                  }
+                },
+                itemBuilder: (_) => const [
+                  PopupMenuItem(
+                    value: 'clear_completed',
+                    child: Row(
+                      children: [
+                        Icon(Icons.delete_sweep, color: Colors.red, size: 18),
+                        SizedBox(width: 8),
+                        Text('Clear completed'),
+                      ],
                     ),
-                  ),
-                  TextButton(
-                    onPressed: () {
-                      setState(() => _isSearching = false);
-                      _searchController.clear();
-                      ref.read(taskProvider.notifier).clearSearch();
-                    },
-                    child: Text('Cancel'),
                   ),
                 ],
               ),
-            )
-          : Padding(
-              padding: const EdgeInsets.fromLTRB(16, 4, 8, 0),
-              child: Row(
-                mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                children: [
-                  Text(
-                    '${taskState.pendingCount} pending',
-                    style: TextStyle(
-                      fontSize: 13,
-                      color: context.colors.textSecondary,
-                    ),
-                  ),
-                  Row(
-                    children: [
-                      IconButton(
-                        icon: Icon(
-                          Icons.search,
-                          color: context.colors.textSecondary,
-                          size: 20,
-                        ),
-                        onPressed: () => setState(() => _isSearching = true),
-                      ),
-                      PopupMenuButton<String>(
-                        icon: Icon(
-                          Icons.more_horiz,
-                          color: context.colors.textSecondary,
-                          size: 20,
-                        ),
-                        shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(12),
-                        ),
-                        onSelected: (v) {
-                          if (v == 'clear_completed') {
-                            _confirmClearCompleted();
-                          }
-                        },
-                        itemBuilder: (_) => [
-                          const PopupMenuItem(
-                            value: 'clear_completed',
-                            child: Row(
-                              children: [
-                                Icon(
-                                  Icons.delete_sweep,
-                                  color: Colors.red,
-                                  size: 18,
-                                ),
-                                SizedBox(width: 8),
-                                Text('Clear completed'),
-                              ],
-                            ),
-                          ),
-                        ],
-                      ),
-                    ],
-                  ),
-                ],
-              ),
-            ),
+            ],
+          ),
+          filled: true,
+          fillColor: context.colors.cardColor,
+          border: OutlineInputBorder(
+            borderRadius: BorderRadius.circular(14),
+            borderSide: BorderSide(color: context.colors.divider),
+          ),
+          enabledBorder: OutlineInputBorder(
+            borderRadius: BorderRadius.circular(14),
+            borderSide: BorderSide(color: context.colors.divider),
+          ),
+          contentPadding: const EdgeInsets.symmetric(vertical: 0),
+        ),
+        onChanged: (query) {
+          ref.read(taskProvider.notifier).searchTasks(query);
+          setState(() {});
+        },
+      ),
     );
   }
 
@@ -435,7 +404,7 @@ class _TasksScreenState extends ConsumerState<TasksScreen>
       'low': Colors.grey,
     };
     final categoryEmojis = {
-      'personal': '🏠',
+      'personal': '✅',
       'work': '💼',
       'wellness': '💪',
       'finance': '💰',
@@ -952,7 +921,7 @@ class _TaskDetailsSheet extends StatelessWidget {
       'low': Colors.grey,
     };
     final categoryEmojis = {
-      'personal': '🏠',
+      'personal': '✅',
       'work': '💼',
       'wellness': '💪',
       'finance': '💰',
@@ -1190,7 +1159,7 @@ class _AddEditTaskSheetState extends State<_AddEditTaskSheet> {
     'low': '⚪',
   };
   final _categoryEmojis = {
-    'personal': '🏠',
+    'personal': '✅',
     'work': '💼',
     'wellness': '💪',
     'finance': '💰',

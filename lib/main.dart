@@ -31,7 +31,7 @@ class PersonalHavenApp extends ConsumerWidget {
       title: 'Personal Haven',
       debugShowCheckedModeBanner: false,
       theme: AppTheme.light,
-      darkTheme: AppTheme.dark,
+      //darkTheme: AppTheme.dark,
       themeMode: themeMode,
       home: const AppInitializer(),
     );

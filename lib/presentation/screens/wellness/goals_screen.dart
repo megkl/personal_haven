@@ -1,9 +1,11 @@
 import 'package:flutter/material.dart';
+import 'package:personal_haven/core/utils/currency_formatter.dart';
 import 'package:personal_haven/core/theme/app_theme.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:intl/intl.dart';
 import 'package:personal_haven/core/constants/app_colors.dart';
 import 'package:personal_haven/data/models/goal.dart';
+import 'package:personal_haven/providers/currency_provider.dart';
 import 'package:personal_haven/providers/goal_provider.dart';
 
 class GoalsScreen extends ConsumerStatefulWidget {
@@ -99,14 +101,14 @@ class _GoalsScreenState extends ConsumerState<GoalsScreen>
       padding: const EdgeInsets.all(15),
       decoration: BoxDecoration(
         gradient: const LinearGradient(
-          colors: [Color(0xFF667eea), Color(0xFF764ba2)],
+          colors: [AppColors.primary, AppColors.primaryDark],
           begin: Alignment.topLeft,
           end: Alignment.bottomRight,
         ),
         borderRadius: BorderRadius.circular(18),
         boxShadow: [
           BoxShadow(
-            color: const Color(0xFF667eea).withValues(alpha: 0.4),
+            color: AppColors.primary.withValues(alpha: 0.32),
             blurRadius: 12,
             offset: const Offset(0, 6),
           ),
@@ -572,7 +574,7 @@ class _GoalsScreenState extends ConsumerState<GoalsScreen>
                             mainAxisAlignment: MainAxisAlignment.spaceBetween,
                             children: [
                               Text(
-                                '${goal.currentValue.toStringAsFixed(goal.currentValue.truncateToDouble() == goal.currentValue ? 0 : 1)} / ${goal.targetValue.toStringAsFixed(goal.targetValue.truncateToDouble() == goal.targetValue ? 0 : 1)} ${goal.unit}',
+                                '${CurrencyFormatter.formatUnitAmount(goal.currentValue, goal.unit)} / ${CurrencyFormatter.formatUnitAmount(goal.targetValue, goal.unit)}',
                                 style: TextStyle(
                                   fontSize: 14,
                                   fontWeight: FontWeight.w600,
@@ -742,11 +744,14 @@ class _GoalsScreenState extends ConsumerState<GoalsScreen>
   }
 
   void _showAddGoalDialog(BuildContext context, WidgetRef ref) {
+    final currencyCode =
+        ref.read(currencyProvider).value ?? CurrencyFormatter.defaultCode;
     showModalBottomSheet(
       context: context,
       isScrollControlled: true,
       backgroundColor: Colors.transparent,
       builder: (context) => _AddEditGoalSheet(
+        currencyCode: currencyCode,
         onSave: (title, description, targetValue, unit, category, targetDate) {
           ref
               .read(goalProvider.notifier)
@@ -764,12 +769,15 @@ class _GoalsScreenState extends ConsumerState<GoalsScreen>
   }
 
   void _showEditGoalDialog(Goal goal) {
+    final currencyCode =
+        ref.read(currencyProvider).value ?? CurrencyFormatter.defaultCode;
     showModalBottomSheet(
       context: context,
       isScrollControlled: true,
       backgroundColor: Colors.transparent,
       builder: (context) => _AddEditGoalSheet(
         goal: goal,
+        currencyCode: currencyCode,
         onSave: (title, description, targetValue, unit, category, targetDate) {
           final updatedGoal = goal.copyWith(
             title: title,
@@ -797,16 +805,40 @@ class _GoalsScreenState extends ConsumerState<GoalsScreen>
       context: context,
       builder: (context) => AlertDialog(
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
-        title: Row(children: [Text('📈 '), Text('Update: ${goal.title}')]),
+        title: Row(
+          children: [
+            Text('📈 '),
+            Expanded(
+              child: Text(
+                'Update: ${goal.title}',
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+              ),
+            ),
+          ],
+        ),
         content: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
             // Progress indicator
             Row(
-              mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
-                Text('Current: ${goal.currentValue} ${goal.unit}'),
-                Text('Target: ${goal.targetValue} ${goal.unit}'),
+                Expanded(
+                  child: Text(
+                    'Current: ${CurrencyFormatter.formatUnitAmount(goal.currentValue, goal.unit)}',
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                  ),
+                ),
+                const SizedBox(width: 12),
+                Expanded(
+                  child: Text(
+                    'Target: ${CurrencyFormatter.formatUnitAmount(goal.targetValue, goal.unit)}',
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    textAlign: TextAlign.end,
+                  ),
+                ),
               ],
             ),
             const SizedBox(height: 16),
@@ -1078,8 +1110,22 @@ class _GoalDetailsSheet extends StatelessWidget {
                 Row(
                   mainAxisAlignment: MainAxisAlignment.spaceBetween,
                   children: [
-                    Text('Current: ${goal.currentValue} ${goal.unit}'),
-                    Text('Target: ${goal.targetValue} ${goal.unit}'),
+                    Flexible(
+                      child: Text(
+                        'Current: ${CurrencyFormatter.formatUnitAmount(goal.currentValue, goal.unit)}',
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                      ),
+                    ),
+                    const SizedBox(width: 12),
+                    Flexible(
+                      child: Text(
+                        'Target: ${CurrencyFormatter.formatUnitAmount(goal.targetValue, goal.unit)}',
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        textAlign: TextAlign.end,
+                      ),
+                    ),
                   ],
                 ),
               ],
@@ -1205,6 +1251,7 @@ class _GoalDetailsSheet extends StatelessWidget {
 
 class _AddEditGoalSheet extends StatefulWidget {
   final Goal? goal;
+  final String currencyCode;
   final Function(
     String title,
     String? description,
@@ -1215,7 +1262,11 @@ class _AddEditGoalSheet extends StatefulWidget {
   )
   onSave;
 
-  const _AddEditGoalSheet({this.goal, required this.onSave});
+  const _AddEditGoalSheet({
+    this.goal,
+    required this.currencyCode,
+    required this.onSave,
+  });
 
   @override
   State<_AddEditGoalSheet> createState() => _AddEditGoalSheetState();
@@ -1229,19 +1280,29 @@ class _AddEditGoalSheetState extends State<_AddEditGoalSheet> {
   late String _selectedCategory;
   DateTime? _targetDate;
 
-  final _units = [
-    'KES',
-    'USD',
-    'kg',
-    'lbs',
-    'km',
-    'miles',
-    'minutes',
-    'hours',
-    'count',
-    'pages',
-    '%',
-  ];
+  List<String> get _units {
+    final goalUnit = widget.goal?.unit;
+    final baseUnits = [
+      widget.currencyCode,
+      ...CurrencyFormatter.supported
+          .map((currency) => currency.code)
+          .where((code) => code != widget.currencyCode),
+      'kg',
+      'lbs',
+      'km',
+      'miles',
+      'minutes',
+      'hours',
+      'count',
+      'pages',
+      '%',
+    ];
+    return [
+      if (goalUnit != null && !baseUnits.contains(goalUnit)) goalUnit,
+      ...baseUnits,
+    ];
+  }
+
   final _categories = ['fitness', 'finance', 'learning', 'personal'];
 
   @override
@@ -1261,7 +1322,11 @@ class _AddEditGoalSheetState extends State<_AddEditGoalSheet> {
           ) ??
           '',
     );
-    _selectedUnit = widget.goal?.unit ?? 'KES';
+    final goalUnit = widget.goal?.unit;
+    _selectedUnit =
+        goalUnit != null && CurrencyFormatter.isCurrencyUnit(goalUnit)
+        ? goalUnit.toUpperCase()
+        : goalUnit ?? widget.currencyCode;
     _selectedCategory = widget.goal?.category ?? 'personal';
     _targetDate = widget.goal?.targetDate;
   }
@@ -1307,37 +1372,31 @@ class _AddEditGoalSheetState extends State<_AddEditGoalSheet> {
               const SizedBox(height: 24),
 
               Text(
-                isEditing ? '✏️ Edit Goal' : '🎯 New Goal',
-                style: TextStyle(fontSize: 24, fontWeight: FontWeight.bold),
+                isEditing ? '✏️ Edit Goal' : '➕ New Goal',
+                style: TextStyle(
+                  fontSize: 22,
+                  fontWeight: FontWeight.bold,
+                  color: context.colors.textPrimary,
+                ),
               ),
               const SizedBox(height: 24),
 
               // Title
               TextField(
                 controller: _titleController,
-                decoration: InputDecoration(
-                  labelText: 'Goal Title *',
-                  hintText: 'e.g., Save for vacation',
-                  border: OutlineInputBorder(
-                    borderRadius: BorderRadius.circular(12),
-                  ),
-                ),
+                decoration: _inputDec('Goal title *'),
+                textCapitalization: TextCapitalization.sentences,
               ),
-              const SizedBox(height: 16),
+              const SizedBox(height: 12),
 
               // Description
               TextField(
                 controller: _descriptionController,
-                decoration: InputDecoration(
-                  labelText: 'Description (optional)',
-                  hintText: 'Add details about your goal',
-                  border: OutlineInputBorder(
-                    borderRadius: BorderRadius.circular(12),
-                  ),
-                ),
+                decoration: _inputDec('Add details (optional)'),
                 maxLines: 2,
+                textCapitalization: TextCapitalization.sentences,
               ),
-              const SizedBox(height: 16),
+              const SizedBox(height: 12),
 
               // Target value and unit
               Row(
@@ -1346,13 +1405,7 @@ class _AddEditGoalSheetState extends State<_AddEditGoalSheet> {
                     flex: 2,
                     child: TextField(
                       controller: _targetController,
-                      decoration: InputDecoration(
-                        labelText: 'Target Value *',
-                        hintText: '5000',
-                        border: OutlineInputBorder(
-                          borderRadius: BorderRadius.circular(12),
-                        ),
-                      ),
+                      decoration: _inputDec('Target value *'),
                       keyboardType: const TextInputType.numberWithOptions(
                         decimal: true,
                       ),
@@ -1362,15 +1415,10 @@ class _AddEditGoalSheetState extends State<_AddEditGoalSheet> {
                   Expanded(
                     child: DropdownButtonFormField<String>(
                       initialValue: _selectedUnit,
-                      decoration: InputDecoration(
-                        labelText: 'Unit',
-                        border: OutlineInputBorder(
-                          borderRadius: BorderRadius.circular(12),
-                        ),
-                        contentPadding: const EdgeInsets.symmetric(
-                          horizontal: 12,
-                        ),
-                      ),
+                      decoration: _inputDec(
+                        'Unit',
+                      ).copyWith(labelText: 'Unit', hintText: null),
+                      borderRadius: BorderRadius.circular(14),
                       items: _units
                           .map(
                             (u) => DropdownMenuItem(value: u, child: Text(u)),
@@ -1388,12 +1436,10 @@ class _AddEditGoalSheetState extends State<_AddEditGoalSheet> {
               // Category
               DropdownButtonFormField<String>(
                 initialValue: _selectedCategory,
-                decoration: InputDecoration(
-                  labelText: 'Category',
-                  border: OutlineInputBorder(
-                    borderRadius: BorderRadius.circular(12),
-                  ),
-                ),
+                decoration: _inputDec(
+                  'Category',
+                ).copyWith(labelText: 'Category', hintText: null),
+                borderRadius: BorderRadius.circular(14),
                 items: _categories.map((c) {
                   final icons = {
                     'fitness': '💪',
@@ -1434,32 +1480,35 @@ class _AddEditGoalSheetState extends State<_AddEditGoalSheet> {
                   }
                 },
                 child: Container(
-                  padding: const EdgeInsets.all(16),
+                  padding: const EdgeInsets.all(14),
                   decoration: BoxDecoration(
                     border: Border.all(color: context.colors.divider),
-                    borderRadius: BorderRadius.circular(12),
+                    borderRadius: BorderRadius.circular(14),
+                    color: context.colors.cardColor2,
                   ),
                   child: Row(
                     children: [
                       Icon(
-                        Icons.calendar_today,
-                        color: context.colors.textSecondary,
+                        Icons.calendar_today_outlined,
+                        color: AppColors.primary,
+                        size: 20,
                       ),
-                      const SizedBox(width: 12),
-                      Text(
-                        _targetDate != null
-                            ? DateFormat(
-                                'EEEE, MMM d, yyyy',
-                              ).format(_targetDate!)
-                            : 'Set target date (optional)',
-                        style: TextStyle(
-                          fontSize: 15,
-                          color: _targetDate != null
-                              ? Colors.black
-                              : context.colors.textSecondary,
+                      const SizedBox(width: 10),
+                      Expanded(
+                        child: Text(
+                          _targetDate != null
+                              ? DateFormat(
+                                  'EEE, MMM d, yyyy',
+                                ).format(_targetDate!)
+                              : 'Set target date (optional)',
+                          style: TextStyle(
+                            fontSize: 14,
+                            color: _targetDate != null
+                                ? context.colors.textPrimary
+                                : context.colors.textSecondary,
+                          ),
                         ),
                       ),
-                      const Spacer(),
                       if (_targetDate != null)
                         IconButton(
                           icon: Icon(Icons.clear, size: 20),
@@ -1480,8 +1529,9 @@ class _AddEditGoalSheetState extends State<_AddEditGoalSheet> {
                     backgroundColor: AppColors.primary,
                     foregroundColor: Colors.white,
                     padding: const EdgeInsets.symmetric(vertical: 16),
+                    elevation: 0,
                     shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(12),
+                      borderRadius: BorderRadius.circular(16),
                     ),
                   ),
                   child: Text(
@@ -1497,6 +1547,18 @@ class _AddEditGoalSheetState extends State<_AddEditGoalSheet> {
       ),
     );
   }
+
+  InputDecoration _inputDec(String hint) => InputDecoration(
+    hintText: hint,
+    hintStyle: TextStyle(color: context.colors.textSecondary, fontSize: 14),
+    filled: true,
+    fillColor: context.colors.cardColor2,
+    border: OutlineInputBorder(
+      borderRadius: BorderRadius.circular(14),
+      borderSide: BorderSide.none,
+    ),
+    contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+  );
 
   void _save() {
     if (_titleController.text.isEmpty || _targetController.text.isEmpty) {

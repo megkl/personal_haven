@@ -916,32 +916,18 @@ class _AddEditEntrySheetState extends State<_AddEditEntrySheet> {
                 ),
               ),
 
-              // Header
               Padding(
-                padding: const EdgeInsets.all(16),
-                child: Row(
-                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                  children: [
-                    TextButton(
-                      onPressed: () => Navigator.pop(context),
-                      child: Text('Cancel'),
+                padding: const EdgeInsets.fromLTRB(24, 20, 24, 4),
+                child: Align(
+                  alignment: Alignment.centerLeft,
+                  child: Text(
+                    isEditing ? '✏️ Edit Entry' : '➕ New Entry',
+                    style: TextStyle(
+                      fontSize: 22,
+                      fontWeight: FontWeight.bold,
+                      color: context.colors.textPrimary,
                     ),
-                    Text(
-                      isEditing ? 'Edit Entry' : 'New Entry',
-                      style: TextStyle(
-                        fontSize: 18,
-                        fontWeight: FontWeight.bold,
-                      ),
-                    ),
-                    ElevatedButton(
-                      onPressed: _save,
-                      style: ElevatedButton.styleFrom(
-                        backgroundColor: AppColors.primary,
-                        foregroundColor: Colors.white,
-                      ),
-                      child: Text('Save'),
-                    ),
-                  ],
+                  ),
                 ),
               ),
 
@@ -1008,26 +994,18 @@ class _AddEditEntrySheetState extends State<_AddEditEntrySheet> {
                       // Title
                       TextField(
                         controller: _titleController,
-                        decoration: InputDecoration(
-                          labelText: 'Title',
-                          hintText: 'Give your entry a title',
-                          border: OutlineInputBorder(
-                            borderRadius: BorderRadius.circular(12),
-                          ),
-                        ),
+                        decoration: _inputDec('Give your entry a title *'),
                         textCapitalization: TextCapitalization.sentences,
                       ),
-                      const SizedBox(height: 16),
+                      const SizedBox(height: 12),
 
                       // Category
                       DropdownButtonFormField<String>(
                         initialValue: _selectedCategory,
-                        decoration: InputDecoration(
-                          labelText: 'Category',
-                          border: OutlineInputBorder(
-                            borderRadius: BorderRadius.circular(12),
-                          ),
-                        ),
+                        decoration: _inputDec(
+                          'Category',
+                        ).copyWith(labelText: 'Category', hintText: null),
+                        borderRadius: BorderRadius.circular(14),
                         items: JournalCategories.all.map((c) {
                           return DropdownMenuItem(
                             value: c.name,
@@ -1049,14 +1027,9 @@ class _AddEditEntrySheetState extends State<_AddEditEntrySheet> {
                       // Content
                       TextField(
                         controller: _contentController,
-                        decoration: InputDecoration(
-                          labelText: 'Content',
-                          hintText: 'Write your thoughts...',
-                          alignLabelWithHint: true,
-                          border: OutlineInputBorder(
-                            borderRadius: BorderRadius.circular(12),
-                          ),
-                        ),
+                        decoration: _inputDec(
+                          'Write your thoughts... *',
+                        ).copyWith(alignLabelWithHint: true),
                         maxLines: 8,
                         textCapitalization: TextCapitalization.sentences,
                       ),
@@ -1076,16 +1049,7 @@ class _AddEditEntrySheetState extends State<_AddEditEntrySheet> {
                           Expanded(
                             child: TextField(
                               controller: _tagController,
-                              decoration: InputDecoration(
-                                hintText: 'Add a tag',
-                                border: OutlineInputBorder(
-                                  borderRadius: BorderRadius.circular(12),
-                                ),
-                                contentPadding: const EdgeInsets.symmetric(
-                                  horizontal: 16,
-                                  vertical: 12,
-                                ),
-                              ),
+                              decoration: _inputDec('Add a tag'),
                               onSubmitted: _addTag,
                             ),
                           ),
@@ -1115,7 +1079,30 @@ class _AddEditEntrySheetState extends State<_AddEditEntrySheet> {
                               .toList(),
                         ),
                       ],
-                      const SizedBox(height: 40),
+                      const SizedBox(height: 24),
+                      SizedBox(
+                        width: double.infinity,
+                        child: ElevatedButton(
+                          onPressed: _save,
+                          style: ElevatedButton.styleFrom(
+                            backgroundColor: AppColors.primary,
+                            foregroundColor: Colors.white,
+                            padding: const EdgeInsets.symmetric(vertical: 16),
+                            elevation: 0,
+                            shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(16),
+                            ),
+                          ),
+                          child: Text(
+                            isEditing ? 'Save Changes' : 'Save Entry',
+                            style: TextStyle(
+                              fontSize: 16,
+                              fontWeight: FontWeight.bold,
+                            ),
+                          ),
+                        ),
+                      ),
+                      const SizedBox(height: 16),
                     ],
                   ),
                 ),
@@ -1136,6 +1123,18 @@ class _AddEditEntrySheetState extends State<_AddEditEntrySheet> {
       });
     }
   }
+
+  InputDecoration _inputDec(String hint) => InputDecoration(
+    hintText: hint,
+    hintStyle: TextStyle(color: context.colors.textSecondary, fontSize: 14),
+    filled: true,
+    fillColor: context.colors.cardColor2,
+    border: OutlineInputBorder(
+      borderRadius: BorderRadius.circular(14),
+      borderSide: BorderSide.none,
+    ),
+    contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+  );
 
   void _save() {
     if (_titleController.text.isEmpty) {

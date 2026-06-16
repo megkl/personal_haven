@@ -2,6 +2,9 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:personal_haven/core/constants/app_colors.dart';
 import 'package:personal_haven/core/theme/app_theme.dart';
+import 'package:personal_haven/core/utils/currency_formatter.dart';
+import 'package:personal_haven/providers/currency_provider.dart';
+import 'package:personal_haven/providers/notification_provider.dart';
 import 'package:personal_haven/providers/theme_provider.dart';
 
 class SettingsScreen extends ConsumerStatefulWidget {
@@ -12,12 +15,14 @@ class SettingsScreen extends ConsumerStatefulWidget {
 }
 
 class _SettingsScreenState extends ConsumerState<SettingsScreen> {
-  bool _notificationsEnabled = true;
   String _language = 'English';
 
   @override
   Widget build(BuildContext context) {
     final themeMode = ref.watch(themeProvider).value ?? ThemeMode.system;
+    final currencyCode =
+        ref.watch(currencyProvider).value ?? CurrencyFormatter.defaultCode;
+    final notificationPrefs = ref.watch(notificationProvider);
     final isDark = themeMode == ThemeMode.dark;
     final colors = context.colors;
 
@@ -44,9 +49,10 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
                   'Notifications',
                   Icons.notifications_outlined,
                   Switch(
-                    value: _notificationsEnabled,
-                    onChanged: (value) =>
-                        setState(() => _notificationsEnabled = value),
+                    value: notificationPrefs.masterEnabled,
+                    onChanged: (value) => ref
+                        .read(notificationProvider.notifier)
+                        .setMaster(value),
                     activeThumbColor: AppColors.primary,
                   ),
                 ),
@@ -60,6 +66,33 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
                     onChanged: (_) =>
                         ref.read(themeProvider.notifier).toggleDark(),
                     activeThumbColor: AppColors.primary,
+                  ),
+                ),
+                Divider(color: colors.divider),
+                _buildSettingRow(
+                  context,
+                  'Currency',
+                  Icons.payments_outlined,
+                  DropdownButton<String>(
+                    value: currencyCode,
+                    underline: const SizedBox(),
+                    dropdownColor: colors.cardColor,
+                    style: TextStyle(color: colors.textPrimary, fontSize: 14),
+                    items: CurrencyFormatter.supported
+                        .map(
+                          (currency) => DropdownMenuItem(
+                            value: currency.code,
+                            child: Text(
+                              '${currency.code} (${currency.symbol.trim()})',
+                            ),
+                          ),
+                        )
+                        .toList(),
+                    onChanged: (value) {
+                      if (value != null) {
+                        ref.read(currencyProvider.notifier).setCurrency(value);
+                      }
+                    },
                   ),
                 ),
                 Divider(color: colors.divider),
@@ -82,6 +115,126 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
                       if (value != null) setState(() => _language = value);
                     },
                   ),
+                ),
+              ],
+            ),
+          ),
+          const SizedBox(height: 20),
+          Container(
+            padding: const EdgeInsets.all(20),
+            decoration: BoxDecoration(
+              color: colors.cardColor,
+              borderRadius: BorderRadius.circular(16),
+            ),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  'Notification Settings',
+                  style: TextStyle(
+                    fontSize: 16,
+                    fontWeight: FontWeight.bold,
+                    color: colors.textPrimary,
+                  ),
+                ),
+                const SizedBox(height: 8),
+                Text(
+                  'Choose what Personal Haven can remind you about.',
+                  style: TextStyle(fontSize: 13, color: colors.textSecondary),
+                ),
+                const SizedBox(height: 12),
+                _notificationToggle(
+                  context,
+                  title: 'Daily reminders',
+                  subtitle: 'Mood, journal, and wellness nudges',
+                  icon: Icons.today_outlined,
+                  value: notificationPrefs.dailyReminders,
+                  enabled: notificationPrefs.masterEnabled,
+                  onChanged: (value) => ref
+                      .read(notificationProvider.notifier)
+                      .toggle('dailyReminders', value),
+                ),
+                _notificationToggle(
+                  context,
+                  title: 'Mood check-ins',
+                  subtitle: 'Morning and evening mood prompts',
+                  icon: Icons.mood_outlined,
+                  value: notificationPrefs.moodReminder,
+                  enabled:
+                      notificationPrefs.masterEnabled &&
+                      notificationPrefs.dailyReminders,
+                  onChanged: (value) => ref
+                      .read(notificationProvider.notifier)
+                      .toggle('moodReminder', value),
+                ),
+                _notificationToggle(
+                  context,
+                  title: 'Journal prompts',
+                  subtitle: 'A gentle evening writing reminder',
+                  icon: Icons.edit_note_outlined,
+                  value: notificationPrefs.journalReminder,
+                  enabled:
+                      notificationPrefs.masterEnabled &&
+                      notificationPrefs.dailyReminders,
+                  onChanged: (value) => ref
+                      .read(notificationProvider.notifier)
+                      .toggle('journalReminder', value),
+                ),
+                _notificationToggle(
+                  context,
+                  title: 'Task reminders',
+                  subtitle: 'Due today and overdue task alerts',
+                  icon: Icons.task_alt_outlined,
+                  value: notificationPrefs.taskReminders,
+                  enabled: notificationPrefs.masterEnabled,
+                  onChanged: (value) => ref
+                      .read(notificationProvider.notifier)
+                      .toggle('taskReminders', value),
+                ),
+                _notificationToggle(
+                  context,
+                  title: 'Goal reminders',
+                  subtitle: 'Goal deadlines and completions',
+                  icon: Icons.flag_outlined,
+                  value: notificationPrefs.goalReminders,
+                  enabled: notificationPrefs.masterEnabled,
+                  onChanged: (value) => ref
+                      .read(notificationProvider.notifier)
+                      .toggle('goalReminders', value),
+                ),
+                _notificationToggle(
+                  context,
+                  title: 'Event reminders',
+                  subtitle: 'Upcoming event reminders',
+                  icon: Icons.event_outlined,
+                  value: notificationPrefs.eventReminders,
+                  enabled: notificationPrefs.masterEnabled,
+                  onChanged: (value) => ref
+                      .read(notificationProvider.notifier)
+                      .toggle('eventReminders', value),
+                ),
+                _notificationToggle(
+                  context,
+                  title: 'Weekly insights',
+                  subtitle: 'Weekly mood summary',
+                  icon: Icons.insights_outlined,
+                  value: notificationPrefs.weeklyInsights,
+                  enabled: notificationPrefs.masterEnabled,
+                  onChanged: (value) => ref
+                      .read(notificationProvider.notifier)
+                      .toggle('weeklyInsights', value),
+                ),
+                _notificationToggle(
+                  context,
+                  title: 'Subscription alerts',
+                  subtitle: 'Expiry and renewal reminders',
+                  icon: Icons.workspace_premium_outlined,
+                  value: notificationPrefs.subscriptionAlerts,
+                  enabled: notificationPrefs.masterEnabled,
+                  onChanged: (value) => ref
+                      .read(notificationProvider.notifier)
+                      .toggle('subscriptionAlerts', value),
+                  showDivider: false,
                 ),
               ],
             ),
@@ -169,6 +322,72 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
           trailing,
         ],
       ),
+    );
+  }
+
+  Widget _notificationToggle(
+    BuildContext context, {
+    required String title,
+    required String subtitle,
+    required IconData icon,
+    required bool value,
+    required bool enabled,
+    required ValueChanged<bool> onChanged,
+    bool showDivider = true,
+  }) {
+    final colors = context.colors;
+    return Column(
+      children: [
+        Padding(
+          padding: const EdgeInsets.symmetric(vertical: 6),
+          child: Opacity(
+            opacity: enabled ? 1 : 0.55,
+            child: Row(
+              children: [
+                Container(
+                  width: 36,
+                  height: 36,
+                  decoration: BoxDecoration(
+                    color: AppColors.primary.withValues(alpha: 0.1),
+                    borderRadius: BorderRadius.circular(12),
+                  ),
+                  child: Icon(icon, color: AppColors.primary, size: 20),
+                ),
+                const SizedBox(width: 12),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        title,
+                        style: TextStyle(
+                          fontSize: 15,
+                          fontWeight: FontWeight.w600,
+                          color: colors.textPrimary,
+                        ),
+                      ),
+                      const SizedBox(height: 2),
+                      Text(
+                        subtitle,
+                        style: TextStyle(
+                          fontSize: 12,
+                          color: colors.textSecondary,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+                Switch(
+                  value: value,
+                  onChanged: enabled ? onChanged : null,
+                  activeThumbColor: AppColors.primary,
+                ),
+              ],
+            ),
+          ),
+        ),
+        if (showDivider) Divider(color: colors.divider, height: 16),
+      ],
     );
   }
 

@@ -104,22 +104,7 @@ class _SignUpScreenState extends ConsumerState<SignUpScreen> {
                     SocialAuthService.instance.signInWithGoogle,
                   ),
                 ),
-                const SizedBox(height: 16),
-                _SocialButton(
-                  label: 'Sign up with Microsoft',
-                  icon: Icon(Icons.window, size: 22, color: Color(0xFF00A4EF)),
-                  onTap: () => _handleSocialSignUp(
-                    SocialAuthService.instance.signInWithMicrosoft,
-                  ),
-                ),
-                const SizedBox(height: 16),
-                _SocialButton(
-                  label: 'Sign up with Apple',
-                  icon: Icon(Icons.apple, size: 22),
-                  onTap: () => _handleSocialSignUp(
-                    SocialAuthService.instance.signInWithApple,
-                  ),
-                ),
+              
               ],
               const Spacer(),
               Row(

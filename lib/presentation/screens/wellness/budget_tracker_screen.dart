@@ -1,9 +1,12 @@
 import 'package:flutter/material.dart';
+import 'package:personal_haven/core/constants/app_colors.dart';
 import 'package:personal_haven/core/theme/app_theme.dart';
+import 'package:personal_haven/core/utils/currency_formatter.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:intl/intl.dart';
 import 'package:personal_haven/data/models/transaction.dart';
 import 'package:personal_haven/providers/budget_provider.dart';
+import 'package:personal_haven/providers/currency_provider.dart';
 
 class BudgetScreen extends ConsumerWidget {
   const BudgetScreen({super.key});
@@ -14,6 +17,8 @@ class BudgetScreen extends ConsumerWidget {
     final income = transactionState.totalIncome;
     final expenses = transactionState.totalExpenses;
     final balance = transactionState.balance;
+    final currencyCode =
+        ref.watch(currencyProvider).value ?? CurrencyFormatter.defaultCode;
 
     return Scaffold(
       backgroundColor: Theme.of(context).scaffoldBackgroundColor,
@@ -21,7 +26,13 @@ class BudgetScreen extends ConsumerWidget {
           ? const Center(child: CircularProgressIndicator())
           : Column(
               children: [
-                _buildOverviewCard(context, income, expenses, balance),
+                _buildOverviewCard(
+                  context,
+                  income,
+                  expenses,
+                  balance,
+                  currencyCode,
+                ),
                 _buildQuickActions(context, ref),
                 const SizedBox(height: 8),
 
@@ -46,6 +57,7 @@ class BudgetScreen extends ConsumerWidget {
                             context,
                             ref,
                             transactionState.transactions,
+                            currencyCode,
                           ),
                   ),
                 ),
@@ -64,6 +76,7 @@ class BudgetScreen extends ConsumerWidget {
     double income,
     double expenses,
     double balance,
+    String currencyCode,
   ) {
     return Container(
       margin: const EdgeInsets.fromLTRB(12, 10, 12, 8),
@@ -129,7 +142,7 @@ class BudgetScreen extends ConsumerWidget {
                       fit: BoxFit.scaleDown,
                       alignment: Alignment.centerLeft,
                       child: Text(
-                        '\$${balance.abs().toStringAsFixed(2)}',
+                        CurrencyFormatter.format(balance.abs(), currencyCode),
                         style: TextStyle(
                           fontSize: 30,
                           fontWeight: FontWeight.bold,
@@ -150,6 +163,7 @@ class BudgetScreen extends ConsumerWidget {
                   icon: Icons.arrow_downward_rounded,
                   label: 'Income',
                   amount: income,
+                  currencyCode: currencyCode,
                   iconColor: Colors.greenAccent,
                 ),
               ),
@@ -163,6 +177,7 @@ class BudgetScreen extends ConsumerWidget {
                   icon: Icons.arrow_upward_rounded,
                   label: 'Expenses',
                   amount: expenses,
+                  currencyCode: currencyCode,
                   iconColor: Colors.redAccent,
                 ),
               ),
@@ -177,6 +192,7 @@ class BudgetScreen extends ConsumerWidget {
     required IconData icon,
     required String label,
     required double amount,
+    required String currencyCode,
     required Color iconColor,
   }) {
     return Column(
@@ -191,7 +207,7 @@ class BudgetScreen extends ConsumerWidget {
         ),
         const SizedBox(height: 2),
         Text(
-          '\$${amount.toStringAsFixed(2)}',
+          CurrencyFormatter.format(amount, currencyCode),
           style: TextStyle(
             fontSize: 15,
             fontWeight: FontWeight.bold,
@@ -211,7 +227,6 @@ class BudgetScreen extends ConsumerWidget {
             child: _buildActionButton(
               label: 'Add Income',
               icon: Icons.add_circle_outline,
-              color: Colors.green,
               onTap: () => _showAddTransactionDialog(context, ref, 'income'),
             ),
           ),
@@ -220,7 +235,6 @@ class BudgetScreen extends ConsumerWidget {
             child: _buildActionButton(
               label: 'Add Expense',
               icon: Icons.remove_circle_outline,
-              color: Colors.red,
               onTap: () => _showAddTransactionDialog(context, ref, 'expense'),
             ),
           ),
@@ -232,27 +246,31 @@ class BudgetScreen extends ConsumerWidget {
   Widget _buildActionButton({
     required String label,
     required IconData icon,
-    required Color color,
     required VoidCallback onTap,
   }) {
     return Material(
-      color: color,
+      color: Colors.transparent,
       borderRadius: BorderRadius.circular(12),
       child: InkWell(
         onTap: onTap,
         borderRadius: BorderRadius.circular(12),
-        child: Padding(
-          padding: const EdgeInsets.symmetric(vertical: 14),
+        child: Container(
+          padding: const EdgeInsets.symmetric(vertical: 11),
+          decoration: BoxDecoration(
+            border: Border.all(color: AppColors.primary, width: 1.3),
+            borderRadius: BorderRadius.circular(12),
+          ),
           child: Row(
             mainAxisAlignment: MainAxisAlignment.center,
             children: [
-              Icon(icon, color: Colors.white, size: 20),
-              const SizedBox(width: 8),
+              Icon(icon, color: AppColors.primaryDark, size: 18),
+              const SizedBox(width: 7),
               Text(
                 label,
-                style: TextStyle(
-                  color: Colors.white,
+                style: const TextStyle(
+                  color: AppColors.primaryDark,
                   fontWeight: FontWeight.w600,
+                  fontSize: 13,
                 ),
               ),
             ],
@@ -271,7 +289,7 @@ class BudgetScreen extends ConsumerWidget {
       ..sort((a, b) => b.value.compareTo(a.value));
 
     return Container(
-      height: 90,
+      height: 42,
       margin: const EdgeInsets.symmetric(horizontal: 16),
       child: ListView.builder(
         scrollDirection: Axis.horizontal,
@@ -284,36 +302,41 @@ class BudgetScreen extends ConsumerWidget {
           final icon = TransactionCategories.getIcon(entry.key, false);
 
           return Container(
-            width: 80,
-            margin: const EdgeInsets.only(right: 12),
-            padding: const EdgeInsets.all(10),
+            margin: const EdgeInsets.only(right: 8),
+            padding: const EdgeInsets.symmetric(horizontal: 10),
             decoration: BoxDecoration(
               color: context.colors.cardColor,
-              borderRadius: BorderRadius.circular(12),
-              boxShadow: [
-                BoxShadow(
-                  color: Colors.black.withValues(alpha: 0.05),
-                  blurRadius: 5,
-                  offset: const Offset(0, 2),
-                ),
-              ],
+              borderRadius: BorderRadius.circular(10),
+              border: Border.all(color: context.colors.divider),
             ),
-            child: Column(
-              mainAxisAlignment: MainAxisAlignment.center,
+            child: Row(
+              mainAxisSize: MainAxisSize.min,
               children: [
-                Text(icon, style: TextStyle(fontSize: 24)),
-                const SizedBox(height: 4),
+                Text(icon, style: TextStyle(fontSize: 15)),
+                const SizedBox(width: 5),
                 Text(
                   entry.key,
-                  style: TextStyle(fontSize: 10, fontWeight: FontWeight.w500),
+                  style: TextStyle(fontSize: 10, fontWeight: FontWeight.w600),
                   maxLines: 1,
                   overflow: TextOverflow.ellipsis,
                 ),
-                Text(
-                  '${percentage.toStringAsFixed(0)}%',
-                  style: TextStyle(
-                    fontSize: 11,
-                    color: context.colors.textSecondary,
+                const SizedBox(width: 5),
+                Container(
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 5,
+                    vertical: 2,
+                  ),
+                  decoration: BoxDecoration(
+                    color: AppColors.primary.withValues(alpha: 0.12),
+                    borderRadius: BorderRadius.circular(6),
+                  ),
+                  child: Text(
+                    '${percentage.toStringAsFixed(0)}%',
+                    style: const TextStyle(
+                      fontSize: 9,
+                      color: AppColors.primaryDark,
+                      fontWeight: FontWeight.w700,
+                    ),
                   ),
                 ),
               ],
@@ -328,6 +351,7 @@ class BudgetScreen extends ConsumerWidget {
     BuildContext context,
     WidgetRef ref,
     List<BudgetTransaction> transactions,
+    String currencyCode,
   ) {
     // Group transactions by date
     final grouped = <String, List<BudgetTransaction>>{};
@@ -361,7 +385,7 @@ class BudgetScreen extends ConsumerWidget {
               ),
             ),
             ...dayTransactions.map(
-              (t) => _buildTransactionItem(context, ref, t),
+              (t) => _buildTransactionItem(context, ref, t, currencyCode),
             ),
           ],
         );
@@ -384,6 +408,7 @@ class BudgetScreen extends ConsumerWidget {
     BuildContext context,
     WidgetRef ref,
     BudgetTransaction transaction,
+    String currencyCode,
   ) {
     final isIncome = transaction.isIncome;
     final icon = TransactionCategories.getIcon(transaction.category, isIncome);
@@ -502,7 +527,7 @@ class BudgetScreen extends ConsumerWidget {
             ),
             // Amount
             Text(
-              '${isIncome ? '+' : '-'}\$${transaction.amount.toStringAsFixed(2)}',
+              '${isIncome ? '+' : '-'}${CurrencyFormatter.format(transaction.amount, currencyCode)}',
               style: TextStyle(
                 fontSize: 17,
                 fontWeight: FontWeight.bold,
@@ -656,6 +681,9 @@ class BudgetScreen extends ConsumerWidget {
     final amountController = TextEditingController();
     final descriptionController = TextEditingController();
     final isIncome = type == 'income';
+    final currencyCode =
+        ref.read(currencyProvider).value ?? CurrencyFormatter.defaultCode;
+    final currencySymbol = CurrencyFormatter.optionFor(currencyCode).symbol;
 
     final categories = isIncome
         ? TransactionCategories.getIncomeNames()
@@ -664,200 +692,247 @@ class BudgetScreen extends ConsumerWidget {
     String selectedCategory = categories.first;
     DateTime selectedDate = DateTime.now();
 
-    showDialog(
+    showModalBottomSheet(
       context: context,
+      isScrollControlled: true,
+      backgroundColor: Colors.transparent,
       builder: (context) => StatefulBuilder(
-        builder: (context, setState) => AlertDialog(
-          shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(20),
+        builder: (context, setState) => Padding(
+          padding: EdgeInsets.only(
+            bottom: MediaQuery.of(context).viewInsets.bottom,
           ),
-          title: Row(
-            children: [
-              Container(
-                padding: const EdgeInsets.all(8),
-                decoration: BoxDecoration(
-                  color: (isIncome ? Colors.green : Colors.red).withValues(
-                    alpha: 0.1,
-                  ),
-                  borderRadius: BorderRadius.circular(8),
-                ),
-                child: Icon(
-                  isIncome ? Icons.arrow_downward : Icons.arrow_upward,
-                  color: isIncome ? Colors.green : Colors.red,
-                  size: 20,
-                ),
+          child: Container(
+            padding: const EdgeInsets.all(24),
+            decoration: BoxDecoration(
+              color: context.colors.cardColor,
+              borderRadius: const BorderRadius.vertical(
+                top: Radius.circular(28),
               ),
-              const SizedBox(width: 12),
-              Text('Add ${isIncome ? 'Income' : 'Expense'}'),
-            ],
-          ),
-          content: SingleChildScrollView(
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                // Amount field
-                TextField(
-                  controller: amountController,
-                  decoration: InputDecoration(
-                    labelText: 'Amount',
-                    hintText: '0.00',
-                    prefixText: '\$ ',
-                    border: OutlineInputBorder(
-                      borderRadius: BorderRadius.circular(12),
-                    ),
-                    focusedBorder: OutlineInputBorder(
-                      borderRadius: BorderRadius.circular(12),
-                      borderSide: BorderSide(
-                        color: isIncome ? Colors.green : Colors.red,
-                        width: 2,
+            ),
+            child: SingleChildScrollView(
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Center(
+                    child: Container(
+                      width: 40,
+                      height: 4,
+                      decoration: BoxDecoration(
+                        color: context.colors.divider,
+                        borderRadius: BorderRadius.circular(2),
                       ),
                     ),
                   ),
-                  keyboardType: const TextInputType.numberWithOptions(
-                    decimal: true,
-                  ),
-                  autofocus: true,
-                ),
-                const SizedBox(height: 16),
-
-                // Category dropdown
-                DropdownButtonFormField<String>(
-                  initialValue: selectedCategory,
-                  decoration: InputDecoration(
-                    labelText: 'Category',
-                    border: OutlineInputBorder(
-                      borderRadius: BorderRadius.circular(12),
+                  const SizedBox(height: 20),
+                  Text(
+                    isIncome ? '➕ New Income' : '➖ New Expense',
+                    style: TextStyle(
+                      fontSize: 22,
+                      fontWeight: FontWeight.bold,
+                      color: context.colors.textPrimary,
                     ),
                   ),
-                  items: categories.map((cat) {
-                    final icon = TransactionCategories.getIcon(cat, isIncome);
-                    return DropdownMenuItem(
-                      value: cat,
+                  const SizedBox(height: 20),
+                  TextField(
+                    controller: amountController,
+                    decoration: InputDecoration(
+                      hintText: 'Amount *',
+                      prefixText: currencySymbol,
+                      hintStyle: TextStyle(
+                        color: context.colors.textSecondary,
+                        fontSize: 14,
+                      ),
+                      filled: true,
+                      fillColor: context.colors.cardColor2,
+                      border: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(14),
+                        borderSide: BorderSide.none,
+                      ),
+                      contentPadding: const EdgeInsets.symmetric(
+                        horizontal: 16,
+                        vertical: 14,
+                      ),
+                    ),
+                    keyboardType: const TextInputType.numberWithOptions(
+                      decimal: true,
+                    ),
+                    autofocus: true,
+                  ),
+                  const SizedBox(height: 12),
+                  DropdownButtonFormField<String>(
+                    initialValue: selectedCategory,
+                    decoration: InputDecoration(
+                      hintText: 'Category',
+                      filled: true,
+                      fillColor: context.colors.cardColor2,
+                      border: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(14),
+                        borderSide: BorderSide.none,
+                      ),
+                      contentPadding: const EdgeInsets.symmetric(
+                        horizontal: 16,
+                        vertical: 14,
+                      ),
+                    ),
+                    borderRadius: BorderRadius.circular(14),
+                    items: categories.map((cat) {
+                      final icon = TransactionCategories.getIcon(cat, isIncome);
+                      return DropdownMenuItem(
+                        value: cat,
+                        child: Row(
+                          children: [
+                            Text(icon),
+                            const SizedBox(width: 10),
+                            Text(cat),
+                          ],
+                        ),
+                      );
+                    }).toList(),
+                    onChanged: (value) {
+                      if (value != null) {
+                        setState(() => selectedCategory = value);
+                      }
+                    },
+                  ),
+                  const SizedBox(height: 12),
+                  TextField(
+                    controller: descriptionController,
+                    decoration: InputDecoration(
+                      hintText: 'Add details (optional)',
+                      hintStyle: TextStyle(
+                        color: context.colors.textSecondary,
+                        fontSize: 14,
+                      ),
+                      filled: true,
+                      fillColor: context.colors.cardColor2,
+                      border: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(14),
+                        borderSide: BorderSide.none,
+                      ),
+                      contentPadding: const EdgeInsets.symmetric(
+                        horizontal: 16,
+                        vertical: 14,
+                      ),
+                    ),
+                    maxLines: 2,
+                    textCapitalization: TextCapitalization.sentences,
+                  ),
+                  const SizedBox(height: 12),
+                  GestureDetector(
+                    onTap: () async {
+                      final date = await showDatePicker(
+                        context: context,
+                        initialDate: selectedDate,
+                        firstDate: DateTime(2020),
+                        lastDate: DateTime.now(),
+                      );
+                      if (date != null) {
+                        setState(() => selectedDate = date);
+                      }
+                    },
+                    child: Container(
+                      padding: const EdgeInsets.all(14),
+                      decoration: BoxDecoration(
+                        color: context.colors.cardColor2,
+                        borderRadius: BorderRadius.circular(14),
+                        border: Border.all(color: context.colors.divider),
+                      ),
                       child: Row(
                         children: [
-                          Text(icon),
+                          Icon(
+                            Icons.calendar_today_outlined,
+                            color: AppColors.primary,
+                            size: 20,
+                          ),
                           const SizedBox(width: 10),
-                          Text(cat),
+                          Expanded(
+                            child: Text(
+                              DateFormat(
+                                'EEE, MMM d, yyyy',
+                              ).format(selectedDate),
+                              style: TextStyle(
+                                fontSize: 14,
+                                color: context.colors.textPrimary,
+                              ),
+                            ),
+                          ),
                         ],
                       ),
-                    );
-                  }).toList(),
-                  onChanged: (value) {
-                    if (value != null) {
-                      setState(() => selectedCategory = value);
-                    }
-                  },
-                ),
-                const SizedBox(height: 16),
-
-                // Description field
-                TextField(
-                  controller: descriptionController,
-                  decoration: InputDecoration(
-                    labelText: 'Description (optional)',
-                    hintText: 'Add details...',
-                    border: OutlineInputBorder(
-                      borderRadius: BorderRadius.circular(12),
                     ),
                   ),
-                  maxLines: 2,
-                ),
-                const SizedBox(height: 16),
+                  const SizedBox(height: 24),
+                  SizedBox(
+                    width: double.infinity,
+                    child: ElevatedButton(
+                      onPressed: () {
+                        final amountText = amountController.text.trim();
+                        if (amountText.isEmpty) {
+                          ScaffoldMessenger.of(context).showSnackBar(
+                            const SnackBar(
+                              content: Text('Please enter an amount'),
+                            ),
+                          );
+                          return;
+                        }
 
-                // Date picker
-                InkWell(
-                  onTap: () async {
-                    final date = await showDatePicker(
-                      context: context,
-                      initialDate: selectedDate,
-                      firstDate: DateTime(2020),
-                      lastDate: DateTime.now(),
-                    );
-                    if (date != null) {
-                      setState(() => selectedDate = date);
-                    }
-                  },
-                  child: Container(
-                    padding: const EdgeInsets.all(16),
-                    decoration: BoxDecoration(
-                      border: Border.all(color: context.colors.divider),
-                      borderRadius: BorderRadius.circular(12),
-                    ),
-                    child: Row(
-                      children: [
-                        Icon(
-                          Icons.calendar_today,
-                          color: context.colors.textSecondary,
+                        final amount = double.tryParse(amountText);
+                        if (amount == null || amount <= 0) {
+                          ScaffoldMessenger.of(context).showSnackBar(
+                            const SnackBar(
+                              content: Text('Please enter a valid amount'),
+                            ),
+                          );
+                          return;
+                        }
+
+                        ref
+                            .read(transactionProvider.notifier)
+                            .addTransaction(
+                              type: type,
+                              amount: amount,
+                              category: selectedCategory,
+                              description: descriptionController.text.isNotEmpty
+                                  ? descriptionController.text.trim()
+                                  : null,
+                              date: selectedDate,
+                            );
+
+                        Navigator.pop(context);
+
+                        ScaffoldMessenger.of(context).showSnackBar(
+                          SnackBar(
+                            content: Text(
+                              '${isIncome ? 'Income' : 'Expense'} added!',
+                            ),
+                            backgroundColor: AppColors.primary,
+                            behavior: SnackBarBehavior.floating,
+                          ),
+                        );
+                      },
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: AppColors.primary,
+                        foregroundColor: Colors.white,
+                        padding: const EdgeInsets.symmetric(vertical: 16),
+                        elevation: 0,
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(16),
                         ),
-                        const SizedBox(width: 12),
-                        Text(
-                          DateFormat('EEEE, MMM d, yyyy').format(selectedDate),
-                          style: TextStyle(fontSize: 15),
+                      ),
+                      child: Text(
+                        isIncome ? 'Add Income' : 'Add Expense',
+                        style: TextStyle(
+                          fontSize: 16,
+                          fontWeight: FontWeight.bold,
                         ),
-                      ],
+                      ),
                     ),
                   ),
-                ),
-              ],
+                  const SizedBox(height: 8),
+                ],
+              ),
             ),
           ),
-          actions: [
-            TextButton(
-              onPressed: () => Navigator.pop(context),
-              child: Text('Cancel'),
-            ),
-            ElevatedButton(
-              onPressed: () {
-                final amountText = amountController.text.trim();
-                if (amountText.isEmpty) {
-                  ScaffoldMessenger.of(context).showSnackBar(
-                    const SnackBar(content: Text('Please enter an amount')),
-                  );
-                  return;
-                }
-
-                final amount = double.tryParse(amountText);
-                if (amount == null || amount <= 0) {
-                  ScaffoldMessenger.of(context).showSnackBar(
-                    const SnackBar(
-                      content: Text('Please enter a valid amount'),
-                    ),
-                  );
-                  return;
-                }
-
-                ref
-                    .read(transactionProvider.notifier)
-                    .addTransaction(
-                      type: type,
-                      amount: amount,
-                      category: selectedCategory,
-                      description: descriptionController.text.isNotEmpty
-                          ? descriptionController.text.trim()
-                          : null,
-                      date: selectedDate,
-                    );
-
-                Navigator.pop(context);
-
-                ScaffoldMessenger.of(context).showSnackBar(
-                  SnackBar(
-                    content: Text('${isIncome ? 'Income' : 'Expense'} added!'),
-                    backgroundColor: isIncome ? Colors.green : Colors.red,
-                    behavior: SnackBarBehavior.floating,
-                  ),
-                );
-              },
-              style: ElevatedButton.styleFrom(
-                backgroundColor: isIncome ? Colors.green : Colors.red,
-                foregroundColor: Colors.white,
-                shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(8),
-                ),
-              ),
-              child: Text('Add'),
-            ),
-          ],
         ),
       ),
     );

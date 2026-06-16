@@ -6,7 +6,9 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:intl/intl.dart';
 import 'package:personal_haven/core/constants/app_colors.dart';
 import 'package:personal_haven/core/utils/affirmations_helper.dart';
+import 'package:personal_haven/core/utils/currency_formatter.dart';
 import 'package:personal_haven/data/data_sources/local/shared_prefs_helper.dart';
+import 'package:personal_haven/data/models/event.dart';
 import 'package:personal_haven/data/models/food_entry.dart';
 import 'package:personal_haven/data/models/goal.dart';
 import 'package:personal_haven/data/models/journal_entry.dart';
@@ -180,6 +182,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen>
     final journalState = ref.watch(journalProvider);
     final streakAsync = ref.watch(streakProvider);
     final streakState = streakAsync.value ?? const StreakState();
+    final upcomingEvents = _upcomingEventsFromNow(eventState.events);
 
     if (_isLoading || moodState.isLoading) {
       return const Scaffold(
@@ -244,7 +247,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen>
                           ],
 
                           // Events
-                          _animated(5, _buildEventsCard(eventState.events)),
+                          _animated(5, _buildEventsCard(upcomingEvents)),
                           const SizedBox(height: 14),
 
                           // Food (conditional)
@@ -854,7 +857,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen>
             children: [
               _buildStatItem(
                 emoji: '🌱',
-                label: 'Tasks',
+                label: _unitLabel(taskState.completedCount, 'task'),
                 value: '${taskState.completedCount}',
                 color: const Color(0xFFFF9A9E),
                 onTap: () => _navigateTo(3),
@@ -862,7 +865,10 @@ class _HomeScreenState extends ConsumerState<HomeScreen>
               const SizedBox(width: 12),
               _buildStatItem(
                 emoji: '✍️',
-                label: 'Journals',
+                label: _unitLabel(
+                  journalState?.todayEntries.length ?? 0,
+                  'journal',
+                ),
                 value: '${journalState?.todayEntries.length ?? 0}',
                 color: const Color(0xFFFFB347),
                 onTap: () => _navigateTo(1),
@@ -870,7 +876,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen>
               const SizedBox(width: 12),
               _buildStatItem(
                 emoji: '💪',
-                label: 'Goals',
+                label: _unitLabel(goalState.activeCount, 'goal'),
                 value: '${goalState.activeCount}',
                 color: const Color(0xFF667eea),
                 onTap: () => _navigateTo(2),
@@ -887,7 +893,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen>
                 if (taskState.pendingCount > 0)
                   Expanded(
                     child: Text(
-                      '${taskState.pendingCount} tasks pending',
+                      '${taskState.pendingCount} ${_unitLabel(taskState.pendingCount, 'task')} pending',
                       style: TextStyle(
                         fontSize: 12,
                         color: context.colors.textSecondary,
@@ -896,7 +902,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen>
                   ),
                 if (goalState.completedCount > 0)
                   Text(
-                    '${goalState.completedCount} goals done 🎉',
+                    '${goalState.completedCount} ${_unitLabel(goalState.completedCount, 'goal')} done 🎉',
                     style: TextStyle(
                       fontSize: 12,
                       color: Colors.green.shade600,
@@ -951,6 +957,10 @@ class _HomeScreenState extends ConsumerState<HomeScreen>
         ),
       ),
     );
+  }
+
+  String _unitLabel(int count, String singular) {
+    return count == 1 ? singular : '${singular}s';
   }
 
   // ─── GOALS CARD ───────────────────────────────────────────────
@@ -1035,7 +1045,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen>
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
               Text(
-                '${goal.currentValue.toStringAsFixed(0)}/${goal.targetValue.toStringAsFixed(0)} ${goal.unit}',
+                '${CurrencyFormatter.formatUnitAmount(goal.currentValue, goal.unit)} / ${CurrencyFormatter.formatUnitAmount(goal.targetValue, goal.unit)}',
                 style: TextStyle(
                   fontSize: 11,
                   color: context.colors.textSecondary,
@@ -1076,27 +1086,31 @@ class _HomeScreenState extends ConsumerState<HomeScreen>
             spacing: 8,
             runSpacing: 8,
             children: sorted.take(5).map((entry) {
+              final mood = MoodOptions.getByEmoji(entry.key);
+              final label = mood?.label ?? _shortMoodLabel(entry.key);
+              final color = mood?.color ?? AppColors.primary;
+
               return Container(
                 padding: const EdgeInsets.symmetric(
-                  horizontal: 12,
-                  vertical: 6,
+                  horizontal: 10,
+                  vertical: 7,
                 ),
                 decoration: BoxDecoration(
-                  color: context.colors.cardColor2,
-                  borderRadius: BorderRadius.circular(16),
-                  border: Border.all(color: context.colors.divider),
+                  color: color.withValues(alpha: 0.12),
+                  borderRadius: BorderRadius.circular(12),
+                  border: Border.all(color: color.withValues(alpha: 0.28)),
                 ),
                 child: Row(
                   mainAxisSize: MainAxisSize.min,
                   children: [
-                    Text(entry.key, style: TextStyle(fontSize: 18)),
-                    const SizedBox(width: 5),
+                    Text(entry.key, style: TextStyle(fontSize: 16)),
+                    const SizedBox(width: 6),
                     Text(
-                      '×${entry.value}',
+                      label,
                       style: TextStyle(
                         fontSize: 12,
-                        fontWeight: FontWeight.w600,
-                        color: context.colors.textSecondary,
+                        fontWeight: FontWeight.w700,
+                        color: context.colors.textPrimary,
                       ),
                     ),
                   ],
@@ -1210,7 +1224,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen>
                   task.title,
                   style: TextStyle(
                     fontSize: 14,
-                    fontWeight: FontWeight.w500,
+                    fontWeight: FontWeight.bold,
                     decoration: task.isCompleted
                         ? TextDecoration.lineThrough
                         : null,
@@ -1251,7 +1265,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen>
 
   // ─── EVENTS CARD ──────────────────────────────────────────────
 
-  Widget _buildEventsCard(List events) {
+  Widget _buildEventsCard(List<Event> events) {
     return _glassCard(
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -1268,7 +1282,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen>
             )
           else
             ...events.take(3).map((event) {
-              final time = _formatEventTime(event);
+              final schedule = _formatEventSchedule(event);
               return Padding(
                 padding: const EdgeInsets.only(bottom: 10),
                 child: Row(
@@ -1291,21 +1305,36 @@ class _HomeScreenState extends ConsumerState<HomeScreen>
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
                           Text(
-                            event.title ?? 'Untitled Event',
+                            event.title,
                             style: TextStyle(
                               fontSize: 14,
                               fontWeight: FontWeight.w600,
-                              color: Color(0xFF2D3E40),
+                              color: context.colors.textPrimary,
                             ),
                           ),
-                          if (time.isNotEmpty)
-                            Text(
-                              time,
-                              style: TextStyle(
-                                fontSize: 11,
-                                color: context.colors.textSecondary,
+                          const SizedBox(height: 3),
+                          Row(
+                            children: [
+                              Icon(
+                                event.isAllDay
+                                    ? Icons.calendar_today_outlined
+                                    : Icons.schedule_rounded,
+                                size: 13,
+                                color: AppColors.primaryDark,
                               ),
-                            ),
+                              const SizedBox(width: 4),
+                              Expanded(
+                                child: Text(
+                                  schedule,
+                                  style: TextStyle(
+                                    fontSize: 11,
+                                    fontWeight: FontWeight.w600,
+                                    color: context.colors.textSecondary,
+                                  ),
+                                ),
+                              ),
+                            ],
+                          ),
                         ],
                       ),
                     ),
@@ -1361,7 +1390,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen>
               children: [
                 Text(
                   entry.title,
-                  style: TextStyle(fontSize: 14, fontWeight: FontWeight.w500),
+                  style: TextStyle(fontSize: 14, fontWeight: FontWeight.bold),
                   maxLines: 1,
                   overflow: TextOverflow.ellipsis,
                 ),
@@ -1580,18 +1609,66 @@ class _HomeScreenState extends ConsumerState<HomeScreen>
     return 'Good Evening 🌙';
   }
 
-  String _formatEventTime(dynamic event) {
-    try {
-      if (event.eventTime != null && event.eventTime.toString().isNotEmpty) {
-        return event.eventTime.toString();
-      }
-      if (event.eventDate != null) {
-        final date = event.eventDate is DateTime
-            ? event.eventDate
-            : DateTime.tryParse(event.eventDate.toString());
-        if (date != null) return DateFormat('MMM d, h:mm a').format(date);
-      }
-    } catch (_) {}
-    return '';
+  String _formatEventSchedule(Event event) {
+    final now = DateTime.now();
+    final today = DateTime(now.year, now.month, now.day);
+    final eventDay = DateTime(
+      event.eventDate.year,
+      event.eventDate.month,
+      event.eventDate.day,
+    );
+    final dayLabel = eventDay == today
+        ? 'Today'
+        : eventDay == today.add(const Duration(days: 1))
+        ? 'Tomorrow'
+        : DateFormat('EEE, MMM d').format(event.eventDate);
+
+    if (event.isAllDay || event.startTime == null) {
+      return '$dayLabel · All day';
+    }
+    return '$dayLabel · ${DateFormat('h:mm a').format(event.startTime!)}';
+  }
+
+  List<Event> _upcomingEventsFromNow(List<Event> events) {
+    final now = DateTime.now();
+    final upcoming =
+        events.where((event) => _eventVisibleUntil(event).isAfter(now)).toList()
+          ..sort((a, b) => _eventSortTime(a).compareTo(_eventSortTime(b)));
+    return upcoming;
+  }
+
+  DateTime _eventSortTime(Event event) {
+    return event.startTime ?? event.eventDate;
+  }
+
+  DateTime _eventVisibleUntil(Event event) {
+    if (event.endTime != null) return event.endTime!;
+    if (!event.isAllDay && event.startTime != null) return event.startTime!;
+    return DateTime(
+      event.eventDate.year,
+      event.eventDate.month,
+      event.eventDate.day,
+      23,
+      59,
+      59,
+      999,
+    );
+  }
+
+  String _shortMoodLabel(String value) {
+    const labels = {
+      '😀': 'Happy',
+      '😃': 'Happy',
+      '😄': 'Happy',
+      '😁': 'Happy',
+      '🙂': 'Good',
+      '😡': 'Angry',
+      '😠': 'Angry',
+      '😞': 'Sad',
+      '😭': 'Sad',
+      '😟': 'Worried',
+      '😨': 'Anxious',
+    };
+    return labels[value] ?? 'Mood';
   }
 }

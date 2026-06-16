@@ -3,6 +3,8 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:intl/intl.dart';
 import 'package:personal_haven/core/constants/app_colors.dart';
 import 'package:personal_haven/core/theme/app_theme.dart';
+import 'package:personal_haven/core/utils/currency_formatter.dart';
+import 'package:personal_haven/providers/currency_provider.dart';
 import 'package:personal_haven/providers/event_provider.dart';
 import 'package:personal_haven/providers/goal_provider.dart';
 import 'package:personal_haven/providers/task_provider.dart';
@@ -55,6 +57,8 @@ class _HavenAiChatSheetState extends ConsumerState<HavenAiChatSheet> {
     _scrollToBottom();
 
     final command = _PlannerCommand.parse(text);
+    final currencyCode =
+        ref.read(currencyProvider).value ?? CurrencyFormatter.defaultCode;
     if (command == null) {
       _reply(
         'I could not tell what to add. Try “add a task…”, “create a goal…”, or “schedule an event…”.',
@@ -80,7 +84,7 @@ class _HavenAiChatSheetState extends ConsumerState<HavenAiChatSheet> {
               .addGoal(
                 title: command.title,
                 targetValue: command.targetValue ?? 1,
-                unit: command.unit ?? 'count',
+                unit: command.unit ?? currencyCode,
                 targetDate: command.dateTime,
                 category: command.category ?? 'personal',
               );
@@ -462,7 +466,13 @@ class _PlannerCommand {
         ? double.tryParse(targetMatch.group(1)!.replaceAll(',', ''))
         : null;
     final unitToken = targetMatch?.group(2)?.toLowerCase();
-    final unit = unitToken == 'books' ? 'count' : unitToken;
+    final unit = unitToken == null
+        ? null
+        : CurrencyFormatter.isCurrencyUnit(unitToken)
+        ? unitToken.toUpperCase()
+        : unitToken == 'books'
+        ? 'count'
+        : unitToken;
 
     var title = input
         .replaceFirst(

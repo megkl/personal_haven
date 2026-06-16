@@ -147,21 +147,6 @@ class ProfileScreen extends ConsumerWidget {
                   children: [
                     _buildProfileOption(
                       context,
-                      Icons.favorite,
-                      'My Favorites',
-                      AppColors.primary,
-                      () {
-                        Navigator.push(
-                          context,
-                          MaterialPageRoute(
-                            builder: (_) => const FavoritesScreen(),
-                          ),
-                        );
-                      },
-                    ),
-                    const Divider(),
-                    _buildProfileOption(
-                      context,
                       Icons.show_chart,
                       'Mood Insights',
                       AppColors.primary,
