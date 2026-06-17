@@ -5,6 +5,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:intl/intl.dart';
 import 'package:personal_haven/core/constants/app_colors.dart';
 import 'package:personal_haven/data/models/goal.dart';
+import 'package:personal_haven/presentation/widgets/common/app_confirm_dialog.dart';
 import 'package:personal_haven/providers/currency_provider.dart';
 import 'package:personal_haven/providers/goal_provider.dart';
 
@@ -721,15 +722,34 @@ class _GoalsScreenState extends ConsumerState<GoalsScreen>
     showDialog(
       context: context,
       builder: (context) => AlertDialog(
+        backgroundColor: context.colors.cardColor,
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
         title: Row(
           children: [
-            Text('📈 '),
+            Container(
+              width: 38,
+              height: 38,
+              decoration: BoxDecoration(
+                color: AppColors.primary.withValues(alpha: 0.1),
+                borderRadius: BorderRadius.circular(12),
+              ),
+              child: const Icon(
+                Icons.trending_up_rounded,
+                color: AppColors.primary,
+                size: 20,
+              ),
+            ),
+            const SizedBox(width: 10),
             Expanded(
               child: Text(
-                'Update: ${goal.title}',
+                'Update progress',
                 maxLines: 1,
                 overflow: TextOverflow.ellipsis,
+                style: TextStyle(
+                  color: context.colors.textPrimary,
+                  fontSize: 18,
+                  fontWeight: FontWeight.w800,
+                ),
               ),
             ),
           ],
@@ -745,6 +765,7 @@ class _GoalsScreenState extends ConsumerState<GoalsScreen>
                     'Current: ${CurrencyFormatter.formatUnitAmount(goal.currentValue, goal.unit)}',
                     maxLines: 1,
                     overflow: TextOverflow.ellipsis,
+                    style: TextStyle(color: context.colors.textSecondary),
                   ),
                 ),
                 const SizedBox(width: 12),
@@ -754,9 +775,23 @@ class _GoalsScreenState extends ConsumerState<GoalsScreen>
                     maxLines: 1,
                     overflow: TextOverflow.ellipsis,
                     textAlign: TextAlign.end,
+                    style: TextStyle(color: context.colors.textSecondary),
                   ),
                 ),
               ],
+            ),
+            const SizedBox(height: 8),
+            Align(
+              alignment: Alignment.centerLeft,
+              child: Text(
+                goal.title,
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+                style: TextStyle(
+                  color: context.colors.textPrimary,
+                  fontWeight: FontWeight.w700,
+                ),
+              ),
             ),
             const SizedBox(height: 16),
             TextField(
@@ -764,8 +799,11 @@ class _GoalsScreenState extends ConsumerState<GoalsScreen>
               decoration: InputDecoration(
                 labelText: 'New Progress',
                 suffixText: goal.unit,
+                filled: true,
+                fillColor: context.colors.cardColor2,
                 border: OutlineInputBorder(
                   borderRadius: BorderRadius.circular(12),
+                  borderSide: BorderSide.none,
                 ),
               ),
               keyboardType: const TextInputType.numberWithOptions(
@@ -806,6 +844,9 @@ class _GoalsScreenState extends ConsumerState<GoalsScreen>
             style: ElevatedButton.styleFrom(
               backgroundColor: AppColors.primary,
               foregroundColor: Colors.white,
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(12),
+              ),
             ),
             child: Text('Update'),
           ),
@@ -835,30 +876,18 @@ class _GoalsScreenState extends ConsumerState<GoalsScreen>
   }
 
   void _confirmDelete(Goal goal) {
-    showDialog(
+    showAppConfirmDialog(
       context: context,
-      builder: (context) => AlertDialog(
-        title: Text('Delete Goal?'),
-        content: Text('Are you sure you want to delete "${goal.title}"?'),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(context),
-            child: Text('Cancel'),
-          ),
-          ElevatedButton(
-            onPressed: () {
-              ref.read(goalProvider.notifier).deleteGoal(goal.id);
-              Navigator.pop(context);
-            },
-            style: ElevatedButton.styleFrom(
-              backgroundColor: Colors.red,
-              foregroundColor: Colors.white,
-            ),
-            child: Text('Delete'),
-          ),
-        ],
-      ),
-    );
+      title: 'Delete goal?',
+      message: 'Delete "${goal.title}" and its progress history?',
+      confirmLabel: 'Delete',
+      icon: Icons.flag_outlined,
+      destructive: true,
+    ).then((confirmed) {
+      if (confirmed) {
+        ref.read(goalProvider.notifier).deleteGoal(goal.id);
+      }
+    });
   }
 
   void _showCelebration(Goal goal) {

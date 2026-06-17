@@ -303,7 +303,7 @@ class _TasksScreenState extends ConsumerState<TasksScreen>
       'low': Colors.grey,
     };
     final categoryEmojis = {
-      'personal': '✓',
+      'personal': '✨',
       'work': '💼',
       'wellness': '💪',
       'finance': '💰',
@@ -382,13 +382,16 @@ class _TasksScreenState extends ConsumerState<TasksScreen>
                   child: Padding(
                     padding: const EdgeInsets.fromLTRB(12, 12, 12, 12),
                     child: Row(
-                      crossAxisAlignment: CrossAxisAlignment.start,
+                      crossAxisAlignment: CrossAxisAlignment.center,
                       children: [
-                        TaskCompleteToggle(
-                          isCompleted: task.isCompleted,
-                          color: color,
-                          onTap: () =>
-                              ref.read(taskProvider.notifier).toggleTask(task),
+                        Center(
+                          child: TaskCompleteToggle(
+                            isCompleted: task.isCompleted,
+                            color: color,
+                            onTap: () => ref
+                                .read(taskProvider.notifier)
+                                .toggleTask(task),
+                          ),
                         ),
                         const SizedBox(width: 12),
 
@@ -440,10 +443,10 @@ class _TasksScreenState extends ConsumerState<TasksScreen>
                                   overflow: TextOverflow.ellipsis,
                                 ),
                               ],
-                              const SizedBox(height: 8),
-                              Row(
-                                children: [
-                                  if (task.dueDate != null) ...[
+                              if (task.dueDate != null) ...[
+                                const SizedBox(height: 8),
+                                Row(
+                                  children: [
                                     Icon(
                                       Icons.schedule_outlined,
                                       size: 13,
@@ -452,43 +455,30 @@ class _TasksScreenState extends ConsumerState<TasksScreen>
                                           : context.colors.textSecondary,
                                     ),
                                     const SizedBox(width: 3),
-                                    Text(
-                                      _formatDueDate(task.dueDate!),
-                                      style: TextStyle(
-                                        fontSize: 11,
-                                        color: task.isOverdue
-                                            ? Colors.red
-                                            : context.colors.textSecondary,
-                                        fontWeight: task.isOverdue
-                                            ? FontWeight.w600
-                                            : FontWeight.normal,
+                                    Flexible(
+                                      child: Text(
+                                        _formatDueDate(task.dueDate!),
+                                        maxLines: 1,
+                                        overflow: TextOverflow.ellipsis,
+                                        style: TextStyle(
+                                          fontSize: 11,
+                                          color: task.isOverdue
+                                              ? Colors.red
+                                              : context.colors.textSecondary,
+                                          fontWeight: task.isOverdue
+                                              ? FontWeight.w600
+                                              : FontWeight.normal,
+                                        ),
                                       ),
                                     ),
-                                    const SizedBox(width: 10),
                                   ],
-                                  Container(
-                                    padding: const EdgeInsets.symmetric(
-                                      horizontal: 7,
-                                      vertical: 2,
-                                    ),
-                                    decoration: BoxDecoration(
-                                      color: color.withValues(alpha: 0.1),
-                                      borderRadius: BorderRadius.circular(6),
-                                    ),
-                                    child: Text(
-                                      task.priority.toUpperCase(),
-                                      style: TextStyle(
-                                        fontSize: 9,
-                                        fontWeight: FontWeight.bold,
-                                        color: color,
-                                      ),
-                                    ),
-                                  ),
-                                ],
-                              ),
+                                ),
+                              ],
                             ],
                           ),
                         ),
+
+                        const SizedBox(width: 10),
 
                         // Options
                         GestureDetector(
@@ -497,6 +487,28 @@ class _TasksScreenState extends ConsumerState<TasksScreen>
                             Icons.more_vert,
                             color: context.colors.divider,
                             size: 18,
+                          ),
+                        ),
+                        const SizedBox(width: 10),
+                        Center(
+                          child: Container(
+                            padding: const EdgeInsets.symmetric(
+                              horizontal: 7,
+                              vertical: 2,
+                            ),
+                            decoration: BoxDecoration(
+                              color: color.withValues(alpha: 0.1),
+                              borderRadius: BorderRadius.circular(6),
+                            ),
+                            child: Text(
+                              task.priority.toUpperCase(),
+                              textAlign: TextAlign.center,
+                              style: TextStyle(
+                                fontSize: 9,
+                                fontWeight: FontWeight.bold,
+                                color: color,
+                              ),
+                            ),
                           ),
                         ),
                       ],
@@ -804,7 +816,7 @@ class _TaskDetailsSheet extends StatelessWidget {
       'low': Colors.grey,
     };
     final categoryEmojis = {
-      'personal': '✅',
+      'personal': '✨',
       'work': '💼',
       'wellness': '💪',
       'finance': '💰',
@@ -1042,7 +1054,7 @@ class _AddEditTaskSheetState extends State<_AddEditTaskSheet> {
     'low': '⚪',
   };
   final _categoryEmojis = {
-    'personal': '',
+    'personal': '✨',
     'work': '💼',
     'wellness': '💪',
     'finance': '💰',

@@ -193,7 +193,7 @@ class _SubscriptionScreenState extends ConsumerState<SubscriptionScreen> {
         content: Text(
           'Card payments are processed via our secure payment gateway.\n\n'
           'You will be redirected to complete your payment.\n\n'
-          'Coming soon — contact support@personalhaven.app to pay by card.',
+          'Coming soon — contact personalhaven@megnifylabs.com to pay by card.',
         ),
         actions: [
           TextButton(
@@ -237,7 +237,7 @@ class _SubscriptionScreenState extends ConsumerState<SubscriptionScreen> {
             ),
             const SizedBox(height: 8),
             Text(
-              'After sending, email your transaction hash to:\nsupport@personalhaven.app',
+              'After sending, email your transaction hash to:\npersonalhaven@megnifylabs.com',
               style: TextStyle(
                 fontSize: 12,
                 color: context.colors.textSecondary,

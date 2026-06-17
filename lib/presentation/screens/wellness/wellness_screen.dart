@@ -19,7 +19,7 @@ class _WellnessScreenState extends State<WellnessScreen>
   static const _tabs = [
     _WellnessTab('Budget'),
     _WellnessTab('Goals'),
-    //_WellnessTab('Food'),
+    _WellnessTab('Food'),
   ];
 
   @override

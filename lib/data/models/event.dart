@@ -257,7 +257,7 @@ class EventCategory {
 
 class EventCategories {
   static const List<EventCategory> all = [
-    EventCategory(name: 'personal', emoji: '🏠', colorValue: 0xFF4ECDC4),
+    EventCategory(name: 'personal', emoji: '🎪', colorValue: 0xFF4ECDC4),
     EventCategory(name: 'work', emoji: '💼', colorValue: 0xFF6BCB77),
     EventCategory(name: 'health', emoji: '🏥', colorValue: 0xFFFF6B6B),
     EventCategory(name: 'social', emoji: '👥', colorValue: 0xFFFFB347),

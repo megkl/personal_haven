@@ -4,6 +4,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:intl/intl.dart';
 import 'package:personal_haven/core/constants/app_colors.dart';
 import 'package:personal_haven/data/models/journal_entry.dart';
+import 'package:personal_haven/presentation/widgets/common/app_confirm_dialog.dart';
 import 'package:personal_haven/providers/journal_provider.dart';
 
 class JournalScreen extends ConsumerStatefulWidget {
@@ -155,7 +156,11 @@ class _JournalScreenState extends ConsumerState<JournalScreen> {
                   color: context.colors.cardColor.withValues(alpha: 0.2),
                   shape: BoxShape.circle,
                 ),
-                child: Icon(Icons.menu_book_outlined, color: Colors.white, size: 22),
+                child: Icon(
+                  Icons.menu_book_outlined,
+                  color: Colors.white,
+                  size: 22,
+                ),
               ),
             ],
           ),
@@ -612,36 +617,23 @@ class _JournalScreenState extends ConsumerState<JournalScreen> {
   }
 
   void _confirmDelete(JournalEntry entry) {
-    showDialog(
+    showAppConfirmDialog(
       context: context,
-      builder: (context) => AlertDialog(
-        title: Text('Delete Entry?'),
-        content: Text('Are you sure you want to delete "${entry.title}"?'),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(context),
-            child: Text('Cancel'),
-          ),
-          ElevatedButton(
-            onPressed: () {
-              ref.read(journalProvider.notifier).deleteEntry(entry.id);
-              Navigator.pop(context);
-              ScaffoldMessenger.of(context).showSnackBar(
-                const SnackBar(
-                  content: Text('Entry deleted'),
-                  behavior: SnackBarBehavior.floating,
-                ),
-              );
-            },
-            style: ElevatedButton.styleFrom(
-              backgroundColor: Colors.red,
-              foregroundColor: Colors.white,
-            ),
-            child: Text('Delete'),
-          ),
-        ],
-      ),
-    );
+      title: 'Delete entry?',
+      message: 'Delete "${entry.title}" from your journal?',
+      confirmLabel: 'Delete',
+      icon: Icons.delete_outline_rounded,
+      destructive: true,
+    ).then((confirmed) {
+      if (!confirmed) return;
+      ref.read(journalProvider.notifier).deleteEntry(entry.id);
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Entry deleted'),
+          behavior: SnackBarBehavior.floating,
+        ),
+      );
+    });
   }
 }
 

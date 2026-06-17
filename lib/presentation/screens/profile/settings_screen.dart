@@ -1,9 +1,11 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:flutter/services.dart';
 import 'package:personal_haven/core/constants/app_colors.dart';
 import 'package:personal_haven/core/theme/app_theme.dart';
 import 'package:personal_haven/core/utils/currency_formatter.dart';
 import 'package:personal_haven/providers/currency_provider.dart';
+import 'package:personal_haven/providers/insights_settings_provider.dart';
 import 'package:personal_haven/providers/notification_provider.dart';
 import 'package:personal_haven/providers/theme_provider.dart';
 
@@ -21,6 +23,7 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
     final currencyCode =
         ref.watch(currencyProvider).value ?? CurrencyFormatter.defaultCode;
     final notificationPrefs = ref.watch(notificationProvider);
+    final insightsSettings = ref.watch(insightsSettingsProvider);
     final colors = context.colors;
 
     return Scaffold(
@@ -113,6 +116,61 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
                 //     },
                 //   ),
                 // ),
+              ],
+            ),
+          ),
+          //const SizedBox(height: 20),
+          //_buildReferralSection(context),
+          const SizedBox(height: 20),
+          Container(
+            padding: const EdgeInsets.all(20),
+            decoration: BoxDecoration(
+              color: colors.cardColor,
+              borderRadius: BorderRadius.circular(16),
+            ),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  'Insights',
+                  style: TextStyle(
+                    fontSize: 16,
+                    fontWeight: FontWeight.bold,
+                    color: colors.textPrimary,
+                  ),
+                ),
+                const SizedBox(height: 8),
+                Text(
+                  'Choose how often Personal Haven should prepare budget reviews.',
+                  style: TextStyle(fontSize: 13, color: colors.textSecondary),
+                ),
+                const SizedBox(height: 14),
+                _buildSettingRow(
+                  context,
+                  'Budget reviews',
+                  Icons.analytics_outlined,
+                  DropdownButton<BudgetReviewCadence>(
+                    value: insightsSettings.budgetReviewCadence,
+                    underline: const SizedBox(),
+                    dropdownColor: colors.cardColor,
+                    style: TextStyle(color: colors.textPrimary, fontSize: 14),
+                    items: BudgetReviewCadence.values
+                        .map(
+                          (cadence) => DropdownMenuItem(
+                            value: cadence,
+                            child: Text(cadence.label),
+                          ),
+                        )
+                        .toList(),
+                    onChanged: (value) {
+                      if (value != null) {
+                        ref
+                            .read(insightsSettingsProvider.notifier)
+                            .setBudgetReviewCadence(value);
+                      }
+                    },
+                  ),
+                ),
               ],
             ),
           ),
@@ -421,6 +479,76 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
             ),
           ),
           trailing,
+        ],
+      ),
+    );
+  }
+
+  Widget _buildReferralSection(BuildContext context) {
+    final colors = context.colors;
+    const referralCode = 'HAVEN-MEG';
+
+    return Container(
+      padding: const EdgeInsets.all(20),
+      decoration: BoxDecoration(
+        color: colors.cardColor,
+        borderRadius: BorderRadius.circular(16),
+      ),
+      child: Row(
+        children: [
+          Container(
+            width: 44,
+            height: 44,
+            decoration: BoxDecoration(
+              color: AppColors.primary.withValues(alpha: 0.1),
+              borderRadius: BorderRadius.circular(14),
+            ),
+            child: const Icon(
+              Icons.ios_share_rounded,
+              color: AppColors.primary,
+            ),
+          ),
+          const SizedBox(width: 14),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  'Invite a friend',
+                  style: TextStyle(
+                    fontSize: 15,
+                    fontWeight: FontWeight.w800,
+                    color: colors.textPrimary,
+                  ),
+                ),
+                const SizedBox(height: 3),
+                Text(
+                  'Referral code: $referralCode',
+                  style: TextStyle(fontSize: 12, color: colors.textSecondary),
+                ),
+              ],
+            ),
+          ),
+          OutlinedButton(
+            onPressed: () async {
+              await Clipboard.setData(const ClipboardData(text: referralCode));
+              if (!context.mounted) return;
+              ScaffoldMessenger.of(context).showSnackBar(
+                const SnackBar(
+                  content: Text('Referral code copied'),
+                  behavior: SnackBarBehavior.floating,
+                ),
+              );
+            },
+            style: OutlinedButton.styleFrom(
+              foregroundColor: AppColors.primary,
+              side: const BorderSide(color: AppColors.primary),
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(12),
+              ),
+            ),
+            child: const Text('Share'),
+          ),
         ],
       ),
     );

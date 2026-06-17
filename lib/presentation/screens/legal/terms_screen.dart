@@ -154,7 +154,7 @@ const _termsContent = [
   _Section(
     heading: '11. Contact',
     body:
-        'For questions about these Terms, contact us at support@personalhaven.app.',
+        'For questions about these Terms, contact us at personalhaven@megnifylabs.com.',
   ),
 ];
 
@@ -205,7 +205,7 @@ const _privacyContent = [
         '• Request correction of inaccurate data.\n'
         '• Request deletion of your account and all associated data.\n'
         '• Export your data (feature coming soon).\n\n'
-        'To exercise these rights, contact us at support@personalhaven.app.',
+        'To exercise these rights, contact us at personalhaven@megnifylabs.com.',
   ),
   _Section(
     heading: '6. Data Retention',
@@ -230,6 +230,6 @@ const _privacyContent = [
   _Section(
     heading: '10. Contact Us',
     body:
-        'For privacy-related questions or requests, contact:\n\nsupport@personalhaven.app',
+        'For privacy-related questions or requests, contact:\n\npersonalhaven@megnifylabs.com',
   ),
 ];

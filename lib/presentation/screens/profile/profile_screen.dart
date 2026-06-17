@@ -3,7 +3,6 @@ import 'package:personal_haven/core/theme/app_theme.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:personal_haven/core/constants/app_colors.dart';
 import 'package:personal_haven/presentation/screens/legal/terms_screen.dart';
-import 'package:personal_haven/presentation/screens/profile/favourites_screen.dart';
 import 'package:personal_haven/presentation/screens/subscription/subscription_screen.dart';
 import 'package:personal_haven/data/models/subscription.dart';
 import 'package:personal_haven/providers/subscription_provider.dart';
@@ -217,7 +216,7 @@ class ProfileScreen extends ConsumerWidget {
                     _buildProfileOption(
                       context,
                       Icons.show_chart,
-                      'Mood Insights',
+                      'Insights',
                       AppColors.primary,
                       () {
                         Navigator.push(

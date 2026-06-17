@@ -5,6 +5,7 @@ import 'package:personal_haven/core/utils/currency_formatter.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:intl/intl.dart';
 import 'package:personal_haven/data/models/transaction.dart';
+import 'package:personal_haven/presentation/widgets/common/app_confirm_dialog.dart';
 import 'package:personal_haven/providers/budget_provider.dart';
 import 'package:personal_haven/providers/currency_provider.dart';
 
@@ -395,22 +396,13 @@ class BudgetScreen extends ConsumerWidget {
         child: Icon(Icons.delete, color: Colors.white),
       ),
       confirmDismiss: (direction) async {
-        return await showDialog(
+        return await showAppConfirmDialog(
           context: context,
-          builder: (context) => AlertDialog(
-            title: Text('Delete Transaction'),
-            content: Text('Are you sure you want to delete this transaction?'),
-            actions: [
-              TextButton(
-                onPressed: () => Navigator.pop(context, false),
-                child: Text('Cancel'),
-              ),
-              TextButton(
-                onPressed: () => Navigator.pop(context, true),
-                child: Text('Delete', style: TextStyle(color: Colors.red)),
-              ),
-            ],
-          ),
+          title: 'Delete transaction?',
+          message: 'Remove this ${isIncome ? 'income' : 'expense'} entry?',
+          confirmLabel: 'Delete',
+          icon: Icons.delete_outline_rounded,
+          destructive: true,
         );
       },
       onDismissed: (_) {
