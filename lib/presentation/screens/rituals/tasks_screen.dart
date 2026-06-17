@@ -4,6 +4,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:intl/intl.dart';
 import 'package:personal_haven/core/constants/app_colors.dart';
 import 'package:personal_haven/data/models/task.dart';
+import 'package:personal_haven/presentation/widgets/common/task_complete_toggle.dart';
 import 'package:personal_haven/providers/task_provider.dart';
 
 class TasksScreen extends ConsumerStatefulWidget {
@@ -46,8 +47,7 @@ class _TasksScreenState extends ConsumerState<TasksScreen>
       body: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-                    _buildSearchBar(),
-
+          _buildSearchBar(),
           _buildTabBar(taskState),
           Expanded(
             child: TabBarView(
@@ -83,7 +83,7 @@ class _TasksScreenState extends ConsumerState<TasksScreen>
         decoration: InputDecoration(
           hintText: 'Search tasks...',
           prefixIcon: const Icon(
-            Icons.find_replace,
+            Icons.search_rounded,
             color: AppColors.primary,
             size: 20,
           ),
@@ -303,7 +303,7 @@ class _TasksScreenState extends ConsumerState<TasksScreen>
       'low': Colors.grey,
     };
     final categoryEmojis = {
-      'personal': '',
+      'personal': '✓',
       'work': '💼',
       'wellness': '💪',
       'finance': '💰',
@@ -343,21 +343,23 @@ class _TasksScreenState extends ConsumerState<TasksScreen>
       child: GestureDetector(
         onTap: () => _showTaskDetailsSheet(task),
         child: Container(
-          margin: const EdgeInsets.only(bottom: 10),
+          margin: const EdgeInsets.only(bottom: 8),
           decoration: BoxDecoration(
             color: context.colors.cardColor,
-            borderRadius: BorderRadius.circular(18),
+            borderRadius: BorderRadius.circular(14),
             border: task.isOverdue
                 ? Border.all(
                     color: Colors.red.withValues(alpha: 0.4),
-                    width: 1.5,
+                    width: 1.2,
                   )
-                : null,
+                : Border.all(color: context.colors.divider),
             boxShadow: [
               BoxShadow(
-                color: color.withValues(alpha: 0.07),
-                blurRadius: 12,
-                offset: const Offset(0, 3),
+                color: Colors.black.withValues(
+                  alpha: context.isDark ? 0.12 : 0.03,
+                ),
+                blurRadius: 8,
+                offset: const Offset(0, 2),
               ),
             ],
           ),
@@ -368,46 +370,25 @@ class _TasksScreenState extends ConsumerState<TasksScreen>
                 Container(
                   width: 5,
                   decoration: BoxDecoration(
-                    color: color,
+                    color: task.isCompleted
+                        ? AppColors.primary.withValues(alpha: 0.72)
+                        : color.withValues(alpha: 0.72),
                     borderRadius: const BorderRadius.horizontal(
-                      left: Radius.circular(18),
+                      left: Radius.circular(14),
                     ),
                   ),
                 ),
                 Expanded(
                   child: Padding(
-                    padding: const EdgeInsets.fromLTRB(14, 14, 14, 14),
+                    padding: const EdgeInsets.fromLTRB(12, 12, 12, 12),
                     child: Row(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        // Checkbox
-                        GestureDetector(
+                        TaskCompleteToggle(
+                          isCompleted: task.isCompleted,
+                          color: color,
                           onTap: () =>
                               ref.read(taskProvider.notifier).toggleTask(task),
-                          child: AnimatedContainer(
-                            duration: const Duration(milliseconds: 220),
-                            width: 26,
-                            height: 26,
-                            decoration: BoxDecoration(
-                              shape: BoxShape.circle,
-                              border: Border.all(
-                                color: task.isCompleted
-                                    ? AppColors.primary
-                                    : color,
-                                width: 2,
-                              ),
-                              color: task.isCompleted
-                                  ? AppColors.primary
-                                  : Colors.transparent,
-                            ),
-                            child: task.isCompleted
-                                ? Icon(
-                                    Icons.check,
-                                    size: 16,
-                                    color: Colors.white,
-                                  )
-                                : null,
-                          ),
                         ),
                         const SizedBox(width: 12),
 
@@ -420,7 +401,10 @@ class _TasksScreenState extends ConsumerState<TasksScreen>
                                 children: [
                                   Text(
                                     categoryEmojis[task.category] ?? '📋',
-                                    style: TextStyle(fontSize: 14),
+                                    style: TextStyle(
+                                      fontSize: 13,
+                                      color: context.colors.textSecondary,
+                                    ),
                                   ),
                                   const SizedBox(width: 6),
                                   Expanded(
@@ -431,7 +415,7 @@ class _TasksScreenState extends ConsumerState<TasksScreen>
                                         fontWeight: FontWeight.w600,
                                         color: task.isCompleted
                                             ? context.colors.textSecondary
-                                            : const Color(0xFF2D3E40),
+                                            : context.colors.textPrimary,
                                         decoration: task.isCompleted
                                             ? TextDecoration.lineThrough
                                             : null,

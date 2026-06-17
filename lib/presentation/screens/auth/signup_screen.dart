@@ -5,6 +5,7 @@ import 'package:personal_haven/presentation/screens/auth/login_screen.dart';
 import 'package:personal_haven/presentation/screens/legal/terms_screen.dart';
 import 'package:personal_haven/presentation/screens/profile/main_navigation_screen.dart';
 import 'package:personal_haven/providers/auth_provider.dart';
+import 'package:personal_haven/presentation/widgets/common/google_mark.dart';
 import 'package:personal_haven/services/social_auth_service.dart';
 
 class SignUpScreen extends ConsumerStatefulWidget {
@@ -183,13 +184,7 @@ class _SignUpScreenState extends ConsumerState<SignUpScreen> {
   }
 
   Widget _googleIcon() {
-    return Image.network(
-      'https://www.gstatic.com/firebasejs/ui/2.0.0/images/auth/google.svg',
-      width: 22,
-      height: 22,
-      errorBuilder: (_, _, _) =>
-          Icon(Icons.g_mobiledata, size: 22, color: Color(0xFF4285F4)),
-    );
+    return const GoogleMark(size: 22);
   }
 }
 

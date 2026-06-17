@@ -147,21 +147,6 @@ class ProfileScreen extends ConsumerWidget {
                   children: [
                     _buildProfileOption(
                       context,
-                      Icons.show_chart,
-                      'Mood Insights',
-                      AppColors.primary,
-                      () {
-                        Navigator.push(
-                          context,
-                          MaterialPageRoute(
-                            builder: (_) => const MoodInsightsScreen(),
-                          ),
-                        );
-                      },
-                    ),
-                    const Divider(),
-                    _buildProfileOption(
-                      context,
                       Icons.settings,
                       'App Settings',
                       AppColors.primary,
@@ -227,6 +212,21 @@ class ProfileScreen extends ConsumerWidget {
                           builder: (_) => const PrivacyPolicyScreen(),
                         ),
                       ),
+                    ),
+                    const Divider(),
+                    _buildProfileOption(
+                      context,
+                      Icons.show_chart,
+                      'Mood Insights',
+                      AppColors.primary,
+                      () {
+                        Navigator.push(
+                          context,
+                          MaterialPageRoute(
+                            builder: (_) => const MoodInsightsScreen(),
+                          ),
+                        );
+                      },
                     ),
                   ],
                 ),

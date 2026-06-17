@@ -17,6 +17,7 @@ import 'package:personal_haven/data/models/task.dart';
 import 'package:personal_haven/presentation/screens/home/widgets/haven_ai_chat_sheet.dart';
 import 'package:personal_haven/presentation/screens/home/widgets/mood_caurosel_sheet.dart';
 import 'package:personal_haven/presentation/screens/profile/main_navigation_screen.dart';
+import 'package:personal_haven/presentation/widgets/common/task_complete_toggle.dart';
 import 'package:personal_haven/providers/event_provider.dart';
 import 'package:personal_haven/providers/food_provider.dart';
 import 'package:personal_haven/providers/goal_provider.dart';
@@ -1194,26 +1195,11 @@ class _HomeScreenState extends ConsumerState<HomeScreen>
       padding: const EdgeInsets.only(bottom: 10),
       child: Row(
         children: [
-          GestureDetector(
+          TaskCompleteToggle(
+            isCompleted: task.isCompleted,
+            color: color,
+            size: 24,
             onTap: () => ref.read(taskProvider.notifier).toggleTask(task),
-            child: AnimatedContainer(
-              duration: const Duration(milliseconds: 200),
-              width: 24,
-              height: 24,
-              decoration: BoxDecoration(
-                shape: BoxShape.circle,
-                border: Border.all(
-                  color: task.isCompleted ? AppColors.primary : color,
-                  width: 2,
-                ),
-                color: task.isCompleted
-                    ? AppColors.primary
-                    : Colors.transparent,
-              ),
-              child: task.isCompleted
-                  ? Icon(Icons.check, size: 14, color: Colors.white)
-                  : null,
-            ),
           ),
           const SizedBox(width: 12),
           Expanded(
