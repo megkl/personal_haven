@@ -43,21 +43,24 @@ class MoodState {
 class MoodNotifier extends _$MoodNotifier {
   final MoodRepository _repository = MoodRepository();
 
-  String get _userId => ref.watch(currentUserIdProvider);
+  String get _userId => ref.read(currentUserIdProvider);
 
   @override
   MoodState build() {
-    if (_userId.isNotEmpty) {
-      Future.microtask(loadTodayMood);
+    final userId = ref.watch(currentUserIdProvider);
+    if (userId.isNotEmpty) {
+      Future.microtask(() => loadTodayMood(userId: userId));
     }
     return MoodState();
   }
 
-  Future<void> loadTodayMood() async {
+  Future<void> loadTodayMood({String? userId}) async {
+    final targetUserId = userId ?? _userId;
+    if (targetUserId.isEmpty) return;
     state = state.copyWith(isLoading: true);
     try {
-      final todayMood = await _repository.getTodayMood(_userId);
-      final weekMoods = await _repository.getWeekMoods(_userId);
+      final todayMood = await _repository.getTodayMood(targetUserId);
+      final weekMoods = await _repository.getWeekMoods(targetUserId);
       state = state.copyWith(
         todayMood: todayMood,
         weekMoods: weekMoods,
@@ -78,15 +81,17 @@ class MoodNotifier extends _$MoodNotifier {
     String? notes,
   }) async {
     try {
+      final userId = _userId;
+      if (userId.isEmpty) return;
       final log = await _repository.logMood(
-        userId: _userId,
+        userId: userId,
         moodLevel: moodLevel,
         moodLabel: moodLabel ?? '',
         moodEmoji: moodEmoji,
         notes: notes,
       );
       state = state.copyWith(todayMood: log);
-      await loadTodayMood();
+      await loadTodayMood(userId: userId);
       final notificationPrefs = ref.read(notificationProvider);
       if (notificationPrefs.masterEnabled && notificationPrefs.moodReminder) {
         // Notify after logging mood

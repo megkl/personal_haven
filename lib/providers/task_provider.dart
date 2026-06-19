@@ -128,11 +128,12 @@ class TaskState {
 class TaskNotifier extends _$TaskNotifier {
   final TaskRepository _repository = TaskRepository();
 
-  String get _userId => ref.watch(currentUserIdProvider);
+  String get _userId => ref.read(currentUserIdProvider);
 
   @override
   TaskState build() {
-    if (_userId.isNotEmpty) {
+    final userId = ref.watch(currentUserIdProvider);
+    if (userId.isNotEmpty) {
       Future.microtask(loadTasks);
     }
     return TaskState();

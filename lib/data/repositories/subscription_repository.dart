@@ -38,6 +38,15 @@ class SubscriptionRepository {
     return snap.docs.map((d) => Subscription.fromFirestore(d)).toList();
   }
 
+  /// Manual override used for admin/test access on users/{uid}.isPremium.
+  Future<bool> hasPremiumOverride(String userId) async {
+    final doc = await FirebaseFirestore.instance
+        .collection('users')
+        .doc(userId)
+        .get();
+    return doc.data()?['isPremium'] as bool? ?? false;
+  }
+
   /// Check if the user has ever used their free trial.
   Future<bool> hasUsedTrial(String userId) async {
     final snap = await _fs.query(
@@ -48,7 +57,7 @@ class SubscriptionRepository {
     return snap.docs.isNotEmpty;
   }
 
-  /// Create a free 30-day trial subscription (once per user).
+  /// Create a free 7-day trial subscription (once per user).
   Future<Subscription> createTrial(String userId) async {
     final now = DateTime.now();
     final sub = Subscription(
@@ -104,9 +113,8 @@ class SubscriptionRepository {
 
   /// Sync isPremium on the user profile document.
   Future<void> _updateUserPremium(String userId, bool isPremium) async {
-    await FirebaseFirestore.instance
-        .collection('users')
-        .doc(userId)
-        .update({'isPremium': isPremium});
+    await FirebaseFirestore.instance.collection('users').doc(userId).update({
+      'isPremium': isPremium,
+    });
   }
 }

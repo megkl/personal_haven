@@ -9,20 +9,29 @@ part 'subscription_provider.g.dart';
 
 class SubscriptionState {
   final Subscription? active;
+  final bool premiumOverride;
   final bool isLoading;
   final String? error;
 
-  const SubscriptionState({this.active, this.isLoading = true, this.error});
+  const SubscriptionState({
+    this.active,
+    this.premiumOverride = false,
+    this.isLoading = true,
+    this.error,
+  });
 
-  bool get isPremium => active?.isActive ?? false;
+  bool get isPremium => (active?.isActive ?? false) || premiumOverride;
+  bool get hasFullAccess => isPremium;
 
   SubscriptionState copyWith({
     Subscription? active,
+    bool? premiumOverride,
     bool? isLoading,
     String? error,
   }) {
     return SubscriptionState(
       active: active ?? this.active,
+      premiumOverride: premiumOverride ?? this.premiumOverride,
       isLoading: isLoading ?? this.isLoading,
       error: error,
     );
@@ -33,23 +42,35 @@ class SubscriptionState {
 class SubscriptionNotifier extends _$SubscriptionNotifier {
   final SubscriptionRepository _repo = SubscriptionRepository();
 
-  String get _userId => ref.watch(currentUserIdProvider);
+  String get _userId => ref.read(currentUserIdProvider);
 
   @override
   SubscriptionState build() {
-    Future.microtask(_load);
+    final userId = ref.watch(currentUserIdProvider);
+    Future.microtask(() => _load(userId: userId));
     return SubscriptionState();
   }
 
-  Future<void> _load() async {
-    if (_userId.isEmpty) {
+  Future<void> _load({String? userId}) async {
+    final targetUserId = userId ?? _userId;
+    if (targetUserId.isEmpty) {
       state = const SubscriptionState(isLoading: false);
       return;
     }
     try {
       final previousActive = state.active;
-      final active = await _repo.getActive(_userId);
-      state = SubscriptionState(active: active, isLoading: false);
+      final premiumOverride = await _repo.hasPremiumOverride(targetUserId);
+      Subscription? active;
+      try {
+        active = await _repo.getActive(targetUserId);
+      } catch (e) {
+        if (!premiumOverride) rethrow;
+      }
+      state = SubscriptionState(
+        active: active,
+        premiumOverride: premiumOverride,
+        isLoading: false,
+      );
       final notificationPrefs = ref.read(notificationProvider);
       final subscriptionNotificationsEnabled =
           notificationPrefs.masterEnabled &&

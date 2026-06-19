@@ -17,6 +17,7 @@ import 'package:personal_haven/data/models/task.dart';
 import 'package:personal_haven/presentation/screens/home/widgets/haven_ai_chat_sheet.dart';
 import 'package:personal_haven/presentation/screens/home/widgets/mood_caurosel_sheet.dart';
 import 'package:personal_haven/presentation/screens/profile/main_navigation_screen.dart';
+import 'package:personal_haven/presentation/screens/subscription/subscription_screen.dart';
 import 'package:personal_haven/presentation/widgets/common/task_complete_toggle.dart';
 import 'package:personal_haven/providers/event_provider.dart';
 import 'package:personal_haven/providers/food_provider.dart';
@@ -25,6 +26,7 @@ import 'package:personal_haven/providers/journal_provider.dart';
 import 'package:personal_haven/providers/mood_provider.dart';
 import 'package:personal_haven/providers/streak_provider.dart';
 import 'package:personal_haven/providers/task_provider.dart';
+import 'package:personal_haven/providers/subscription_provider.dart';
 
 class HomeScreen extends ConsumerStatefulWidget {
   const HomeScreen({super.key});
@@ -360,6 +362,17 @@ class _HomeScreenState extends ConsumerState<HomeScreen>
   }
 
   void _openAssistant() {
+    final subscriptionState = ref.read(subscriptionProvider);
+    final hasAccess =
+        subscriptionState.isLoading || subscriptionState.hasFullAccess;
+
+    if (!hasAccess) {
+      Navigator.of(context).push(
+        MaterialPageRoute<void>(builder: (_) => const SubscriptionScreen()),
+      );
+      return;
+    }
+
     showModalBottomSheet<void>(
       context: context,
       isScrollControlled: true,

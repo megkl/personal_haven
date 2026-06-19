@@ -68,11 +68,12 @@ class GoalState {
 class GoalNotifier extends _$GoalNotifier {
   final GoalRepository _repository = GoalRepository();
 
-  String get _userId => ref.watch(currentUserIdProvider);
+  String get _userId => ref.read(currentUserIdProvider);
 
   @override
   GoalState build() {
-    if (_userId.isNotEmpty) {
+    final userId = ref.watch(currentUserIdProvider);
+    if (userId.isNotEmpty) {
       Future.microtask(loadGoals);
     }
     return GoalState();

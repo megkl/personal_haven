@@ -9,7 +9,7 @@ A private, all-in-one wellness and personal management app built with Flutter. P
 ### 🔐 Authentication
 - Sign in with **Google**, **Apple**, or **Microsoft** (via Firebase Auth)
 - **Biometric lock** (Face ID / Fingerprint) — prompts on app open and resume
-- Free **30-day trial** activated automatically on first sign-up
+- Free **7-day trial** activated automatically on first sign-up
 
 ### 📓 Journal
 - Unlimited journal entries with categories, emoji, and tags
@@ -67,11 +67,12 @@ Granular per-category controls in Settings:
 ### 💳 Subscriptions
 | Plan | Price |
 |---|---|
-| Free Trial | 30 days on sign-up |
+| Free Trial | 7 days on sign-up |
 | Weekly | KES 30 / week |
 | Monthly | KES 100 / month |
+| Yearly | KES 800 / year |
 
-**Payment methods:** M-Pesa (STK push), App Store / Play Store (in-app purchase), Card, USDT
+**Payment methods:** App Store / Google Play subscriptions
 
 ---
 
@@ -85,10 +86,10 @@ Granular per-category controls in Settings:
 | Database | Cloud Firestore |
 | File Storage | Firebase Storage |
 | Social Sign-In | google_sign_in, sign_in_with_apple, flutter_appauth |
-| In-App Purchases | flutter_inapp_purchase |
+| In-App Purchases | in_app_purchase |
 | Notifications | flutter_local_notifications + timezone |
 | Biometrics | local_auth |
-| Payments | M-Pesa Daraja API (HTTP) |
+| Payments | App Store / Google Play billing |
 
 ---
 
@@ -108,7 +109,6 @@ lib/
 │   ├── social_auth_service.dart
 │   ├── biometric_service.dart
 │   ├── notification_service.dart
-│   ├── mpesa_service.dart
 │   └── iap_service.dart
 └── presentation/
     ├── screens/
@@ -161,13 +161,14 @@ service cloud.firestore {
 }
 ```
 
-### 3. M-Pesa (optional)
-Register at [developer.safaricom.co.ke](https://developer.safaricom.co.ke) and update `lib/services/mpesa_service.dart`:
-```dart
-static const _consumerKey    = 'YOUR_CONSUMER_KEY';
-static const _consumerSecret = 'YOUR_CONSUMER_SECRET';
-static const _callbackUrl    = 'https://your-backend/mpesa/callback';
-```
+### 3. Store subscriptions
+Create matching subscription product IDs in App Store Connect and Google Play Console:
+
+| Plan | Product ID |
+|---|---|
+| Weekly | `personal_haven_weekly` |
+| Monthly | `personal_haven_monthly` |
+| Yearly | `personal_haven_yearly` |
 
 ### 4. Microsoft Sign-In (optional)
 Register an app in [Azure AD](https://portal.azure.com) and update `lib/services/social_auth_service.dart`:
@@ -180,6 +181,7 @@ static const _msRedirectUrl = 'msauth.YOUR_BUNDLE_ID://auth';
 Create subscription products in App Store Connect and Google Play Console with these IDs:
 - `personal_haven_weekly`
 - `personal_haven_monthly`
+- `personal_haven_yearly`
 
 ### 6. Run
 ```bash

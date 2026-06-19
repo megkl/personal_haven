@@ -111,7 +111,9 @@ class ProfileScreen extends ConsumerWidget {
                   child: Text(
                     subState.active?.plan == SubscriptionPlan.free
                         ? '✨ Free Trial — ${subState.active!.daysRemaining}d left'
-                        : '✨ Premium — ${subState.active!.daysRemaining}d left',
+                        : subState.active != null
+                        ? '✨ Premium — ${subState.active!.daysRemaining}d left'
+                        : '✨ Premium',
                     style: TextStyle(
                       color: Colors.white,
                       fontSize: 12,
@@ -174,21 +176,23 @@ class ProfileScreen extends ConsumerWidget {
                       },
                     ),
                     const Divider(),
-                    _buildProfileOption(
-                      context,
-                      Icons.workspace_premium,
-                      subState.isPremium ? 'Manage Subscription' : 'Go Premium',
-                      Colors.amber.shade700,
-                      () {
-                        Navigator.push(
-                          context,
-                          MaterialPageRoute(
-                            builder: (_) => const SubscriptionScreen(),
-                          ),
-                        );
-                      },
-                    ),
-                    const Divider(),
+                    if (!subState.hasFullAccess) ...[
+                      _buildProfileOption(
+                        context,
+                        Icons.workspace_premium,
+                        'Go Premium',
+                        Colors.amber.shade700,
+                        () {
+                          Navigator.push(
+                            context,
+                            MaterialPageRoute(
+                              builder: (_) => const SubscriptionScreen(),
+                            ),
+                          );
+                        },
+                      ),
+                      const Divider(),
+                    ],
                     _buildProfileOption(
                       context,
                       Icons.description_outlined,

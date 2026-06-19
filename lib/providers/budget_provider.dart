@@ -83,11 +83,12 @@ class TransactionState {
 class TransactionNotifier extends _$TransactionNotifier {
   final TransactionRepository _repository = TransactionRepository();
 
-  String get _userId => ref.watch(currentUserIdProvider);
+  String get _userId => ref.read(currentUserIdProvider);
 
   @override
   TransactionState build() {
-    if (_userId.isNotEmpty) {
+    final userId = ref.watch(currentUserIdProvider);
+    if (userId.isNotEmpty) {
       Future.microtask(loadTransactions);
     }
     return TransactionState();
@@ -99,7 +100,9 @@ class TransactionNotifier extends _$TransactionNotifier {
 
     try {
       final transactions = await _repository.getThisMonthTransactions(_userId);
-      final expensesByCategory = await _repository.getExpensesByCategory(_userId);
+      final expensesByCategory = await _repository.getExpensesByCategory(
+        _userId,
+      );
 
       state = state.copyWith(
         transactions: transactions,
@@ -136,7 +139,9 @@ class TransactionNotifier extends _$TransactionNotifier {
       final updatedTransactions = [newTransaction, ...state.transactions];
 
       // Update category totals if expense
-      Map<String, double> updatedCategories = Map.from(state.expensesByCategory);
+      Map<String, double> updatedCategories = Map.from(
+        state.expensesByCategory,
+      );
       if (type.toLowerCase() == 'expense') {
         updatedCategories[category] =
             (updatedCategories[category] ?? 0) + amount;
@@ -195,7 +200,9 @@ class TransactionNotifier extends _$TransactionNotifier {
       }).toList();
 
       // Recalculate category totals
-      final expensesByCategory = await _repository.getExpensesByCategory(_userId);
+      final expensesByCategory = await _repository.getExpensesByCategory(
+        _userId,
+      );
 
       state = state.copyWith(
         transactions: updatedTransactions,
@@ -216,10 +223,12 @@ class TransactionNotifier extends _$TransactionNotifier {
         orElse: () => throw Exception('Transaction not found'),
       );
       await _repository.deleteTransaction(_userId, transactionId);
-      final updatedTransactions =
-          state.transactions.where((t) => t.id != transactionId).toList();
-      Map<String, double> updatedCategories =
-          Map.from(state.expensesByCategory);
+      final updatedTransactions = state.transactions
+          .where((t) => t.id != transactionId)
+          .toList();
+      Map<String, double> updatedCategories = Map.from(
+        state.expensesByCategory,
+      );
       if (transaction.isExpense) {
         final newAmount =
             (updatedCategories[transaction.category] ?? 0) - transaction.amount;
@@ -234,7 +243,9 @@ class TransactionNotifier extends _$TransactionNotifier {
         expensesByCategory: updatedCategories,
       );
     } catch (e) {
-      state = state.copyWith(error: 'Failed to delete transaction: ${e.toString()}');
+      state = state.copyWith(
+        error: 'Failed to delete transaction: ${e.toString()}',
+      );
     }
   }
 
@@ -244,7 +255,9 @@ class TransactionNotifier extends _$TransactionNotifier {
       await _repository.deleteAllTransactions(_userId);
       state = state.copyWith(transactions: [], expensesByCategory: {});
     } catch (e) {
-      state = state.copyWith(error: 'Failed to clear transactions: ${e.toString()}');
+      state = state.copyWith(
+        error: 'Failed to clear transactions: ${e.toString()}',
+      );
     }
   }
 
@@ -266,16 +279,18 @@ final monthlyTotalsProvider = FutureProvider<Map<String, double>>((ref) async {
 });
 
 /// Provider for spending summary by category
-final spendingSummaryProvider =
-    FutureProvider<List<Map<String, dynamic>>>((ref) async {
+final spendingSummaryProvider = FutureProvider<List<Map<String, dynamic>>>((
+  ref,
+) async {
   final repository = ref.watch(transactionRepositoryProvider);
   final userId = ref.watch(currentUserIdProvider);
   return await repository.getSpendingSummary(userId);
 });
 
 /// Provider for weekly totals (for charts)
-final weeklyTotalsProvider =
-    FutureProvider<List<Map<String, dynamic>>>((ref) async {
+final weeklyTotalsProvider = FutureProvider<List<Map<String, dynamic>>>((
+  ref,
+) async {
   final repository = ref.watch(transactionRepositoryProvider);
   final userId = ref.watch(currentUserIdProvider);
   return await repository.getWeeklyTotals(userId);

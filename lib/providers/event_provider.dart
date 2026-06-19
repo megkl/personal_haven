@@ -67,12 +67,13 @@ class EventState {
 class EventNotifier extends _$EventNotifier {
   final EventRepository _repository = EventRepository();
 
-  String get _userId => ref.watch(currentUserIdProvider);
+  String get _userId => ref.read(currentUserIdProvider);
 
   @override
   EventState build() {
     // only load when a user is signed in
-    if (_userId.isNotEmpty) {
+    final userId = ref.watch(currentUserIdProvider);
+    if (userId.isNotEmpty) {
       Future.microtask(loadEvents);
     }
     return EventState();
