@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
-import 'package:flutter/services.dart';
-import 'package:url_launcher/url_launcher.dart';
+import 'package:personal_haven/core/constants/app_colors.dart';
+import 'package:webview_flutter/webview_flutter.dart';
 
 const _termsUrl = 'https://personalhaven.megnifylabs.com/terms-and-conditions/';
 const _privacyPolicyUrl =
@@ -11,7 +11,7 @@ class TermsScreen extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return const _ExternalLegalLink(
+    return const _LegalWebViewScreen(
       title: 'Terms & Conditions',
       url: _termsUrl,
     );
@@ -23,7 +23,7 @@ class PrivacyPolicyScreen extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return const _ExternalLegalLink(
+    return const _LegalWebViewScreen(
       title: 'Privacy Policy',
       url: _privacyPolicyUrl,
     );
@@ -31,61 +31,110 @@ class PrivacyPolicyScreen extends StatelessWidget {
 }
 
 Future<void> openTermsAndConditions(BuildContext context) {
-  return _openLegalUrl(context, _termsUrl);
+  return Navigator.of(
+    context,
+  ).push(MaterialPageRoute(builder: (_) => const TermsScreen()));
 }
 
 Future<void> openPrivacyPolicy(BuildContext context) {
-  return _openLegalUrl(context, _privacyPolicyUrl);
+  return Navigator.of(
+    context,
+  ).push(MaterialPageRoute(builder: (_) => const PrivacyPolicyScreen()));
 }
 
-class _ExternalLegalLink extends StatefulWidget {
-  const _ExternalLegalLink({required this.title, required this.url});
+class _LegalWebViewScreen extends StatefulWidget {
+  const _LegalWebViewScreen({required this.title, required this.url});
 
   final String title;
   final String url;
 
   @override
-  State<_ExternalLegalLink> createState() => _ExternalLegalLinkState();
+  State<_LegalWebViewScreen> createState() => _LegalWebViewScreenState();
 }
 
-class _ExternalLegalLinkState extends State<_ExternalLegalLink> {
+class _LegalWebViewScreenState extends State<_LegalWebViewScreen> {
+  late final WebViewController _controller;
+  var _loadingProgress = 0;
+  var _hasError = false;
+
   @override
   void initState() {
     super.initState();
-    WidgetsBinding.instance.addPostFrameCallback((_) {
-      if (mounted) {
-        _openLegalUrl(context, widget.url);
-        Navigator.of(context).maybePop();
-      }
-    });
+    _controller = WebViewController()
+      ..setJavaScriptMode(JavaScriptMode.unrestricted)
+      ..setNavigationDelegate(
+        NavigationDelegate(
+          onProgress: (progress) {
+            if (mounted) {
+              setState(() => _loadingProgress = progress);
+            }
+          },
+          onPageStarted: (_) {
+            if (mounted) {
+              setState(() => _hasError = false);
+            }
+          },
+          onWebResourceError: (_) {
+            if (mounted) {
+              setState(() => _hasError = true);
+            }
+          },
+        ),
+      )
+      ..loadRequest(Uri.parse(widget.url));
   }
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(appBar: AppBar(title: Text(widget.title)));
-  }
-}
-
-Future<void> _openLegalUrl(BuildContext context, String url) async {
-  final messenger = ScaffoldMessenger.maybeOf(context);
-  final uri = Uri.parse(url);
-  final opened =
-      await _tryLaunch(uri, LaunchMode.externalApplication) ||
-      await _tryLaunch(uri, LaunchMode.platformDefault);
-
-  if (!opened) {
-    messenger?.showSnackBar(
-      const SnackBar(content: Text('Could not open web address')),
+    return Scaffold(
+      appBar: AppBar(
+        title: Text(widget.title),
+        backgroundColor: AppColors.primary,
+        foregroundColor: Colors.white,
+      ),
+      body: Stack(
+        children: [
+          if (_hasError)
+            _LegalWebError(onRetry: () => _controller.reload())
+          else
+            WebViewWidget(controller: _controller),
+          if (_loadingProgress < 100)
+            LinearProgressIndicator(
+              value: _loadingProgress / 100,
+              color: AppColors.primary,
+              backgroundColor: AppColors.primary.withValues(alpha: 0.15),
+            ),
+        ],
+      ),
     );
   }
 }
 
-Future<bool> _tryLaunch(Uri uri, LaunchMode mode) async {
-  try {
-    return await launchUrl(uri, mode: mode);
-  } on PlatformException {
-    return false;
-  } on MissingPluginException {
-    return false;
+class _LegalWebError extends StatelessWidget {
+  const _LegalWebError({required this.onRetry});
+
+  final VoidCallback onRetry;
+
+  @override
+  Widget build(BuildContext context) {
+    return Center(
+      child: Padding(
+        padding: const EdgeInsets.all(24),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            const Icon(Icons.wifi_off_rounded, size: 40),
+            const SizedBox(height: 12),
+            const Text(
+              'Could not load this page.',
+              textAlign: TextAlign.center,
+              style: TextStyle(fontSize: 16, fontWeight: FontWeight.w600),
+            ),
+            const SizedBox(height: 16),
+            FilledButton(onPressed: onRetry, child: const Text('Try Again')),
+          ],
+        ),
+      ),
+    );
   }
 }

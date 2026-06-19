@@ -69,7 +69,7 @@ dependencies:
   # Icons
   cupertino_icons: ^1.0.6
   equatable: ^2.0.8
-  url_launcher: ^6.3.2
+  webview_flutter: ^4.14.0
 
   
 dev_dependencies:
