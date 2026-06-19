@@ -66,3 +66,4 @@ ios/Runner/Release-*/
 
 # Generated plugin registrant
 ios/Runner/GeneratedPluginRegistrant.*
+.env

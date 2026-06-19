@@ -116,10 +116,7 @@ class _SignUpScreenState extends ConsumerState<SignUpScreen> {
                     style: TextStyle(color: Color(0xFF2D3E40), fontSize: 12),
                   ),
                   TextButton(
-                    onPressed: () => Navigator.push(
-                      context,
-                      MaterialPageRoute(builder: (_) => const TermsScreen()),
-                    ),
+                    onPressed: () => openTermsAndConditions(context),
                     style: TextButton.styleFrom(padding: EdgeInsets.zero),
                     child: Text(
                       'Terms',
@@ -135,12 +132,7 @@ class _SignUpScreenState extends ConsumerState<SignUpScreen> {
                     style: TextStyle(color: Color(0xFF2D3E40), fontSize: 12),
                   ),
                   TextButton(
-                    onPressed: () => Navigator.push(
-                      context,
-                      MaterialPageRoute(
-                        builder: (_) => const PrivacyPolicyScreen(),
-                      ),
-                    ),
+                    onPressed: () => openPrivacyPolicy(context),
                     style: TextButton.styleFrom(padding: EdgeInsets.zero),
                     child: Text(
                       'Privacy Policy',

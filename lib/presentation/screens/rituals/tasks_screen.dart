@@ -481,15 +481,15 @@ class _TasksScreenState extends ConsumerState<TasksScreen>
                         const SizedBox(width: 10),
 
                         // Options
-                        GestureDetector(
-                          onTap: () => _showTaskOptionsSheet(task),
-                          child: Icon(
-                            Icons.more_vert,
-                            color: context.colors.divider,
-                            size: 18,
-                          ),
-                        ),
-                        const SizedBox(width: 10),
+                        // GestureDetector(
+                        //   onTap: () => _showTaskOptionsSheet(task),
+                        //   child: Icon(
+                        //     Icons.more_vert,
+                        //     color: context.colors.divider,
+                        //     size: 18,
+                        //   ),
+                        // ),
+                        //const SizedBox(width: 10),
                         Center(
                           child: Container(
                             padding: const EdgeInsets.symmetric(

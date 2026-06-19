@@ -146,6 +146,8 @@ class NotificationNotifier extends _$NotificationNotifier {
 
   Future<void> _load() async {
     final prefs = await SharedPreferences.getInstance();
+    if (!ref.mounted) return;
+
     final map = <String, bool>{};
     for (final key in NotificationPrefs().toMap().keys) {
       map[key] = prefs.getBool('$_prefix$key') ?? true;
@@ -171,8 +173,11 @@ class NotificationNotifier extends _$NotificationNotifier {
   Future<void> setMaster(bool value) async {
     state = state.copyWith(masterEnabled: value);
     await _save('masterEnabled', value);
+    if (!ref.mounted) return;
+
     if (value) {
       await NotificationService.instance.requestPermission();
+      if (!ref.mounted) return;
       await _rescheduleAll();
     } else {
       await NotificationService.instance.cancelAll();
@@ -182,37 +187,39 @@ class NotificationNotifier extends _$NotificationNotifier {
   Future<void> toggle(String key, bool value) async {
     state = _applyKey(key, value);
     await _save(key, value);
+    if (!ref.mounted) return;
     await _rescheduleAll();
   }
 
   Future<void> setReminderMinute(String key, int minuteOfDay) async {
     state = _applyTimeKey(key, minuteOfDay.clamp(0, 23 * 60 + 59));
     await _saveInt(key, minuteOfDay);
+    if (!ref.mounted) return;
     await _rescheduleAll();
   }
 
-  // Future<bool> sendTestNotification() async {
-  //   if (!state.masterEnabled) {
-  //     await setMaster(true);
-  //   } else {
-  //     final granted = await NotificationService.instance.requestPermission(
-  //       includeExactAlarms: false,
-  //     );
-  //     if (!granted) return false;
-  //   }
-  //   await NotificationService.instance.showTestNotification();
-  //   return true;
-  // }
+  Future<bool> sendTestNotification() async {
+    if (!state.masterEnabled) {
+      await setMaster(true);
+    } else {
+      final granted = await NotificationService.instance.requestPermission(
+        includeExactAlarms: false,
+      );
+      if (!granted) return false;
+    }
+    await NotificationService.instance.showTestNotification();
+    return true;
+  }
 
-  // Future<bool> scheduleTestNotification() async {
-  //   if (!state.masterEnabled) {
-  //     await setMaster(true);
-  //   }
-  //   final granted = await NotificationService.instance.requestPermission();
-  //   if (!granted) return false;
-  //   await NotificationService.instance.scheduleTestNotificationInFiveSeconds();
-  //   return true;
-  // }
+  Future<bool> scheduleTestNotification() async {
+    if (!state.masterEnabled) {
+      await setMaster(true);
+    }
+    final granted = await NotificationService.instance.requestPermission();
+    if (!granted) return false;
+    await NotificationService.instance.scheduleTestNotificationInFiveSeconds();
+    return true;
+  }
 
   NotificationPrefs _applyKey(String key, bool value) {
     switch (key) {
@@ -255,44 +262,47 @@ class NotificationNotifier extends _$NotificationNotifier {
   }
 
   Future<void> _rescheduleAll() async {
-    if (!state.masterEnabled) return;
+    if (!ref.mounted) return;
+
+    final prefs = state;
+    if (!prefs.masterEnabled) return;
     final svc = NotificationService.instance;
 
     // Daily reminders
-    if (state.dailyReminders) {
+    if (prefs.dailyReminders) {
       await svc.scheduleDailyReminders(
-        morningMinuteOfDay: state.morningReminderMinute,
+        morningMinuteOfDay: prefs.morningReminderMinute,
         //eveningMinuteOfDay: state.eveningReminderMinute,
-        journalMinuteOfDay: state.journalReminderMinute,
+        journalMinuteOfDay: prefs.journalReminderMinute,
         //mealMinuteOfDay: state.mealReminderMinute,
       );
-      if (!state.moodReminder) {
+      if (!prefs.moodReminder) {
         await svc.cancelMoodReminders();
       }
-      if (!state.journalReminder) {
+      if (!prefs.journalReminder) {
         await svc.cancelJournalReminders();
       }
     } else {
       await svc.cancelDailyReminders();
     }
 
-    if (!state.taskReminders) {
+    if (!prefs.taskReminders) {
       await svc.cancelTaskNotifications();
     }
-    if (!state.goalReminders) {
+    if (!prefs.goalReminders) {
       await svc.cancelGoalNotifications();
     }
-    if (!state.eventReminders) {
+    if (!prefs.eventReminders) {
       await svc.cancelEventReminders();
     }
-    if (!state.subscriptionAlerts) {
+    if (!prefs.subscriptionAlerts) {
       await svc.cancelSubscriptionNotifications();
     }
 
     // Weekly insights
-    if (state.weeklyInsights) {
+    if (prefs.weeklyInsights) {
       await svc.scheduleWeeklyMoodSummary(
-        minuteOfDay: state.weeklyInsightsMinute,
+        minuteOfDay: prefs.weeklyInsightsMinute,
       );
     } else {
       await svc.cancelWeeklyMoodSummary();

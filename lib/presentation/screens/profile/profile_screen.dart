@@ -194,10 +194,7 @@ class ProfileScreen extends ConsumerWidget {
                       Icons.description_outlined,
                       'Terms & Conditions',
                       AppColors.primary,
-                      () => Navigator.push(
-                        context,
-                        MaterialPageRoute(builder: (_) => const TermsScreen()),
-                      ),
+                      () => openTermsAndConditions(context),
                     ),
                     const Divider(),
                     _buildProfileOption(
@@ -205,12 +202,7 @@ class ProfileScreen extends ConsumerWidget {
                       Icons.privacy_tip_outlined,
                       'Privacy Policy',
                       AppColors.primary,
-                      () => Navigator.push(
-                        context,
-                        MaterialPageRoute(
-                          builder: (_) => const PrivacyPolicyScreen(),
-                        ),
-                      ),
+                      () => openPrivacyPolicy(context),
                     ),
                     const Divider(),
                     _buildProfileOption(
