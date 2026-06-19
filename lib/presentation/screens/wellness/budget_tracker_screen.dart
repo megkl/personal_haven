@@ -381,6 +381,7 @@ class BudgetScreen extends ConsumerWidget {
   ) {
     final isIncome = transaction.isIncome;
     final icon = TransactionCategories.getIcon(transaction.category, isIncome);
+    final toneColor = isIncome ? Colors.green : Colors.red;
 
     return Dismissible(
       key: Key(transaction.id),
@@ -420,8 +421,12 @@ class BudgetScreen extends ConsumerWidget {
         margin: const EdgeInsets.only(bottom: 8),
         padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
         decoration: BoxDecoration(
-          color: context.colors.cardColor,
+          color: Color.alphaBlend(
+            toneColor.withValues(alpha: context.isDark ? 0.10 : 0.045),
+            context.colors.cardColor,
+          ),
           borderRadius: BorderRadius.circular(12),
+          border: Border.all(color: toneColor.withValues(alpha: 0.12)),
           boxShadow: [
             BoxShadow(
               color: Colors.black.withValues(alpha: 0.03),
@@ -437,9 +442,7 @@ class BudgetScreen extends ConsumerWidget {
               width: 38,
               height: 38,
               decoration: BoxDecoration(
-                color: (isIncome ? Colors.green : Colors.red).withValues(
-                  alpha: 0.1,
-                ),
+                color: toneColor.withValues(alpha: 0.1),
                 borderRadius: BorderRadius.circular(12),
               ),
               child: Center(child: Text(icon, style: TextStyle(fontSize: 19))),
@@ -491,7 +494,7 @@ class BudgetScreen extends ConsumerWidget {
               style: TextStyle(
                 fontSize: 13,
                 fontWeight: FontWeight.w700,
-                color: isIncome ? Colors.green : Colors.red,
+                color: toneColor,
               ),
             ),
           ],

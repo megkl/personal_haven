@@ -179,10 +179,21 @@ class _JournalScreenState extends ConsumerState<JournalScreen> {
               controller: _searchController,
               decoration: InputDecoration(
                 hintText: 'Search journal entries',
-                prefixIcon: Icon(
-                  Icons.search,
-                  size: 20,
-                  color: context.colors.textSecondary,
+                prefixIcon: Padding(
+                  padding: const EdgeInsets.fromLTRB(12, 10, 8, 10),
+                  child: Container(
+                    width: 32,
+                    height: 32,
+                    decoration: BoxDecoration(
+                      color: AppColors.primary.withValues(alpha: 0.12),
+                      shape: BoxShape.circle,
+                    ),
+                    child: const Icon(
+                      Icons.manage_search_rounded,
+                      color: AppColors.primaryDark,
+                      size: 20,
+                    ),
+                  ),
                 ),
                 suffixIcon: _searchQuery.isEmpty
                     ? null
