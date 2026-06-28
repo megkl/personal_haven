@@ -948,7 +948,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen>
           ),
           child: Column(
             children: [
-              Text(emoji, style: TextStyle(fontSize: 26)),
+              _buildAnimatedProgressIcon(emoji, color),
               const SizedBox(height: 6),
               Text(
                 value,
@@ -970,6 +970,42 @@ class _HomeScreenState extends ConsumerState<HomeScreen>
           ),
         ),
       ),
+    );
+  }
+
+  Widget _buildAnimatedProgressIcon(String emoji, Color color) {
+    return AnimatedBuilder(
+      animation: _pulseController,
+      builder: (context, child) {
+        final t = _pulseController.value * math.pi * 2;
+        final dy = math.sin(t) * 2.2;
+        final angle = math.sin(t) * 0.045;
+        final glow = 0.12 + (math.sin(t) + 1) * 0.06;
+
+        return Transform.translate(
+          offset: Offset(0, dy),
+          child: Transform.rotate(
+            angle: angle,
+            child: Container(
+              width: 46,
+              height: 46,
+              decoration: BoxDecoration(
+                shape: BoxShape.circle,
+                color: color.withValues(alpha: glow),
+                boxShadow: [
+                  BoxShadow(
+                    color: color.withValues(alpha: glow),
+                    blurRadius: 12,
+                    spreadRadius: 1,
+                  ),
+                ],
+              ),
+              alignment: Alignment.center,
+              child: Text(emoji, style: const TextStyle(fontSize: 24)),
+            ),
+          ),
+        );
+      },
     );
   }
 
