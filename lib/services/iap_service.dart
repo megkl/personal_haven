@@ -43,13 +43,43 @@ class IAPResult {
     required this.success,
     this.productId,
     this.transactionId,
+    this.serverVerificationData,
+    this.localVerificationData,
+    this.verificationSource,
     this.error,
   });
 
   final bool success;
   final String? productId;
   final String? transactionId;
+  final String? serverVerificationData;
+  final String? localVerificationData;
+  final String? verificationSource;
   final String? error;
+}
+
+class IAPCatalog {
+  const IAPCatalog({
+    required this.isAvailable,
+    this.products = const [],
+    this.notFoundIds = const {},
+    this.error,
+  });
+
+  final bool isAvailable;
+  final List<ProductDetails> products;
+  final Set<String> notFoundIds;
+  final String? error;
+
+  ProductDetails? productForPlan(SubscriptionPlan plan) {
+    final productId = IAPProducts.idForPlan(plan);
+    for (final product in products) {
+      if (product.id == productId) return product;
+    }
+    return null;
+  }
+
+  bool isPlanAvailable(SubscriptionPlan plan) => productForPlan(plan) != null;
 }
 
 class IAPService {
@@ -76,11 +106,33 @@ class IAPService {
   }
 
   Future<List<ProductDetails>> getProducts() async {
+    final catalog = await getCatalog();
+    return catalog.products;
+  }
+
+  Future<IAPCatalog> getCatalog() async {
+    if (!isStorePlatform) {
+      return const IAPCatalog(
+        isAvailable: false,
+        error: 'Store billing is only available on iOS and Android',
+      );
+    }
+
     final ready = await initialize();
-    if (!ready) return [];
+    if (!ready) {
+      return const IAPCatalog(
+        isAvailable: false,
+        error: 'Store billing unavailable',
+      );
+    }
 
     final response = await _iap.queryProductDetails(IAPProducts.all);
-    return response.productDetails;
+    return IAPCatalog(
+      isAvailable: true,
+      products: response.productDetails,
+      notFoundIds: response.notFoundIDs.toSet(),
+      error: response.error?.message,
+    );
   }
 
   Future<IAPResult> purchase(SubscriptionPlan plan) async {
@@ -164,16 +216,15 @@ class IAPService {
 
   Future<void> _onPurchaseUpdates(List<PurchaseDetails> purchases) async {
     for (final purchase in purchases) {
-      if (purchase.pendingCompletePurchase) {
-        await _iap.completePurchase(purchase);
-      }
-
       final completer = _pendingPurchase;
       if (completer == null || completer.isCompleted) continue;
 
       switch (purchase.status) {
         case PurchaseStatus.purchased:
         case PurchaseStatus.restored:
+          if (purchase.pendingCompletePurchase) {
+            await _iap.completePurchase(purchase);
+          }
           _pendingPurchase = null;
           completer.complete(
             IAPResult(
@@ -182,6 +233,11 @@ class IAPService {
               transactionId:
                   purchase.purchaseID ??
                   purchase.verificationData.serverVerificationData,
+              serverVerificationData:
+                  purchase.verificationData.serverVerificationData,
+              localVerificationData:
+                  purchase.verificationData.localVerificationData,
+              verificationSource: purchase.verificationData.source,
             ),
           );
           break;

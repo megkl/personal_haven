@@ -111,16 +111,22 @@ class SubscriptionNotifier extends _$SubscriptionNotifier {
   /// Called after a successful payment to activate the subscription.
   Future<void> activatePaid({
     required SubscriptionPlan plan,
-    required PaymentMethod paymentMethod,
     required String transactionRef,
+    required String productId,
+    required String serverVerificationData,
+    required String verificationSource,
+    String? localVerificationData,
   }) async {
     state = state.copyWith(isLoading: true);
     try {
-      final sub = await _repo.createPaid(
+      final sub = await _repo.verifyStorePurchase(
         userId: _userId,
         plan: plan,
-        paymentMethod: paymentMethod,
-        transactionRef: transactionRef,
+        productId: productId,
+        transactionId: transactionRef,
+        serverVerificationData: serverVerificationData,
+        localVerificationData: localVerificationData,
+        verificationSource: verificationSource,
       );
       state = SubscriptionState(active: sub, isLoading: false);
       final notificationPrefs = ref.read(notificationProvider);

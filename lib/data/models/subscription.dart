@@ -94,8 +94,12 @@ class Subscription extends Equatable {
 
   factory Subscription.fromFirestore(dynamic doc) {
     final d = doc.data() as Map<String, dynamic>;
+    return Subscription.fromMap(d, id: doc.id);
+  }
+
+  factory Subscription.fromMap(Map<String, dynamic> d, {String? id}) {
     return Subscription(
-      id: doc.id,
+      id: id ?? d['id'] as String,
       userId: d['userId'] as String,
       plan: SubscriptionPlan.values.firstWhere(
         (e) => e.name == d['plan'],

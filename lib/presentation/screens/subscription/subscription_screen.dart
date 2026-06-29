@@ -1,6 +1,7 @@
 import 'dart:io';
 
 import 'package:flutter/material.dart';
+import 'package:in_app_purchase/in_app_purchase.dart';
 import 'package:personal_haven/core/theme/app_theme.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:personal_haven/core/constants/app_colors.dart';
@@ -19,9 +20,48 @@ class _SubscriptionScreenState extends ConsumerState<SubscriptionScreen> {
   SubscriptionPlan _selectedPlan = SubscriptionPlan.monthly;
   bool _isProcessing = false;
   bool _isRestoring = false;
+  bool _isLoadingCatalog = true;
+  IAPCatalog? _catalog;
+
+  @override
+  void initState() {
+    super.initState();
+    _loadCatalog();
+  }
+
+  Future<void> _loadCatalog() async {
+    final catalog = await IAPService.instance.getCatalog();
+    if (!mounted) return;
+
+    final selectedProduct = catalog.productForPlan(_selectedPlan);
+    SubscriptionPlan? fallbackPlan;
+    for (final plan in <SubscriptionPlan>[
+      SubscriptionPlan.monthly,
+      SubscriptionPlan.yearly,
+      SubscriptionPlan.weekly,
+    ]) {
+      if (catalog.isPlanAvailable(plan)) {
+        fallbackPlan = plan;
+        break;
+      }
+    }
+
+    setState(() {
+      _catalog = catalog;
+      _isLoadingCatalog = false;
+      if (selectedProduct == null && fallbackPlan != null) {
+        _selectedPlan = fallbackPlan;
+      }
+    });
+  }
 
   Future<void> _subscribe() async {
     if (_isProcessing) return;
+    final catalog = _catalog;
+    if (catalog == null || !catalog.isPlanAvailable(_selectedPlan)) {
+      _showError('This subscription is not available in the store yet.');
+      return;
+    }
     setState(() => _isProcessing = true);
 
     try {
@@ -40,9 +80,12 @@ class _SubscriptionScreenState extends ConsumerState<SubscriptionScreen> {
           .read(subscriptionProvider.notifier)
           .activatePaid(
             plan: _selectedPlan,
-            paymentMethod: PaymentMethod.store,
             transactionRef:
                 result.transactionId ?? IAPProducts.idForPlan(_selectedPlan),
+            productId: result.productId ?? IAPProducts.idForPlan(_selectedPlan),
+            serverVerificationData: result.serverVerificationData ?? '',
+            localVerificationData: result.localVerificationData,
+            verificationSource: result.verificationSource ?? '',
           );
       if (mounted) {
         Navigator.pop(context);
@@ -74,8 +117,11 @@ class _SubscriptionScreenState extends ConsumerState<SubscriptionScreen> {
           .read(subscriptionProvider.notifier)
           .activatePaid(
             plan: plan,
-            paymentMethod: PaymentMethod.store,
             transactionRef: result.transactionId ?? result.productId!,
+            productId: result.productId!,
+            serverVerificationData: result.serverVerificationData ?? '',
+            localVerificationData: result.localVerificationData,
+            verificationSource: result.verificationSource ?? '',
           );
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
@@ -107,12 +153,21 @@ class _SubscriptionScreenState extends ConsumerState<SubscriptionScreen> {
 
   String _storeButtonLabel(SubscriptionPlan plan) {
     final storeName = Platform.isIOS ? 'App Store' : 'Google Play';
-    return 'Subscribe with $storeName — ${Subscription.labelFor(plan)}';
+    final product = _catalog?.productForPlan(plan);
+    final label = product?.price ?? Subscription.labelFor(plan);
+    return 'Subscribe with $storeName — $label';
   }
 
   @override
   Widget build(BuildContext context) {
     final subState = ref.watch(subscriptionProvider);
+    final catalog = _catalog;
+    final selectedProduct = catalog?.productForPlan(_selectedPlan);
+    final canSubscribe =
+        !_isProcessing &&
+        !_isLoadingCatalog &&
+        catalog?.isAvailable == true &&
+        selectedProduct != null;
 
     return Scaffold(
       backgroundColor: Theme.of(context).scaffoldBackgroundColor,
@@ -144,9 +199,17 @@ class _SubscriptionScreenState extends ConsumerState<SubscriptionScreen> {
                 ),
               ),
               const SizedBox(height: 12),
+              if (_isLoadingCatalog)
+                const Padding(
+                  padding: EdgeInsets.only(bottom: 12),
+                  child: LinearProgressIndicator(minHeight: 2),
+                ),
               _PlanCard(
                 plan: SubscriptionPlan.yearly,
                 selected: _selectedPlan == SubscriptionPlan.yearly,
+                product: catalog?.productForPlan(SubscriptionPlan.yearly),
+                available:
+                    catalog?.isPlanAvailable(SubscriptionPlan.yearly) ?? false,
                 badge: 'Best Value',
                 onTap: () =>
                     setState(() => _selectedPlan = SubscriptionPlan.yearly),
@@ -155,6 +218,9 @@ class _SubscriptionScreenState extends ConsumerState<SubscriptionScreen> {
               _PlanCard(
                 plan: SubscriptionPlan.monthly,
                 selected: _selectedPlan == SubscriptionPlan.monthly,
+                product: catalog?.productForPlan(SubscriptionPlan.monthly),
+                available:
+                    catalog?.isPlanAvailable(SubscriptionPlan.monthly) ?? false,
                 onTap: () =>
                     setState(() => _selectedPlan = SubscriptionPlan.monthly),
               ),
@@ -162,10 +228,25 @@ class _SubscriptionScreenState extends ConsumerState<SubscriptionScreen> {
               _PlanCard(
                 plan: SubscriptionPlan.weekly,
                 selected: _selectedPlan == SubscriptionPlan.weekly,
+                product: catalog?.productForPlan(SubscriptionPlan.weekly),
+                available:
+                    catalog?.isPlanAvailable(SubscriptionPlan.weekly) ?? false,
                 onTap: () =>
                     setState(() => _selectedPlan = SubscriptionPlan.weekly),
               ),
               const SizedBox(height: 16),
+
+              if (!_isLoadingCatalog &&
+                  (catalog?.isAvailable != true ||
+                      catalog?.products.isEmpty == true))
+                _StoreIssueNotice(
+                  message:
+                      catalog?.error ??
+                      'Store products are not available yet. Check your App Store Connect or Google Play product IDs.',
+                  onRetry: _loadCatalog,
+                ),
+              if (!_isLoadingCatalog && catalog?.notFoundIds.isNotEmpty == true)
+                _MissingProductsNotice(ids: catalog!.notFoundIds),
 
               _StoreBillingNote(),
               const SizedBox(height: 16),
@@ -175,7 +256,7 @@ class _SubscriptionScreenState extends ConsumerState<SubscriptionScreen> {
                 width: double.infinity,
                 height: 56,
                 child: ElevatedButton(
-                  onPressed: _isProcessing ? null : _subscribe,
+                  onPressed: canSubscribe ? _subscribe : null,
                   style: ElevatedButton.styleFrom(
                     backgroundColor: AppColors.primary,
                     foregroundColor: Colors.white,
@@ -183,7 +264,7 @@ class _SubscriptionScreenState extends ConsumerState<SubscriptionScreen> {
                       borderRadius: BorderRadius.circular(28),
                     ),
                   ),
-                  child: _isProcessing
+                  child: _isProcessing || _isLoadingCatalog
                       ? const SizedBox(
                           width: 24,
                           height: 24,
@@ -205,7 +286,9 @@ class _SubscriptionScreenState extends ConsumerState<SubscriptionScreen> {
 
               Center(
                 child: TextButton.icon(
-                  onPressed: _isRestoring ? null : _restorePurchases,
+                  onPressed: (_isRestoring || catalog?.isAvailable != true)
+                      ? null
+                      : _restorePurchases,
                   icon: _isRestoring
                       ? const SizedBox(
                           width: 14,
@@ -274,28 +357,40 @@ class _HeroCard extends StatelessWidget {
 class _PlanCard extends StatelessWidget {
   final SubscriptionPlan plan;
   final bool selected;
+  final ProductDetails? product;
+  final bool available;
   final String? badge;
   final VoidCallback onTap;
 
   const _PlanCard({
     required this.plan,
     required this.selected,
+    required this.product,
+    required this.available,
     required this.onTap,
     this.badge,
   });
 
   @override
   Widget build(BuildContext context) {
+    final textColor = available
+        ? context.colors.textPrimary
+        : context.colors.textSecondary.withValues(alpha: 0.65);
+
     return GestureDetector(
-      onTap: onTap,
+      onTap: available ? onTap : null,
       child: AnimatedContainer(
         duration: const Duration(milliseconds: 200),
         padding: const EdgeInsets.all(16),
         decoration: BoxDecoration(
-          color: context.colors.cardColor,
+          color: available
+              ? context.colors.cardColor
+              : context.colors.cardColor2.withValues(alpha: 0.65),
           borderRadius: BorderRadius.circular(14),
           border: Border.all(
-            color: selected ? AppColors.primary : Colors.transparent,
+            color: selected && available
+                ? AppColors.primary
+                : context.colors.divider.withValues(alpha: 0.35),
             width: 2,
           ),
           boxShadow: selected
@@ -324,11 +419,11 @@ class _PlanCard extends StatelessWidget {
                   Row(
                     children: [
                       Text(
-                        _planName(plan),
+                        product?.title ?? _planName(plan),
                         style: TextStyle(
                           fontSize: 16,
                           fontWeight: FontWeight.bold,
-                          color: context.colors.textPrimary,
+                          color: textColor,
                         ),
                       ),
                       if (badge != null) ...[
@@ -355,7 +450,11 @@ class _PlanCard extends StatelessWidget {
                     ],
                   ),
                   Text(
-                    _planSubtitle(plan),
+                    available
+                        ? (product?.description.isNotEmpty == true
+                              ? product!.description
+                              : _planSubtitle(plan))
+                        : 'Not available in store yet',
                     style: TextStyle(
                       color: context.colors.textSecondary,
                       fontSize: 13,
@@ -365,11 +464,11 @@ class _PlanCard extends StatelessWidget {
               ),
             ),
             Text(
-              'KES ${Subscription.priceFor(plan).toInt()}',
+              product?.price ?? 'KES ${Subscription.priceFor(plan).toInt()}',
               style: TextStyle(
                 fontSize: 18,
                 fontWeight: FontWeight.bold,
-                color: AppColors.primary,
+                color: available ? AppColors.primary : context.colors.divider,
               ),
             ),
           ],
@@ -429,6 +528,71 @@ class _StoreBillingNote extends StatelessWidget {
             child: Text(
               'Billed through $storeName. $manageText',
               style: TextStyle(fontSize: 12, color: Colors.blue.shade700),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _StoreIssueNotice extends StatelessWidget {
+  final String message;
+  final VoidCallback onRetry;
+
+  const _StoreIssueNotice({required this.message, required this.onRetry});
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      margin: const EdgeInsets.only(bottom: 16),
+      padding: const EdgeInsets.all(12),
+      decoration: BoxDecoration(
+        color: Colors.orange.shade50,
+        borderRadius: BorderRadius.circular(10),
+        border: Border.all(color: Colors.orange.shade200),
+      ),
+      child: Row(
+        children: [
+          Icon(Icons.info_outline, color: Colors.orange.shade800),
+          const SizedBox(width: 10),
+          Expanded(
+            child: Text(
+              message,
+              style: TextStyle(fontSize: 12, color: Colors.orange.shade900),
+            ),
+          ),
+          TextButton(onPressed: onRetry, child: const Text('Retry')),
+        ],
+      ),
+    );
+  }
+}
+
+class _MissingProductsNotice extends StatelessWidget {
+  final Set<String> ids;
+
+  const _MissingProductsNotice({required this.ids});
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      margin: const EdgeInsets.only(bottom: 16),
+      padding: const EdgeInsets.all(12),
+      decoration: BoxDecoration(
+        color: Colors.red.shade50,
+        borderRadius: BorderRadius.circular(10),
+        border: Border.all(color: Colors.red.shade100),
+      ),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Icon(Icons.warning_amber_rounded, color: Colors.red.shade700),
+          const SizedBox(width: 10),
+          Expanded(
+            child: Text(
+              'Missing store products: ${ids.join(', ')}',
+              style: TextStyle(fontSize: 12, color: Colors.red.shade700),
             ),
           ),
         ],
