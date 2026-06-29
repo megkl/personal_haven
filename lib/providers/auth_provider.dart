@@ -2,8 +2,11 @@ import 'package:firebase_auth/firebase_auth.dart' as fb;
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:personal_haven/data/repositories/subscription_repository.dart';
 import 'package:personal_haven/data/repositories/user_repository.dart';
+import 'package:personal_haven/data/data_sources/local/shared_prefs_helper.dart';
 import 'package:personal_haven/services/social_auth_service.dart';
+import 'package:riverpod_annotation/riverpod_annotation.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+part 'auth_provider.g.dart';
 
 class AuthState {
   final bool isAuthenticated;
@@ -33,12 +36,15 @@ class AuthState {
   }
 }
 
-class AuthNotifier extends StateNotifier<AuthState> {
-  AuthNotifier() : super(AuthState()) {
-    checkAuthStatus();
+
+@riverpod
+class AuthNotifier extends _$AuthNotifier {
+  @override
+  AuthState build() {
+    Future.microtask(checkAuthStatus);
+    return AuthState();
   }
 
-  /// Check Firebase Auth session on startup
   Future<void> checkAuthStatus() async {
     state = state.copyWith(isLoading: true);
     final fbUser = fb.FirebaseAuth.instance.currentUser;
@@ -49,75 +55,128 @@ class AuthNotifier extends StateNotifier<AuthState> {
     );
   }
 
-  /// Social login (Google / Apple / Microsoft) — backed by Firebase Auth
   Future<bool> socialLogin(SocialAuthResult result) async {
-    state = state.copyWith(isLoading: true, error: null);
-    try {
-      final fbUser = fb.FirebaseAuth.instance.currentUser;
-      if (fbUser == null) {
-        state = state.copyWith(
-            isLoading: false, error: 'Authentication failed');
-        return false;
-      }
+  state = state.copyWith(isLoading: true, error: null);
 
-      // Persist / update Firestore profile
-      await UserRepository().createOrUpdateFromAuth(fbUser,
-          displayName: result.displayName);
-
-      // Activate free trial on first sign-up (no-op if already used)
-      try {
-        final subRepo = SubscriptionRepository();
-        final hasUsed = await subRepo.hasUsedTrial(fbUser.uid);
-        if (!hasUsed) await subRepo.createTrial(fbUser.uid);
-      } catch (_) {}
-
-      // Cache minimal info for offline display
-      final prefs = await SharedPreferences.getInstance();
-      await prefs.setBool('isLoggedIn', true);
-      await prefs.setString('userId', fbUser.uid);
-      if (result.email != null) {
-        await prefs.setString('userEmail', result.email!);
-      }
-      if (result.displayName != null) {
-        await prefs.setString('userName', result.displayName!);
-      }
-      if (result.avatarUrl != null) {
-        await prefs.setString('avatarUrl', result.avatarUrl!);
-      }
-      if (result.provider != null) {
-        await prefs.setString('authProvider', result.provider!);
-      }
+  try {
+    if (result.credential == null) {
+      if (!ref.mounted) return false;
 
       state = state.copyWith(
-        isAuthenticated: true,
-        userId: fbUser.uid,
         isLoading: false,
+        error: 'No auth credential received',
       );
-      return true;
-    } catch (e) {
-      state = state.copyWith(
-          isLoading: false, error: 'Social login failed: $e');
       return false;
     }
-  }
 
-  /// Log out
-  Future<void> logout() async {
+    final userCredential = await fb.FirebaseAuth.instance
+        .signInWithCredential(result.credential!);
+
+    if (!ref.mounted) return false;
+
+    final fbUser = userCredential.user;
+
+    if (fbUser == null) {
+      state = state.copyWith(
+        isLoading: false,
+        error: 'Authentication failed',
+      );
+      return false;
+    }
+
+    final user = await UserRepository().createOrUpdateFromAuth(
+      fbUser,
+      displayName: result.displayName,
+    );
+
+    if (!ref.mounted) return false;
+
+    final prefs = await SharedPrefsHelper.getInstance();
+
+    if (!ref.mounted) return false;
+
+    await prefs.saveUserSession(user);
+
+    if (!ref.mounted) return false;
+
+    if (result.provider != null) {
+      final rawPrefs = await SharedPreferences.getInstance();
+
+      if (!ref.mounted) return false;
+
+      await rawPrefs.setString('authProvider', result.provider!);
+
+      if (!ref.mounted) return false;
+    }
+
     try {
-      await SocialAuthService.instance.signOutGoogle();
-    } catch (_) {}
-    final prefs = await SharedPreferences.getInstance();
-    await prefs.clear();
-    state = AuthState(isAuthenticated: false, isLoading: false);
-  }
+      final subRepo = SubscriptionRepository();
 
+      final hasUsed = await subRepo.hasUsedTrial(fbUser.uid);
+
+      if (!ref.mounted) return false;
+
+      if (!hasUsed) {
+        await subRepo.createTrial(fbUser.uid);
+
+        if (!ref.mounted) return false;
+      }
+    } catch (_) {}
+
+    state = state.copyWith(
+      isAuthenticated: true,
+      userId: fbUser.uid,
+      isLoading: false,
+    );
+
+    return true;
+  } catch (e) {
+    if (!ref.mounted) return false;
+
+    state = state.copyWith(
+      isLoading: false,
+      error: 'Social login failed: $e',
+    );
+
+    return false;
+  }
+}
+  
+  Future<void> logout() async {
+  try {
+    await SocialAuthService.instance.signOutGoogle();
+
+    if (!ref.mounted) return;
+
+    await fb.FirebaseAuth.instance.signOut();
+
+    if (!ref.mounted) return;
+  } catch (_) {}
+
+  final helper = await SharedPrefsHelper.getInstance();
+
+  if (!ref.mounted) return;
+
+  await helper.clearSession();
+
+  if (!ref.mounted) return;
+
+  final rawPrefs = await SharedPreferences.getInstance();
+
+  if (!ref.mounted) return;
+
+  await rawPrefs.remove('authProvider');
+
+  if (!ref.mounted) return;
+
+  state = AuthState(
+    isAuthenticated: false,
+    isLoading: false,
+  );
+}
   void clearError() => state = state.copyWith(error: null);
 }
 
-final authProvider =
-    StateNotifierProvider<AuthNotifier, AuthState>((ref) => AuthNotifier());
-
-/// Current Firebase UID — used by all feature providers
 final currentUserIdProvider = Provider<String>((ref) {
   return ref.watch(authProvider).userId ??
       fb.FirebaseAuth.instance.currentUser?.uid ??

@@ -1,5 +1,5 @@
 import 'package:flutter/material.dart';
-import 'package:personal_haven/presentation/screens/onboarding/interests_screen.dart';
+import 'package:personal_haven/presentation/screens/auth/signup_screen.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 class OnboardingScreen extends StatefulWidget {
@@ -34,14 +34,14 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
     if (!mounted) return;
     Navigator.pushReplacement(
       context,
-      MaterialPageRoute(builder: (_) => const InterestsScreen()),
+      MaterialPageRoute(builder: (_) => const SignUpScreen()),
     );
   }
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: const Color(0xFFF0F4F3),
+      backgroundColor: Theme.of(context).scaffoldBackgroundColor,
       body: SafeArea(
         child: Column(
           children: [
@@ -54,9 +54,7 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
                     onPressed: _finishOnboarding,
                     child: const Text(
                       'Skip',
-                      style: TextStyle(
-                        
-                        color: Color(0xFF666666), fontSize: 16),
+                      style: TextStyle(color: Color(0xFF666666), fontSize: 16),
                     ),
                   ),
                 ],
@@ -139,7 +137,7 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
                   ),
                 ),
                 child: Text(
-                  _currentPage == _pages.length - 1 ? 'Next' : 'Next',
+                  _currentPage == _pages.length - 1 ? 'Get Started' : 'Next',
                   style: const TextStyle(
                     fontSize: 18,
                     fontWeight: FontWeight.w600,

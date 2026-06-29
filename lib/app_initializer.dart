@@ -86,7 +86,7 @@ class _AppInitializerState extends ConsumerState<AppInitializer>
         return const SplashScreen();
       },
       loading: () => const _LoadingScaffold(),
-      error: (_, __) => const Scaffold(
+      error: (_, _) => const Scaffold(
         body: Center(child: Text('Error initializing app')),
       ),
     );
@@ -109,7 +109,7 @@ class _BiometricLockScreen extends StatelessWidget {
             mainAxisAlignment: MainAxisAlignment.center,
             children: [
               Icon(Icons.lock_rounded,
-                  size: 72, color: Colors.white.withOpacity(0.9)),
+                  size: 72, color: Colors.white.withValues(alpha: 0.9)),
               const SizedBox(height: 24),
               const Text(
                 'Personal Haven',

@@ -2,6 +2,9 @@ import 'package:firebase_auth/firebase_auth.dart' as fb;
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:personal_haven/data/models/user.dart';
 import 'package:personal_haven/data/repositories/user_repository.dart';
+import 'package:riverpod_annotation/riverpod_annotation.dart';
+
+part 'user_provider.g.dart';
 
 class UserState {
   final User? user;
@@ -19,11 +22,15 @@ class UserState {
   }
 }
 
-class UserNotifier extends StateNotifier<UserState> {
+@riverpod
+class UserNotifier extends _$UserNotifier {
   final UserRepository _repo = UserRepository();
 
-  UserNotifier() : super(UserState()) {
-    loadUser();
+  @override
+  UserState build() {
+    // replaces the constructor — runs on first use
+    Future.microtask(loadUser);
+    return UserState();
   }
 
   Future<void> loadUser() async {
@@ -37,8 +44,7 @@ class UserNotifier extends StateNotifier<UserState> {
       final user = await _repo.getUserById(fbUser.uid);
       state = state.copyWith(user: user, isLoading: false);
     } catch (e) {
-      state = state.copyWith(
-          isLoading: false, error: 'Failed to load user: $e');
+      state = state.copyWith(isLoading: false, error: 'Failed to load user: $e');
     }
   }
 
@@ -61,8 +67,7 @@ class UserNotifier extends StateNotifier<UserState> {
       );
       state = state.copyWith(user: updated, isLoading: false);
     } catch (e) {
-      state = state.copyWith(
-          isLoading: false, error: 'Failed to update profile: $e');
+      state = state.copyWith(isLoading: false, error: 'Failed to update profile: $e');
     }
   }
 
@@ -71,14 +76,8 @@ class UserNotifier extends StateNotifier<UserState> {
   Future<void> refresh() => loadUser();
 }
 
-final userProvider =
-    StateNotifierProvider<UserNotifier, UserState>((ref) => UserNotifier());
-
-final currentUserProvider = Provider<User?>((ref) {
-  return ref.watch(userProvider).user;
-});
 
 final userDisplayNameProvider = Provider<String>((ref) {
-  final user = ref.watch(currentUserProvider);
+  final user = ref.watch(userProvider).user;
   return user?.displayName ?? 'User';
 });

@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:personal_haven/core/theme/app_theme.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:intl/intl.dart';
 import 'package:personal_haven/core/constants/app_colors.dart';
@@ -16,6 +17,7 @@ class _AddTaskScreenState extends ConsumerState<AddTaskScreen> {
   final _titleController = TextEditingController();
   final _descriptionController = TextEditingController();
   DateTime? _selectedDate;
+  TimeOfDay? _selectedTime;
   String _selectedPriority = 'medium';
   String _selectedCategory = 'personal';
 
@@ -49,9 +51,7 @@ class _AddTaskScreenState extends ConsumerState<AddTaskScreen> {
       builder: (context, child) {
         return Theme(
           data: Theme.of(context).copyWith(
-            colorScheme: const ColorScheme.light(
-              primary: AppColors.primary,
-            ),
+            colorScheme: const ColorScheme.light(primary: AppColors.primary),
           ),
           child: child!,
         );
@@ -61,6 +61,33 @@ class _AddTaskScreenState extends ConsumerState<AddTaskScreen> {
     if (picked != null) {
       setState(() => _selectedDate = picked);
     }
+  }
+
+  Future<void> _selectTime() async {
+    if (_selectedDate == null) return;
+    final picked = await showTimePicker(
+      context: context,
+      initialTime: _selectedTime ?? TimeOfDay.now(),
+    );
+    if (picked != null) setState(() => _selectedTime = picked);
+  }
+
+  DateTime? get _dueDateTime {
+    if (_selectedDate == null) return null;
+    if (_selectedTime == null) {
+      return DateTime(
+        _selectedDate!.year,
+        _selectedDate!.month,
+        _selectedDate!.day,
+      );
+    }
+    return DateTime(
+      _selectedDate!.year,
+      _selectedDate!.month,
+      _selectedDate!.day,
+      _selectedTime!.hour,
+      _selectedTime!.minute,
+    );
   }
 
   Future<void> _saveTask() async {
@@ -74,12 +101,14 @@ class _AddTaskScreenState extends ConsumerState<AddTaskScreen> {
       return;
     }
 
-    await ref.read(taskProvider.notifier).addTask(
+    await ref
+        .read(taskProvider.notifier)
+        .addTask(
           title: _titleController.text,
           description: _descriptionController.text.isNotEmpty
               ? _descriptionController.text
               : null,
-          dueDate: _selectedDate,
+          dueDate: _dueDateTime,
           priority: _selectedPriority,
           category: _selectedCategory,
         );
@@ -98,14 +127,14 @@ class _AddTaskScreenState extends ConsumerState<AddTaskScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: AppColors.background,
+      backgroundColor: Theme.of(context).scaffoldBackgroundColor,
       appBar: AppBar(
-        title: const Text('New Task'),
+        title: Text('New Task'),
         backgroundColor: AppColors.primary,
         actions: [
           TextButton(
             onPressed: _saveTask,
-            child: const Text(
+            child: Text(
               'Save',
               style: TextStyle(
                 color: Colors.white,
@@ -132,7 +161,7 @@ class _AddTaskScreenState extends ConsumerState<AddTaskScreen> {
               textCapitalization: TextCapitalization.sentences,
             ),
             const SizedBox(height: 16),
-            
+
             // Description Field
             TextField(
               controller: _descriptionController,
@@ -146,14 +175,14 @@ class _AddTaskScreenState extends ConsumerState<AddTaskScreen> {
               textCapitalization: TextCapitalization.sentences,
             ),
             const SizedBox(height: 24),
-            
+
             // Due Date
-            const Text(
+            Text(
               'Due Date',
               style: TextStyle(
                 fontSize: 16,
                 fontWeight: FontWeight.w600,
-                color: AppColors.textPrimary,
+                color: context.colors.textPrimary,
               ),
             ),
             const SizedBox(height: 12),
@@ -162,13 +191,13 @@ class _AddTaskScreenState extends ConsumerState<AddTaskScreen> {
               child: Container(
                 padding: const EdgeInsets.all(16),
                 decoration: BoxDecoration(
-                  color: Colors.white,
+                  color: context.colors.cardColor,
                   borderRadius: BorderRadius.circular(12),
-                  border: Border.all(color: Colors.grey.shade300),
+                  border: Border.all(color: context.colors.divider),
                 ),
                 child: Row(
                   children: [
-                    const Icon(Icons.calendar_today, color: AppColors.primary),
+                    Icon(Icons.calendar_today, color: AppColors.primary),
                     const SizedBox(width: 12),
                     Text(
                       _selectedDate != null
@@ -177,31 +206,71 @@ class _AddTaskScreenState extends ConsumerState<AddTaskScreen> {
                       style: TextStyle(
                         fontSize: 16,
                         color: _selectedDate != null
-                            ? AppColors.textPrimary
-                            : AppColors.textSecondary,
+                            ? context.colors.textPrimary
+                            : context.colors.textSecondary,
                       ),
                     ),
                     const Spacer(),
                     if (_selectedDate != null)
                       IconButton(
-                        icon: const Icon(Icons.close, size: 20),
+                        icon: Icon(Icons.close, size: 20),
                         onPressed: () {
-                          setState(() => _selectedDate = null);
+                          setState(() {
+                            _selectedDate = null;
+                            _selectedTime = null;
+                          });
                         },
                       ),
                   ],
                 ),
               ),
             ),
+            if (_selectedDate != null) ...[
+              const SizedBox(height: 12),
+              InkWell(
+                onTap: _selectTime,
+                child: Container(
+                  padding: const EdgeInsets.all(16),
+                  decoration: BoxDecoration(
+                    color: context.colors.cardColor,
+                    borderRadius: BorderRadius.circular(12),
+                    border: Border.all(color: context.colors.divider),
+                  ),
+                  child: Row(
+                    children: [
+                      const Icon(Icons.access_time, color: AppColors.primary),
+                      const SizedBox(width: 12),
+                      Expanded(
+                        child: Text(
+                          _selectedTime == null
+                              ? 'Due by end of day'
+                              : 'Due at ${_selectedTime!.format(context)}',
+                          style: TextStyle(
+                            fontSize: 16,
+                            color: context.colors.textPrimary,
+                          ),
+                        ),
+                      ),
+                      if (_selectedTime != null)
+                        IconButton(
+                          tooltip: 'Remove due time',
+                          icon: const Icon(Icons.close, size: 20),
+                          onPressed: () => setState(() => _selectedTime = null),
+                        ),
+                    ],
+                  ),
+                ),
+              ),
+            ],
             const SizedBox(height: 24),
-            
+
             // Priority
-            const Text(
+            Text(
               'Priority',
               style: TextStyle(
                 fontSize: 16,
                 fontWeight: FontWeight.w600,
-                color: AppColors.textPrimary,
+                color: context.colors.textPrimary,
               ),
             ),
             const SizedBox(height: 12),
@@ -217,29 +286,33 @@ class _AddTaskScreenState extends ConsumerState<AddTaskScreen> {
                       setState(() => _selectedPriority = priority['value']);
                     }
                   },
-                  backgroundColor: Colors.white,
+                  backgroundColor: context.colors.cardColor,
                   selectedColor: priority['color'],
                   labelStyle: TextStyle(
-                    color: isSelected ? Colors.white : AppColors.textPrimary,
-                    fontWeight: isSelected ? FontWeight.w600 : FontWeight.normal,
+                    color: isSelected
+                        ? Colors.white
+                        : context.colors.textPrimary,
+                    fontWeight: isSelected
+                        ? FontWeight.w600
+                        : FontWeight.normal,
                   ),
                   side: BorderSide(
                     color: isSelected
                         ? priority['color']
-                        : Colors.grey.shade300,
+                        : context.colors.divider,
                   ),
                 );
               }).toList(),
             ),
             const SizedBox(height: 24),
-            
+
             // Category
-            const Text(
+            Text(
               'Category',
               style: TextStyle(
                 fontSize: 16,
                 fontWeight: FontWeight.w600,
-                color: AppColors.textPrimary,
+                color: context.colors.textPrimary,
               ),
             ),
             const SizedBox(height: 12),
@@ -256,7 +329,7 @@ class _AddTaskScreenState extends ConsumerState<AddTaskScreen> {
               itemBuilder: (context, index) {
                 final category = _categories[index];
                 final isSelected = _selectedCategory == category['value'];
-                
+
                 return InkWell(
                   onTap: () {
                     setState(() => _selectedCategory = category['value']);
@@ -265,13 +338,13 @@ class _AddTaskScreenState extends ConsumerState<AddTaskScreen> {
                     padding: const EdgeInsets.all(12),
                     decoration: BoxDecoration(
                       color: isSelected
-                          ? AppColors.primary.withOpacity(0.1)
+                          ? AppColors.primary.withValues(alpha: 0.1)
                           : Colors.white,
                       borderRadius: BorderRadius.circular(12),
                       border: Border.all(
                         color: isSelected
                             ? AppColors.primary
-                            : Colors.grey.shade300,
+                            : context.colors.divider,
                         width: isSelected ? 2 : 1,
                       ),
                     ),
@@ -282,7 +355,7 @@ class _AddTaskScreenState extends ConsumerState<AddTaskScreen> {
                           category['icon'],
                           color: isSelected
                               ? AppColors.primary
-                              : AppColors.textSecondary,
+                              : context.colors.textSecondary,
                           size: 20,
                         ),
                         const SizedBox(width: 8),
@@ -295,7 +368,7 @@ class _AddTaskScreenState extends ConsumerState<AddTaskScreen> {
                                 : FontWeight.normal,
                             color: isSelected
                                 ? AppColors.primary
-                                : AppColors.textPrimary,
+                                : context.colors.textPrimary,
                           ),
                         ),
                       ],

@@ -2,7 +2,8 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:personal_haven/data/models/transaction.dart';
 import 'package:personal_haven/data/repositories/budget_repository.dart';
 import 'package:personal_haven/providers/auth_provider.dart';
-
+import 'package:riverpod_annotation/riverpod_annotation.dart';
+part 'budget_provider.g.dart';
 // ─────────────────────────────────────────────────────────────
 // Repository Provider
 // ─────────────────────────────────────────────────────────────
@@ -78,13 +79,19 @@ class TransactionState {
 // Transaction Notifier
 // ─────────────────────────────────────────────────────────────
 
-class TransactionNotifier extends StateNotifier<TransactionState> {
-  final TransactionRepository _repository;
-  final String _userId;
+@riverpod
+class TransactionNotifier extends _$TransactionNotifier {
+  final TransactionRepository _repository = TransactionRepository();
 
-  TransactionNotifier(this._repository, this._userId)
-      : super(TransactionState()) {
-    loadTransactions();
+  String get _userId => ref.read(currentUserIdProvider);
+
+  @override
+  TransactionState build() {
+    final userId = ref.watch(currentUserIdProvider);
+    if (userId.isNotEmpty) {
+      Future.microtask(loadTransactions);
+    }
+    return TransactionState();
   }
 
   /// Load all transactions for current month
@@ -93,7 +100,9 @@ class TransactionNotifier extends StateNotifier<TransactionState> {
 
     try {
       final transactions = await _repository.getThisMonthTransactions(_userId);
-      final expensesByCategory = await _repository.getExpensesByCategory(_userId);
+      final expensesByCategory = await _repository.getExpensesByCategory(
+        _userId,
+      );
 
       state = state.copyWith(
         transactions: transactions,
@@ -130,7 +139,9 @@ class TransactionNotifier extends StateNotifier<TransactionState> {
       final updatedTransactions = [newTransaction, ...state.transactions];
 
       // Update category totals if expense
-      Map<String, double> updatedCategories = Map.from(state.expensesByCategory);
+      Map<String, double> updatedCategories = Map.from(
+        state.expensesByCategory,
+      );
       if (type.toLowerCase() == 'expense') {
         updatedCategories[category] =
             (updatedCategories[category] ?? 0) + amount;
@@ -189,7 +200,9 @@ class TransactionNotifier extends StateNotifier<TransactionState> {
       }).toList();
 
       // Recalculate category totals
-      final expensesByCategory = await _repository.getExpensesByCategory(_userId);
+      final expensesByCategory = await _repository.getExpensesByCategory(
+        _userId,
+      );
 
       state = state.copyWith(
         transactions: updatedTransactions,
@@ -210,10 +223,12 @@ class TransactionNotifier extends StateNotifier<TransactionState> {
         orElse: () => throw Exception('Transaction not found'),
       );
       await _repository.deleteTransaction(_userId, transactionId);
-      final updatedTransactions =
-          state.transactions.where((t) => t.id != transactionId).toList();
-      Map<String, double> updatedCategories =
-          Map.from(state.expensesByCategory);
+      final updatedTransactions = state.transactions
+          .where((t) => t.id != transactionId)
+          .toList();
+      Map<String, double> updatedCategories = Map.from(
+        state.expensesByCategory,
+      );
       if (transaction.isExpense) {
         final newAmount =
             (updatedCategories[transaction.category] ?? 0) - transaction.amount;
@@ -228,7 +243,9 @@ class TransactionNotifier extends StateNotifier<TransactionState> {
         expensesByCategory: updatedCategories,
       );
     } catch (e) {
-      state = state.copyWith(error: 'Failed to delete transaction: ${e.toString()}');
+      state = state.copyWith(
+        error: 'Failed to delete transaction: ${e.toString()}',
+      );
     }
   }
 
@@ -238,7 +255,9 @@ class TransactionNotifier extends StateNotifier<TransactionState> {
       await _repository.deleteAllTransactions(_userId);
       state = state.copyWith(transactions: [], expensesByCategory: {});
     } catch (e) {
-      state = state.copyWith(error: 'Failed to clear transactions: ${e.toString()}');
+      state = state.copyWith(
+        error: 'Failed to clear transactions: ${e.toString()}',
+      );
     }
   }
 
@@ -252,13 +271,6 @@ class TransactionNotifier extends StateNotifier<TransactionState> {
 // Providers
 // ─────────────────────────────────────────────────────────────
 
-final transactionProvider =
-    StateNotifierProvider<TransactionNotifier, TransactionState>((ref) {
-  final repository = ref.watch(transactionRepositoryProvider);
-  final userId = ref.watch(currentUserIdProvider);
-  return TransactionNotifier(repository, userId);
-});
-
 /// Provider for monthly totals
 final monthlyTotalsProvider = FutureProvider<Map<String, double>>((ref) async {
   final repository = ref.watch(transactionRepositoryProvider);
@@ -267,16 +279,18 @@ final monthlyTotalsProvider = FutureProvider<Map<String, double>>((ref) async {
 });
 
 /// Provider for spending summary by category
-final spendingSummaryProvider =
-    FutureProvider<List<Map<String, dynamic>>>((ref) async {
+final spendingSummaryProvider = FutureProvider<List<Map<String, dynamic>>>((
+  ref,
+) async {
   final repository = ref.watch(transactionRepositoryProvider);
   final userId = ref.watch(currentUserIdProvider);
   return await repository.getSpendingSummary(userId);
 });
 
 /// Provider for weekly totals (for charts)
-final weeklyTotalsProvider =
-    FutureProvider<List<Map<String, dynamic>>>((ref) async {
+final weeklyTotalsProvider = FutureProvider<List<Map<String, dynamic>>>((
+  ref,
+) async {
   final repository = ref.watch(transactionRepositoryProvider);
   final userId = ref.watch(currentUserIdProvider);
   return await repository.getWeeklyTotals(userId);

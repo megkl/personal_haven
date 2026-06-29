@@ -29,7 +29,31 @@ class Task extends Equatable {
   /// Check if task is overdue
   bool get isOverdue {
     if (dueDate == null || isCompleted) return false;
-    return dueDate!.isBefore(DateTime.now());
+    return dueDeadline!.isBefore(DateTime.now());
+  }
+
+  /// Whether the task has an explicit time rather than a date-only deadline.
+  bool get hasDueTime =>
+      dueDate != null &&
+      (dueDate!.hour != 0 ||
+          dueDate!.minute != 0 ||
+          dueDate!.second != 0 ||
+          dueDate!.millisecond != 0 ||
+          dueDate!.microsecond != 0);
+
+  /// Date-only tasks remain valid until the end of their due day.
+  DateTime? get dueDeadline {
+    if (dueDate == null) return null;
+    if (hasDueTime) return dueDate;
+    return DateTime(
+      dueDate!.year,
+      dueDate!.month,
+      dueDate!.day,
+      23,
+      59,
+      59,
+      999,
+    );
   }
 
   /// Check if task is due today
@@ -57,6 +81,7 @@ class Task extends Equatable {
     String? category,
     DateTime? createdAt,
     DateTime? completedAt,
+    bool clearDueDate = false,
   }) {
     return Task(
       id: id ?? this.id,
@@ -64,7 +89,7 @@ class Task extends Equatable {
       title: title ?? this.title,
       description: description ?? this.description,
       isCompleted: isCompleted ?? this.isCompleted,
-      dueDate: dueDate ?? this.dueDate,
+      dueDate: clearDueDate ? null : dueDate ?? this.dueDate,
       priority: priority ?? this.priority,
       category: category ?? this.category,
       createdAt: createdAt ?? this.createdAt,
@@ -149,17 +174,17 @@ class Task extends Equatable {
 
   @override
   List<Object?> get props => [
-        id,
-        userId,
-        title,
-        description,
-        isCompleted,
-        dueDate,
-        priority,
-        category,
-        createdAt,
-        completedAt,
-      ];
+    id,
+    userId,
+    title,
+    description,
+    isCompleted,
+    dueDate,
+    priority,
+    category,
+    createdAt,
+    completedAt,
+  ];
 
   @override
   String toString() {

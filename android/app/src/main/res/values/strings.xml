@@ -1,0 +1,5 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- Web client ID (OAuth 2.0) used by Google Sign-In to request ID tokens on Android. -->
+    <string name="default_web_client_id">748102487039-m0nncvs7te5o8viq3s28vdru5hb4j3re.apps.googleusercontent.com</string>
+</resources>

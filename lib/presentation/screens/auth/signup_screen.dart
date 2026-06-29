@@ -1,9 +1,11 @@
 import 'package:flutter/material.dart';
+import 'package:personal_haven/core/theme/app_theme.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:personal_haven/presentation/screens/auth/login_screen.dart';
 import 'package:personal_haven/presentation/screens/legal/terms_screen.dart';
 import 'package:personal_haven/presentation/screens/profile/main_navigation_screen.dart';
 import 'package:personal_haven/providers/auth_provider.dart';
+import 'package:personal_haven/presentation/widgets/common/google_mark.dart';
 import 'package:personal_haven/services/social_auth_service.dart';
 
 class SignUpScreen extends ConsumerStatefulWidget {
@@ -17,9 +19,11 @@ class _SignUpScreenState extends ConsumerState<SignUpScreen> {
   bool _isLoading = false;
 
   Future<void> _handleSocialSignUp(
-      Future<SocialAuthResult> Function() signIn) async {
+    Future<SocialAuthResult> Function() signIn,
+  ) async {
     setState(() => _isLoading = true);
     final result = await signIn();
+    print('SocialAuthResult: success=${result.success}, error=${result.error}');
     if (!mounted) return;
 
     if (result.success) {
@@ -28,7 +32,9 @@ class _SignUpScreenState extends ConsumerState<SignUpScreen> {
       if (ok) {
         Navigator.pushReplacement(
           context,
-          MaterialPageRoute(builder: (_) => const MainNavigationScreen()),
+          MaterialPageRoute(
+            builder: (_) => const MainNavigationScreen(currentIndex: 0),
+          ),
         );
         return;
       }
@@ -36,9 +42,10 @@ class _SignUpScreenState extends ConsumerState<SignUpScreen> {
 
     setState(() => _isLoading = false);
     if (mounted) {
+      final authError = ref.read(authProvider).error;
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
-          content: Text(result.error ?? 'Sign-up failed'),
+          content: Text(authError ?? result.error ?? 'Sign-up failed'),
           backgroundColor: Colors.red,
         ),
       );
@@ -58,10 +65,13 @@ class _SignUpScreenState extends ConsumerState<SignUpScreen> {
               Row(
                 mainAxisAlignment: MainAxisAlignment.center,
                 children: [
-                  Icon(Icons.spa,
-                      color: Colors.white.withOpacity(0.9), size: 28),
+                  Icon(
+                    Icons.spa,
+                    color: Colors.white.withValues(alpha: 0.9),
+                    size: 28,
+                  ),
                   const SizedBox(width: 8),
-                  const Text(
+                  Text(
                     'Personal Haven',
                     style: TextStyle(
                       fontSize: 18,
@@ -72,7 +82,7 @@ class _SignUpScreenState extends ConsumerState<SignUpScreen> {
                 ],
               ),
               const Spacer(),
-              const Text(
+              Text(
                 'Create Your Haven',
                 style: TextStyle(
                   fontSize: 32,
@@ -81,7 +91,7 @@ class _SignUpScreenState extends ConsumerState<SignUpScreen> {
                 ),
               ),
               const SizedBox(height: 8),
-              const Text(
+              Text(
                 "Let's personalize your space.",
                 style: TextStyle(fontSize: 16, color: Color(0xFF2D3E40)),
               ),
@@ -93,61 +103,44 @@ class _SignUpScreenState extends ConsumerState<SignUpScreen> {
                   label: 'Sign up with Google',
                   icon: _googleIcon(),
                   onTap: () => _handleSocialSignUp(
-                      SocialAuthService.instance.signInWithGoogle),
-                ),
-                const SizedBox(height: 16),
-                _SocialButton(
-                  label: 'Sign up with Microsoft',
-                  icon: const Icon(Icons.window, size: 22, color: Color(0xFF00A4EF)),
-                  onTap: () => _handleSocialSignUp(
-                      SocialAuthService.instance.signInWithMicrosoft),
-                ),
-                const SizedBox(height: 16),
-                _SocialButton(
-                  label: 'Sign up with Apple',
-                  icon: const Icon(Icons.apple, size: 22),
-                  onTap: () => _handleSocialSignUp(
-                      SocialAuthService.instance.signInWithApple),
+                    SocialAuthService.instance.signInWithGoogle,
+                  ),
                 ),
               ],
               const Spacer(),
               Row(
                 mainAxisAlignment: MainAxisAlignment.center,
                 children: [
-                  const Text(
+                  Text(
                     'By signing up you agree to our ',
                     style: TextStyle(color: Color(0xFF2D3E40), fontSize: 12),
                   ),
                   TextButton(
-                    onPressed: () => Navigator.push(
-                      context,
-                      MaterialPageRoute(builder: (_) => const TermsScreen()),
-                    ),
+                    onPressed: () => openTermsAndConditions(context),
                     style: TextButton.styleFrom(padding: EdgeInsets.zero),
-                    child: const Text(
+                    child: Text(
                       'Terms',
                       style: TextStyle(
-                          color: Color(0xFF4ECDC4),
-                          fontSize: 12,
-                          fontWeight: FontWeight.bold),
+                        color: Color(0xFF4ECDC4),
+                        fontSize: 12,
+                        fontWeight: FontWeight.bold,
+                      ),
                     ),
                   ),
-                  const Text(' & ',
-                      style:
-                          TextStyle(color: Color(0xFF2D3E40), fontSize: 12)),
+                  Text(
+                    ' & ',
+                    style: TextStyle(color: Color(0xFF2D3E40), fontSize: 12),
+                  ),
                   TextButton(
-                    onPressed: () => Navigator.push(
-                      context,
-                      MaterialPageRoute(
-                          builder: (_) => const PrivacyPolicyScreen()),
-                    ),
+                    onPressed: () => openPrivacyPolicy(context),
                     style: TextButton.styleFrom(padding: EdgeInsets.zero),
-                    child: const Text(
+                    child: Text(
                       'Privacy Policy',
                       style: TextStyle(
-                          color: Color(0xFF4ECDC4),
-                          fontSize: 12,
-                          fontWeight: FontWeight.bold),
+                        color: Color(0xFF4ECDC4),
+                        fontSize: 12,
+                        fontWeight: FontWeight.bold,
+                      ),
                     ),
                   ),
                 ],
@@ -155,7 +148,7 @@ class _SignUpScreenState extends ConsumerState<SignUpScreen> {
               Row(
                 mainAxisAlignment: MainAxisAlignment.center,
                 children: [
-                  const Text(
+                  Text(
                     'Already have an account? ',
                     style: TextStyle(color: Color(0xFF2D3E40)),
                   ),
@@ -164,7 +157,7 @@ class _SignUpScreenState extends ConsumerState<SignUpScreen> {
                       context,
                       MaterialPageRoute(builder: (_) => const LoginScreen()),
                     ),
-                    child: const Text(
+                    child: Text(
                       'Log In',
                       style: TextStyle(
                         color: Color(0xFF4ECDC4),
@@ -183,13 +176,7 @@ class _SignUpScreenState extends ConsumerState<SignUpScreen> {
   }
 
   Widget _googleIcon() {
-    return Image.network(
-      'https://www.gstatic.com/firebasejs/ui/2.0.0/images/auth/google.svg',
-      width: 22,
-      height: 22,
-      errorBuilder: (_, __, ___) =>
-          const Icon(Icons.g_mobiledata, size: 22, color: Color(0xFF4285F4)),
-    );
+    return const GoogleMark(size: 22);
   }
 }
 
@@ -214,14 +201,14 @@ class _SocialButton extends StatelessWidget {
         icon: icon,
         label: Text(
           label,
-          style: const TextStyle(
+          style: TextStyle(
             fontSize: 16,
             fontWeight: FontWeight.w600,
             color: Color(0xFF2D3E40),
           ),
         ),
         style: OutlinedButton.styleFrom(
-          backgroundColor: Colors.white,
+          backgroundColor: context.colors.cardColor,
           side: BorderSide.none,
           shape: RoundedRectangleBorder(
             borderRadius: BorderRadius.circular(28),

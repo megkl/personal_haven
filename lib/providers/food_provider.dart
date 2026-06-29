@@ -2,6 +2,8 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:personal_haven/data/models/food_entry.dart';
 import 'package:personal_haven/data/repositories/food_repository.dart';
 import 'package:personal_haven/providers/auth_provider.dart';
+import 'package:riverpod_annotation/riverpod_annotation.dart';
+part 'food_provider.g.dart';
 
 final foodRepositoryProvider = Provider<FoodRepository>((ref) {
   return FoodRepository();
@@ -12,11 +14,7 @@ class FoodState {
   final bool isLoading;
   final String? error;
 
-  FoodState({
-    this.entries = const [],
-    this.isLoading = false,
-    this.error,
-  });
+  FoodState({this.entries = const [], this.isLoading = false, this.error});
 
   FoodState copyWith({
     List<FoodEntry>? entries,
@@ -36,10 +34,14 @@ class FoodState {
 
   List<FoodEntry> get todayEntries {
     final now = DateTime.now();
-    return entries.where((e) =>
-        e.consumedAt.year == now.year &&
-        e.consumedAt.month == now.month &&
-        e.consumedAt.day == now.day).toList();
+    return entries
+        .where(
+          (e) =>
+              e.consumedAt.year == now.year &&
+              e.consumedAt.month == now.month &&
+              e.consumedAt.day == now.day,
+        )
+        .toList();
   }
 
   int get todayCalories {
@@ -88,12 +90,19 @@ class FoodState {
   }
 }
 
-class FoodNotifier extends StateNotifier<FoodState> {
-  final FoodRepository _repository;
-  final String _userId;
+@riverpod
+class FoodNotifier extends _$FoodNotifier {
+  final FoodRepository _repository = FoodRepository();
 
-  FoodNotifier(this._repository, this._userId) : super(FoodState()) {
-    loadEntries();
+  String get _userId => ref.read(currentUserIdProvider);
+
+  @override
+  FoodState build() {
+    final userId = ref.watch(currentUserIdProvider);
+    if (userId.isNotEmpty) {
+      Future.microtask(loadEntries);
+    }
+    return FoodState();
   }
 
   Future<void> loadEntries() async {
@@ -135,7 +144,7 @@ class FoodNotifier extends StateNotifier<FoodState> {
       final updatedEntries = [...state.entries, newEntry];
       // Sort by consumed time
       updatedEntries.sort((a, b) => a.consumedAt.compareTo(b.consumedAt));
-      
+
       state = state.copyWith(entries: updatedEntries);
     } catch (e) {
       state = state.copyWith(error: 'Failed to add entry: ${e.toString()}');
@@ -145,11 +154,11 @@ class FoodNotifier extends StateNotifier<FoodState> {
   Future<void> updateEntry(FoodEntry entry) async {
     try {
       await _repository.updateEntry(entry);
-      
+
       final updatedEntries = state.entries.map((e) {
         return e.id == entry.id ? entry : e;
       }).toList();
-      
+
       state = state.copyWith(entries: updatedEntries);
     } catch (e) {
       state = state.copyWith(error: 'Failed to update entry: ${e.toString()}');
@@ -159,7 +168,9 @@ class FoodNotifier extends StateNotifier<FoodState> {
   Future<void> deleteEntry(String entryId) async {
     try {
       await _repository.deleteEntry(_userId, entryId);
-      final updatedEntries = state.entries.where((e) => e.id != entryId).toList();
+      final updatedEntries = state.entries
+          .where((e) => e.id != entryId)
+          .toList();
       state = state.copyWith(entries: updatedEntries);
     } catch (e) {
       state = state.copyWith(error: 'Failed to delete entry: ${e.toString()}');
@@ -170,12 +181,6 @@ class FoodNotifier extends StateNotifier<FoodState> {
     state = state.copyWith(error: null);
   }
 }
-
-final foodProvider = StateNotifierProvider<FoodNotifier, FoodState>((ref) {
-  final repository = ref.watch(foodRepositoryProvider);
-  final userId = ref.watch(currentUserIdProvider);
-  return FoodNotifier(repository, userId);
-});
 
 // Additional providers for specific data
 final todayCaloriesProvider = Provider<int>((ref) {

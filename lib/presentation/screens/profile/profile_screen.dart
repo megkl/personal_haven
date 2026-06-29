@@ -1,8 +1,8 @@
 import 'package:flutter/material.dart';
+import 'package:personal_haven/core/theme/app_theme.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:personal_haven/core/constants/app_colors.dart';
 import 'package:personal_haven/presentation/screens/legal/terms_screen.dart';
-import 'package:personal_haven/presentation/screens/profile/favourites_screen.dart';
 import 'package:personal_haven/presentation/screens/subscription/subscription_screen.dart';
 import 'package:personal_haven/data/models/subscription.dart';
 import 'package:personal_haven/providers/subscription_provider.dart';
@@ -55,12 +55,12 @@ class ProfileScreen extends ConsumerWidget {
                   children: [
                     CircleAvatar(
                       radius: 60,
-                      backgroundColor: Colors.white,
+                      backgroundColor: context.colors.cardColor,
                       backgroundImage: user?.avatarUrl != null
                           ? NetworkImage(user!.avatarUrl!)
                           : null,
                       child: user?.avatarUrl == null
-                          ? const Icon(
+                          ? Icon(
                               Icons.person,
                               size: 60,
                               color: AppColors.primaryLight,
@@ -72,11 +72,11 @@ class ProfileScreen extends ConsumerWidget {
                       right: 0,
                       child: Container(
                         padding: const EdgeInsets.all(8),
-                        decoration: const BoxDecoration(
+                        decoration: BoxDecoration(
                           color: AppColors.primary,
                           shape: BoxShape.circle,
                         ),
-                        child: const Icon(
+                        child: Icon(
                           Icons.camera_alt,
                           size: 16,
                           color: Colors.white,
@@ -90,18 +90,20 @@ class ProfileScreen extends ConsumerWidget {
               // User Name
               Text(
                 user?.fullName ?? 'User',
-                style: const TextStyle(
+                style: TextStyle(
                   fontSize: 28,
                   fontWeight: FontWeight.bold,
-                  color: AppColors.textPrimary,
+                  color: context.colors.textPrimary,
                 ),
               ),
               // Premium badge
               if (subState.isPremium)
                 Container(
                   margin: const EdgeInsets.only(top: 6),
-                  padding:
-                      const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 12,
+                    vertical: 4,
+                  ),
                   decoration: BoxDecoration(
                     color: AppColors.primary,
                     borderRadius: BorderRadius.circular(12),
@@ -109,11 +111,14 @@ class ProfileScreen extends ConsumerWidget {
                   child: Text(
                     subState.active?.plan == SubscriptionPlan.free
                         ? '✨ Free Trial — ${subState.active!.daysRemaining}d left'
-                        : '✨ Premium — ${subState.active!.daysRemaining}d left',
-                    style: const TextStyle(
-                        color: Colors.white,
-                        fontSize: 12,
-                        fontWeight: FontWeight.w600),
+                        : subState.active != null
+                        ? '✨ Premium — ${subState.active!.daysRemaining}d left'
+                        : '✨ Premium',
+                    style: TextStyle(
+                      color: Colors.white,
+                      fontSize: 12,
+                      fontWeight: FontWeight.w600,
+                    ),
                   ),
                 ),
               if (user?.bio != null) ...[
@@ -122,9 +127,9 @@ class ProfileScreen extends ConsumerWidget {
                   padding: const EdgeInsets.symmetric(horizontal: 40),
                   child: Text(
                     user!.bio!,
-                    style: const TextStyle(
+                    style: TextStyle(
                       fontSize: 14,
-                      color: AppColors.textSecondary,
+                      color: context.colors.textSecondary,
                     ),
                     textAlign: TextAlign.center,
                   ),
@@ -136,41 +141,11 @@ class ProfileScreen extends ConsumerWidget {
                 margin: const EdgeInsets.symmetric(horizontal: 20),
                 padding: const EdgeInsets.all(20),
                 decoration: BoxDecoration(
-                  color: Colors.white,
+                  color: context.colors.cardColor,
                   borderRadius: BorderRadius.circular(16),
                 ),
                 child: Column(
                   children: [
-                    _buildProfileOption(
-                      context,
-                      Icons.favorite,
-                      'My Favorites',
-                      AppColors.primary,
-                      () {
-                        Navigator.push(
-                          context,
-                          MaterialPageRoute(
-                            builder: (_) => const FavoritesScreen(),
-                          ),
-                        );
-                      },
-                    ),
-                    const Divider(),
-                    _buildProfileOption(
-                      context,
-                      Icons.show_chart,
-                      'Mood Insights',
-                      AppColors.primary,
-                      () {
-                        Navigator.push(
-                          context,
-                          MaterialPageRoute(
-                            builder: (_) => const MoodInsightsScreen(),
-                          ),
-                        );
-                      },
-                    ),
-                    const Divider(),
                     _buildProfileOption(
                       context,
                       Icons.settings,
@@ -201,28 +176,29 @@ class ProfileScreen extends ConsumerWidget {
                       },
                     ),
                     const Divider(),
-                    _buildProfileOption(
-                      context,
-                      Icons.workspace_premium,
-                      subState.isPremium ? 'Manage Subscription' : 'Go Premium',
-                      Colors.amber.shade700,
-                      () {
-                        Navigator.push(
-                          context,
-                          MaterialPageRoute(
-                            builder: (_) => const SubscriptionScreen(),
-                          ),
-                        );
-                      },
-                    ),
-                    const Divider(),
+                    if (!subState.hasFullAccess) ...[
+                      _buildProfileOption(
+                        context,
+                        Icons.workspace_premium,
+                        'Go Premium',
+                        Colors.amber.shade700,
+                        () {
+                          Navigator.push(
+                            context,
+                            MaterialPageRoute(
+                              builder: (_) => const SubscriptionScreen(),
+                            ),
+                          );
+                        },
+                      ),
+                      const Divider(),
+                    ],
                     _buildProfileOption(
                       context,
                       Icons.description_outlined,
                       'Terms & Conditions',
                       AppColors.primary,
-                      () => Navigator.push(context,
-                          MaterialPageRoute(builder: (_) => const TermsScreen())),
+                      () => openTermsAndConditions(context),
                     ),
                     const Divider(),
                     _buildProfileOption(
@@ -230,10 +206,22 @@ class ProfileScreen extends ConsumerWidget {
                       Icons.privacy_tip_outlined,
                       'Privacy Policy',
                       AppColors.primary,
-                      () => Navigator.push(
+                      () => openPrivacyPolicy(context),
+                    ),
+                    const Divider(),
+                    _buildProfileOption(
+                      context,
+                      Icons.show_chart,
+                      'Insights',
+                      AppColors.primary,
+                      () {
+                        Navigator.push(
                           context,
                           MaterialPageRoute(
-                              builder: (_) => const PrivacyPolicyScreen())),
+                            builder: (_) => const MoodInsightsScreen(),
+                          ),
+                        );
+                      },
                     ),
                   ],
                 ),
@@ -251,7 +239,7 @@ class ProfileScreen extends ConsumerWidget {
                       borderRadius: BorderRadius.circular(28),
                     ),
                   ),
-                  child: const Text(
+                  child: Text(
                     'Log Out',
                     style: TextStyle(
                       fontSize: 18,
@@ -287,13 +275,13 @@ class ProfileScreen extends ConsumerWidget {
             Expanded(
               child: Text(
                 title,
-                style: const TextStyle(
+                style: TextStyle(
                   fontSize: 16,
-                  color: AppColors.textPrimary,
+                  color: context.colors.textPrimary,
                 ),
               ),
             ),
-            const Icon(Icons.chevron_right, color: Colors.grey),
+            Icon(Icons.chevron_right, color: context.colors.textSecondary),
           ],
         ),
       ),
@@ -304,12 +292,12 @@ class ProfileScreen extends ConsumerWidget {
     showDialog(
       context: context,
       builder: (context) => AlertDialog(
-        title: const Text('Log Out'),
-        content: const Text('Are you sure you want to log out?'),
+        title: Text('Log Out'),
+        content: Text('Are you sure you want to log out?'),
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(context),
-            child: const Text('Cancel'),
+            child: Text('Cancel'),
           ),
           TextButton(
             onPressed: () async {
@@ -323,10 +311,7 @@ class ProfileScreen extends ConsumerWidget {
                 );
               }
             },
-            child: const Text(
-              'Log Out',
-              style: TextStyle(color: Colors.red),
-            ),
+            child: Text('Log Out', style: TextStyle(color: Colors.red)),
           ),
         ],
       ),

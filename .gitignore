@@ -46,3 +46,46 @@ app.*.map.json
 /android/app/debug
 /android/app/profile
 /android/app/release
+
+# iOS / Xcode
+# CocoaPods artifacts and support files
+ios/Pods/
+ios/.symlinks/
+
+# Flutter iOS build artifacts
+ios/Flutter/ephemeral/
+ios/Flutter/Flutter.framework
+ios/Flutter/Flutter.podspec
+ios/Flutter/Flutter.xcframework
+
+# Xcode build and derived data
+ios/Build/
+ios/DerivedData/
+ios/Runner/Debug-*/
+ios/Runner/Release-*/
+
+# Generated plugin registrant
+ios/Runner/GeneratedPluginRegistrant.*
+.env
+
+# Firebase local/generated scaffolding
+.firebaserc
+firebase-debug.log
+firebase-debug.*.log
+ui-debug.log
+firestore-debug.log
+database-debug.log
+
+# Firebase Functions dependencies and generated deploy bundles
+functions/node_modules/
+functions/lib/
+
+# Firebase Data Connect generated/local files
+dataconnect/
+lib/dataconnect_generated/
+firestore.rules
+firestore.indexes.json
+
+# Local agent tooling
+.agents/
+skills-lock.json

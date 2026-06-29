@@ -1,10 +1,10 @@
 import 'package:equatable/equatable.dart';
 
-enum SubscriptionPlan { free, weekly, monthly }
+enum SubscriptionPlan { free, weekly, monthly, yearly }
 
 enum SubscriptionStatus { active, expired, cancelled, pending }
 
-enum PaymentMethod { mpesa, card, usdt, appStore }
+enum PaymentMethod { store }
 
 class Subscription extends Equatable {
   final String id;
@@ -34,8 +34,7 @@ class Subscription extends Equatable {
   });
 
   bool get isActive =>
-      status == SubscriptionStatus.active &&
-      expiryDate.isAfter(DateTime.now());
+      status == SubscriptionStatus.active && expiryDate.isAfter(DateTime.now());
 
   int get daysRemaining =>
       expiryDate.difference(DateTime.now()).inDays.clamp(0, 9999);
@@ -46,6 +45,8 @@ class Subscription extends Equatable {
         return 30.0;
       case SubscriptionPlan.monthly:
         return 100.0;
+      case SubscriptionPlan.yearly:
+        return 800.0;
       case SubscriptionPlan.free:
         return 0.0;
     }
@@ -57,6 +58,8 @@ class Subscription extends Equatable {
         return 'Weekly — KES 30';
       case SubscriptionPlan.monthly:
         return 'Monthly — KES 100';
+      case SubscriptionPlan.yearly:
+        return 'Yearly — KES 800';
       case SubscriptionPlan.free:
         return 'Free Trial';
     }
@@ -68,42 +71,51 @@ class Subscription extends Equatable {
         return const Duration(days: 7);
       case SubscriptionPlan.monthly:
         return const Duration(days: 30);
+      case SubscriptionPlan.yearly:
+        return const Duration(days: 365);
       case SubscriptionPlan.free:
-        return const Duration(days: 30);
+        return const Duration(days: 7);
     }
   }
 
   Map<String, dynamic> toFirestore() => {
-        'id': id,
-        'userId': userId,
-        'plan': plan.name,
-        'status': status.name,
-        'startDate': startDate.toIso8601String(),
-        'expiryDate': expiryDate.toIso8601String(),
-        'paymentMethod': paymentMethod?.name,
-        'transactionRef': transactionRef,
-        'amountPaid': amountPaid,
-        'currency': currency,
-        'isTrialUsed': isTrialUsed,
-      };
+    'id': id,
+    'userId': userId,
+    'plan': plan.name,
+    'status': status.name,
+    'startDate': startDate.toIso8601String(),
+    'expiryDate': expiryDate.toIso8601String(),
+    'paymentMethod': paymentMethod?.name,
+    'transactionRef': transactionRef,
+    'amountPaid': amountPaid,
+    'currency': currency,
+    'isTrialUsed': isTrialUsed,
+  };
 
   factory Subscription.fromFirestore(dynamic doc) {
     final d = doc.data() as Map<String, dynamic>;
+    return Subscription.fromMap(d, id: doc.id);
+  }
+
+  factory Subscription.fromMap(Map<String, dynamic> d, {String? id}) {
     return Subscription(
-      id: doc.id,
+      id: id ?? d['id'] as String,
       userId: d['userId'] as String,
       plan: SubscriptionPlan.values.firstWhere(
-          (e) => e.name == d['plan'],
-          orElse: () => SubscriptionPlan.free),
+        (e) => e.name == d['plan'],
+        orElse: () => SubscriptionPlan.free,
+      ),
       status: SubscriptionStatus.values.firstWhere(
-          (e) => e.name == d['status'],
-          orElse: () => SubscriptionStatus.expired),
+        (e) => e.name == d['status'],
+        orElse: () => SubscriptionStatus.expired,
+      ),
       startDate: DateTime.parse(d['startDate'] as String),
       expiryDate: DateTime.parse(d['expiryDate'] as String),
       paymentMethod: d['paymentMethod'] != null
           ? PaymentMethod.values.firstWhere(
               (e) => e.name == d['paymentMethod'],
-              orElse: () => PaymentMethod.mpesa)
+              orElse: () => PaymentMethod.store,
+            )
           : null,
       transactionRef: d['transactionRef'] as String?,
       amountPaid: (d['amountPaid'] as num?)?.toDouble() ?? 0,
@@ -134,6 +146,13 @@ class Subscription extends Equatable {
   }
 
   @override
-  List<Object?> get props =>
-      [id, userId, plan, status, startDate, expiryDate, isTrialUsed];
+  List<Object?> get props => [
+    id,
+    userId,
+    plan,
+    status,
+    startDate,
+    expiryDate,
+    isTrialUsed,
+  ];
 }

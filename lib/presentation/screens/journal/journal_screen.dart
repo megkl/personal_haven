@@ -1,8 +1,10 @@
 import 'package:flutter/material.dart';
+import 'package:personal_haven/core/theme/app_theme.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:intl/intl.dart';
 import 'package:personal_haven/core/constants/app_colors.dart';
 import 'package:personal_haven/data/models/journal_entry.dart';
+import 'package:personal_haven/presentation/widgets/common/app_confirm_dialog.dart';
 import 'package:personal_haven/providers/journal_provider.dart';
 
 class JournalScreen extends ConsumerStatefulWidget {
@@ -14,18 +16,17 @@ class JournalScreen extends ConsumerStatefulWidget {
 
 class _JournalScreenState extends ConsumerState<JournalScreen> {
   final _searchController = TextEditingController();
+  final _categoryController = ScrollController();
   String _selectedCategory = 'All';
   bool _isSearching = false;
   String _searchQuery = '';
 
-  final List<String> _categories = [
-    'All',
-    ...JournalCategories.names,
-  ];
+  final List<String> _categories = ['All', ...JournalCategories.names];
 
   @override
   void dispose() {
     _searchController.dispose();
+    _categoryController.dispose();
     super.dispose();
   }
 
@@ -52,116 +53,201 @@ class _JournalScreenState extends ConsumerState<JournalScreen> {
     }
 
     return Scaffold(
-      backgroundColor: AppColors.background,
+      backgroundColor: Theme.of(context).scaffoldBackgroundColor,
       body: Column(
         children: [
-          // Search Header
+          _buildHeader(),
           _buildSearchHeader(),
-
-          // Category Filter
           _buildCategoryFilter(journalState),
-
-          // Stats Card
-          if (!_isSearching && journalState.entries.isNotEmpty)
-            _buildStatsCard(journalState),
-
-          // Journal Entries List
+          const SizedBox(height: 4),
           Expanded(
-            child: journalState.isLoading
-                ? const Center(child: CircularProgressIndicator())
-                : filteredEntries.isEmpty
-                    ? _buildEmptyState()
-                    : RefreshIndicator(
-                        onRefresh: () async {
-                          await ref.read(journalProvider.notifier).loadEntries();
-                        },
-                        child: _buildEntriesList(filteredEntries),
-                      ),
+            child: AnimatedSwitcher(
+              duration: const Duration(milliseconds: 240),
+              reverseDuration: const Duration(milliseconds: 180),
+              switchInCurve: Curves.easeOutCubic,
+              switchOutCurve: Curves.easeInCubic,
+              transitionBuilder: (child, animation) {
+                final slide = Tween<Offset>(
+                  begin: const Offset(0.025, 0),
+                  end: Offset.zero,
+                ).animate(animation);
+                return FadeTransition(
+                  opacity: animation,
+                  child: SlideTransition(position: slide, child: child),
+                );
+              },
+              child: journalState.isLoading
+                  ? const Center(
+                      key: ValueKey('journal-loading'),
+                      child: CircularProgressIndicator(),
+                    )
+                  : filteredEntries.isEmpty
+                  ? KeyedSubtree(
+                      key: ValueKey('empty-$_selectedCategory-$_searchQuery'),
+                      child: _buildEmptyState(),
+                    )
+                  : RefreshIndicator(
+                      key: ValueKey('entries-$_selectedCategory-$_searchQuery'),
+                      onRefresh: () =>
+                          ref.read(journalProvider.notifier).loadEntries(),
+                      child: _buildEntriesList(filteredEntries),
+                    ),
+            ),
           ),
         ],
       ),
       floatingActionButton: FloatingActionButton.extended(
+        heroTag: 'journal_entry_add',
         onPressed: () => _showAddEntrySheet(context),
         backgroundColor: AppColors.primary,
-        icon: const Icon(Icons.add, color: Colors.white),
-        label: const Text('New Entry', style: TextStyle(color: Colors.white)),
+        icon: Icon(Icons.add, color: Colors.white),
+        label: Text('New Entry', style: TextStyle(color: Colors.white)),
+      ),
+    );
+  }
+
+  Widget _buildHeader() {
+    return Container(
+      decoration: BoxDecoration(
+        gradient: LinearGradient(
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
+          colors: [AppColors.primary, AppColors.primaryDark],
+        ),
+        borderRadius: const BorderRadius.vertical(bottom: Radius.circular(28)),
+        boxShadow: [
+          BoxShadow(
+            color: AppColors.primary.withValues(alpha: 0.3),
+            blurRadius: 20,
+            offset: const Offset(0, 8),
+          ),
+        ],
+      ),
+      child: SafeArea(
+        bottom: false,
+        child: Padding(
+          padding: const EdgeInsets.fromLTRB(24, 16, 24, 24),
+          child: Row(
+            children: [
+              Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    'Journals',
+                    style: TextStyle(
+                      fontSize: 28,
+                      fontWeight: FontWeight.bold,
+                      color: Colors.white,
+                    ),
+                  ),
+                  Text(
+                    'Pause, reflect, and reconnect with yourself',
+                    style: TextStyle(
+                      fontSize: 13,
+                      color: Colors.white.withValues(alpha: 0.8),
+                    ),
+                  ),
+                ],
+              ),
+              const Spacer(),
+              Container(
+                padding: const EdgeInsets.all(10),
+                decoration: BoxDecoration(
+                  color: context.colors.cardColor.withValues(alpha: 0.2),
+                  shape: BoxShape.circle,
+                ),
+                child: Icon(
+                  Icons.menu_book_outlined,
+                  color: Colors.white,
+                  size: 22,
+                ),
+              ),
+            ],
+          ),
+        ),
       ),
     );
   }
 
   Widget _buildSearchHeader() {
-    return Container(
-      padding: const EdgeInsets.all(16),
-      color: Colors.white,
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(16, 14, 16, 8),
       child: Row(
         children: [
           Expanded(
-            child: Container(
-              padding: const EdgeInsets.symmetric(horizontal: 16),
-              decoration: BoxDecoration(
-                color: Colors.grey.shade100,
-                borderRadius: BorderRadius.circular(12),
-              ),
-              child: Row(
-                children: [
-                  Icon(Icons.search, color: Colors.grey.shade500),
-                  const SizedBox(width: 8),
-                  Expanded(
-                    child: TextField(
-                      controller: _searchController,
-                      decoration: const InputDecoration(
-                        hintText: 'Search journal entries...',
-                        border: InputBorder.none,
-                      ),
-                      onChanged: (value) {
-                        setState(() {
-                          _searchQuery = value;
-                          _isSearching = value.isNotEmpty;
-                        });
-                      },
+            child: TextField(
+              controller: _searchController,
+              decoration: InputDecoration(
+                hintText: 'Search journal entries',
+                prefixIcon: Padding(
+                  padding: const EdgeInsets.fromLTRB(12, 10, 8, 10),
+                  child: Container(
+                    width: 32,
+                    height: 32,
+                    decoration: BoxDecoration(
+                      color: AppColors.primary.withValues(alpha: 0.12),
+                      shape: BoxShape.circle,
+                    ),
+                    child: const Icon(
+                      Icons.manage_search_rounded,
+                      color: AppColors.primaryDark,
+                      size: 20,
                     ),
                   ),
-                  if (_searchQuery.isNotEmpty)
-                    IconButton(
-                      icon: const Icon(Icons.clear, size: 20),
-                      onPressed: () {
-                        _searchController.clear();
-                        setState(() {
-                          _searchQuery = '';
-                          _isSearching = false;
-                        });
-                      },
-                    ),
-                ],
+                ),
+                suffixIcon: _searchQuery.isEmpty
+                    ? null
+                    : IconButton(
+                        tooltip: 'Clear search',
+                        icon: const Icon(Icons.close, size: 18),
+                        onPressed: _clearSearch,
+                      ),
+                filled: true,
+                fillColor: context.colors.cardColor,
+                contentPadding: EdgeInsets.zero,
+                border: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(14),
+                  borderSide: BorderSide(color: context.colors.divider),
+                ),
+                enabledBorder: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(14),
+                  borderSide: BorderSide(color: context.colors.divider),
+                ),
               ),
+              onChanged: (value) => setState(() {
+                _searchQuery = value;
+                _isSearching = value.isNotEmpty;
+              }),
             ),
           ),
-          if (_isSearching) ...[
-            const SizedBox(width: 8),
-            TextButton(
-              onPressed: () {
-                _searchController.clear();
-                setState(() {
-                  _searchQuery = '';
-                  _isSearching = false;
-                });
-                FocusScope.of(context).unfocus();
-              },
-              child: const Text('Cancel'),
-            ),
-          ],
         ],
       ),
     );
   }
 
+  void _clearSearch() {
+    _searchController.clear();
+    setState(() {
+      _searchQuery = '';
+      _isSearching = false;
+    });
+    FocusScope.of(context).unfocus();
+  }
+
   Widget _buildCategoryFilter(JournalState journalState) {
     return Container(
-      height: 50,
-      color: Colors.white,
+      height: 52,
+      margin: const EdgeInsets.fromLTRB(16, 0, 16, 6),
+      padding: const EdgeInsets.all(4),
+      decoration: BoxDecoration(
+        color: context.colors.cardColor,
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(color: context.colors.divider),
+      ),
       child: ListView.builder(
+        controller: _categoryController,
         scrollDirection: Axis.horizontal,
-        padding: const EdgeInsets.symmetric(horizontal: 16),
+        physics: const BouncingScrollPhysics(),
         itemCount: _categories.length,
         itemBuilder: (context, index) {
           final category = _categories[index];
@@ -177,41 +263,48 @@ class _JournalScreenState extends ConsumerState<JournalScreen> {
                 .length;
           }
 
-          final categoryData = JournalCategories.getByName(category);
-          final emoji = categoryData?.emoji ?? '📋';
-
           return Padding(
-            padding: const EdgeInsets.only(right: 8),
-            child: GestureDetector(
-              onTap: () => setState(() => _selectedCategory = category),
-              child: Container(
-                padding: const EdgeInsets.symmetric(horizontal: 14),
+            padding: EdgeInsets.only(
+              right: index == _categories.length - 1 ? 0 : 4,
+            ),
+            child: InkWell(
+              borderRadius: BorderRadius.circular(12),
+              onTap: () {
+                if (_selectedCategory == category) return;
+                setState(() => _selectedCategory = category);
+              },
+              child: AnimatedContainer(
+                duration: const Duration(milliseconds: 220),
+                curve: Curves.easeOut,
+                padding: const EdgeInsets.symmetric(horizontal: 13),
                 decoration: BoxDecoration(
-                  color: isSelected ? AppColors.primary : Colors.grey.shade100,
-                  borderRadius: BorderRadius.circular(20),
+                  color: isSelected ? AppColors.primary : Colors.transparent,
+                  borderRadius: BorderRadius.circular(12),
                 ),
                 child: Row(
                   children: [
-                    if (category != 'All') ...[
-                      Text(emoji, style: const TextStyle(fontSize: 14)),
-                      const SizedBox(width: 4),
-                    ],
                     Text(
                       category,
                       style: TextStyle(
-                        fontSize: 13,
-                        fontWeight: FontWeight.w500,
-                        color: isSelected ? Colors.white : Colors.grey.shade700,
+                        fontSize: 12,
+                        fontWeight: isSelected
+                            ? FontWeight.w700
+                            : FontWeight.w500,
+                        color: isSelected
+                            ? Colors.white
+                            : context.colors.textSecondary,
                       ),
                     ),
                     const SizedBox(width: 4),
                     Container(
                       padding: const EdgeInsets.symmetric(
-                          horizontal: 6, vertical: 2),
+                        horizontal: 6,
+                        vertical: 2,
+                      ),
                       decoration: BoxDecoration(
                         color: isSelected
-                            ? Colors.white.withOpacity(0.3)
-                            : Colors.grey.shade300,
+                            ? Colors.white.withValues(alpha: 0.22)
+                            : context.colors.cardColor2,
                         borderRadius: BorderRadius.circular(10),
                       ),
                       child: Text(
@@ -219,7 +312,9 @@ class _JournalScreenState extends ConsumerState<JournalScreen> {
                         style: TextStyle(
                           fontSize: 11,
                           fontWeight: FontWeight.bold,
-                          color: isSelected ? Colors.white : Colors.grey.shade600,
+                          color: isSelected
+                              ? Colors.white
+                              : context.colors.textSecondary,
                         ),
                       ),
                     ),
@@ -230,77 +325,6 @@ class _JournalScreenState extends ConsumerState<JournalScreen> {
           );
         },
       ),
-    );
-  }
-
-  Widget _buildStatsCard(JournalState journalState) {
-    final todayCount = journalState.entries.where((e) {
-      final now = DateTime.now();
-      return e.entryDate.year == now.year &&
-          e.entryDate.month == now.month &&
-          e.entryDate.day == now.day;
-    }).length;
-
-    final thisWeekCount = journalState.entries.where((e) {
-      final now = DateTime.now();
-      final weekAgo = now.subtract(const Duration(days: 7));
-      return e.entryDate.isAfter(weekAgo);
-    }).length;
-
-    return Container(
-      margin: const EdgeInsets.all(16),
-      padding: const EdgeInsets.all(16),
-      decoration: BoxDecoration(
-        gradient: const LinearGradient(
-          colors: [Color(0xFF4ECDC4), Color(0xFF44A3AA)],
-          begin: Alignment.topLeft,
-          end: Alignment.bottomRight,
-        ),
-        borderRadius: BorderRadius.circular(16),
-      ),
-      child: Row(
-        children: [
-          _buildStatItem('📝', 'Total', journalState.entries.length.toString()),
-          _buildStatDivider(),
-          _buildStatItem('📅', 'Today', todayCount.toString()),
-          _buildStatDivider(),
-          _buildStatItem('📆', 'This Week', thisWeekCount.toString()),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildStatItem(String emoji, String label, String value) {
-    return Expanded(
-      child: Column(
-        children: [
-          Text(emoji, style: const TextStyle(fontSize: 20)),
-          const SizedBox(height: 4),
-          Text(
-            value,
-            style: const TextStyle(
-              fontSize: 20,
-              fontWeight: FontWeight.bold,
-              color: Colors.white,
-            ),
-          ),
-          Text(
-            label,
-            style: const TextStyle(
-              fontSize: 11,
-              color: Colors.white70,
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildStatDivider() {
-    return Container(
-      width: 1,
-      height: 40,
-      color: Colors.white.withOpacity(0.3),
     );
   }
 
@@ -333,7 +357,7 @@ class _JournalScreenState extends ConsumerState<JournalScreen> {
                 style: TextStyle(
                   fontSize: 13,
                   fontWeight: FontWeight.w600,
-                  color: Colors.grey.shade600,
+                  color: context.colors.textSecondary,
                 ),
               ),
             ),
@@ -365,11 +389,11 @@ class _JournalScreenState extends ConsumerState<JournalScreen> {
       child: Container(
         margin: const EdgeInsets.only(bottom: 12),
         decoration: BoxDecoration(
-          color: Colors.white,
+          color: context.colors.cardColor,
           borderRadius: BorderRadius.circular(16),
           boxShadow: [
             BoxShadow(
-              color: Colors.black.withOpacity(0.05),
+              color: Colors.black.withValues(alpha: 0.05),
               blurRadius: 10,
               offset: const Offset(0, 2),
             ),
@@ -397,16 +421,16 @@ class _JournalScreenState extends ConsumerState<JournalScreen> {
                   Row(
                     children: [
                       if (entry.emoji != null) ...[
-                        Text(entry.emoji!, style: const TextStyle(fontSize: 24)),
+                        Text(entry.emoji!, style: TextStyle(fontSize: 24)),
                         const SizedBox(width: 10),
                       ],
                       Expanded(
                         child: Text(
                           entry.title,
-                          style: const TextStyle(
+                          style: TextStyle(
                             fontSize: 17,
                             fontWeight: FontWeight.bold,
-                            color: Color(0xFF2D3E40),
+                            color: context.colors.textPrimary,
                           ),
                           maxLines: 1,
                           overflow: TextOverflow.ellipsis,
@@ -421,7 +445,7 @@ class _JournalScreenState extends ConsumerState<JournalScreen> {
                     entry.content,
                     style: TextStyle(
                       fontSize: 14,
-                      color: Colors.grey.shade600,
+                      color: context.colors.textSecondary,
                       height: 1.4,
                     ),
                     maxLines: 2,
@@ -433,14 +457,17 @@ class _JournalScreenState extends ConsumerState<JournalScreen> {
                   Row(
                     children: [
                       // Time
-                      Icon(Icons.access_time,
-                          size: 14, color: Colors.grey.shade400),
+                      Icon(
+                        Icons.access_time,
+                        size: 14,
+                        color: context.colors.textSecondary,
+                      ),
                       const SizedBox(width: 4),
                       Text(
                         DateFormat('h:mm a').format(entry.entryDate),
                         style: TextStyle(
                           fontSize: 12,
-                          color: Colors.grey.shade500,
+                          color: context.colors.textSecondary,
                         ),
                       ),
                       const SizedBox(width: 12),
@@ -448,9 +475,11 @@ class _JournalScreenState extends ConsumerState<JournalScreen> {
                       // Category chip
                       Container(
                         padding: const EdgeInsets.symmetric(
-                            horizontal: 8, vertical: 4),
+                          horizontal: 8,
+                          vertical: 4,
+                        ),
                         decoration: BoxDecoration(
-                          color: categoryColor.withOpacity(0.15),
+                          color: categoryColor.withValues(alpha: 0.15),
                           borderRadius: BorderRadius.circular(12),
                         ),
                         child: Row(
@@ -458,7 +487,7 @@ class _JournalScreenState extends ConsumerState<JournalScreen> {
                           children: [
                             Text(
                               categoryData?.emoji ?? '📝',
-                              style: const TextStyle(fontSize: 12),
+                              style: TextStyle(fontSize: 12),
                             ),
                             const SizedBox(width: 4),
                             Text(
@@ -476,14 +505,17 @@ class _JournalScreenState extends ConsumerState<JournalScreen> {
 
                       // Tags indicator
                       if (entry.tags.isNotEmpty) ...[
-                        Icon(Icons.label_outline,
-                            size: 14, color: Colors.grey.shade400),
+                        Icon(
+                          Icons.label_outline,
+                          size: 14,
+                          color: context.colors.textSecondary,
+                        ),
                         const SizedBox(width: 4),
                         Text(
                           '${entry.tags.length}',
                           style: TextStyle(
                             fontSize: 12,
-                            color: Colors.grey.shade500,
+                            color: context.colors.textSecondary,
                           ),
                         ),
                       ],
@@ -503,18 +535,18 @@ class _JournalScreenState extends ConsumerState<JournalScreen> {
       child: Column(
         mainAxisAlignment: MainAxisAlignment.center,
         children: [
-          const Text('📔', style: TextStyle(fontSize: 64)),
+          Text('📔', style: TextStyle(fontSize: 64)),
           const SizedBox(height: 16),
           Text(
             _isSearching
                 ? 'No entries found'
                 : _selectedCategory != 'All'
-                    ? 'No $_selectedCategory entries yet'
-                    : 'No journal entries yet',
+                ? 'No $_selectedCategory entries yet'
+                : 'No journal entries yet',
             style: TextStyle(
               fontSize: 18,
               fontWeight: FontWeight.bold,
-              color: Colors.grey.shade600,
+              color: context.colors.textSecondary,
             ),
           ),
           const SizedBox(height: 8),
@@ -522,10 +554,7 @@ class _JournalScreenState extends ConsumerState<JournalScreen> {
             _isSearching
                 ? 'Try a different search term'
                 : 'Tap + to create your first entry',
-            style: TextStyle(
-              fontSize: 14,
-              color: Colors.grey.shade500,
-            ),
+            style: TextStyle(fontSize: 14, color: context.colors.textSecondary),
           ),
         ],
       ),
@@ -543,7 +572,9 @@ class _JournalScreenState extends ConsumerState<JournalScreen> {
       backgroundColor: Colors.transparent,
       builder: (context) => _AddEditEntrySheet(
         onSave: (title, content, category, emoji, tags) {
-          ref.read(journalProvider.notifier).addEntry(
+          ref
+              .read(journalProvider.notifier)
+              .addEntry(
                 title: title,
                 content: content,
                 category: category,
@@ -597,36 +628,23 @@ class _JournalScreenState extends ConsumerState<JournalScreen> {
   }
 
   void _confirmDelete(JournalEntry entry) {
-    showDialog(
+    showAppConfirmDialog(
       context: context,
-      builder: (context) => AlertDialog(
-        title: const Text('Delete Entry?'),
-        content: Text('Are you sure you want to delete "${entry.title}"?'),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(context),
-            child: const Text('Cancel'),
-          ),
-          ElevatedButton(
-            onPressed: () {
-              ref.read(journalProvider.notifier).deleteEntry(entry.id);
-              Navigator.pop(context);
-              ScaffoldMessenger.of(context).showSnackBar(
-                const SnackBar(
-                  content: Text('Entry deleted'),
-                  behavior: SnackBarBehavior.floating,
-                ),
-              );
-            },
-            style: ElevatedButton.styleFrom(
-              backgroundColor: Colors.red,
-              foregroundColor: Colors.white,
-            ),
-            child: const Text('Delete'),
-          ),
-        ],
-      ),
-    );
+      title: 'Delete entry?',
+      message: 'Delete "${entry.title}" from your journal?',
+      confirmLabel: 'Delete',
+      icon: Icons.delete_outline_rounded,
+      destructive: true,
+    ).then((confirmed) {
+      if (!confirmed) return;
+      ref.read(journalProvider.notifier).deleteEntry(entry.id);
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Entry deleted'),
+          behavior: SnackBarBehavior.floating,
+        ),
+      );
+    });
   }
 }
 
@@ -655,8 +673,8 @@ class _EntryDetailsSheet extends StatelessWidget {
       maxChildSize: 0.95,
       minChildSize: 0.5,
       builder: (context, scrollController) => Container(
-        decoration: const BoxDecoration(
-          color: Colors.white,
+        decoration: BoxDecoration(
+          color: context.colors.cardColor,
           borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
         ),
         child: Column(
@@ -667,7 +685,7 @@ class _EntryDetailsSheet extends StatelessWidget {
               width: 40,
               height: 4,
               decoration: BoxDecoration(
-                color: Colors.grey.shade300,
+                color: context.colors.divider,
                 borderRadius: BorderRadius.circular(2),
               ),
             ),
@@ -684,8 +702,7 @@ class _EntryDetailsSheet extends StatelessWidget {
                     Row(
                       children: [
                         if (entry.emoji != null) ...[
-                          Text(entry.emoji!,
-                              style: const TextStyle(fontSize: 36)),
+                          Text(entry.emoji!, style: TextStyle(fontSize: 36)),
                           const SizedBox(width: 12),
                         ],
                         Expanded(
@@ -694,18 +711,19 @@ class _EntryDetailsSheet extends StatelessWidget {
                             children: [
                               Text(
                                 entry.title,
-                                style: const TextStyle(
+                                style: TextStyle(
                                   fontSize: 24,
                                   fontWeight: FontWeight.bold,
                                 ),
                               ),
                               const SizedBox(height: 4),
                               Text(
-                                DateFormat('EEEE, MMMM d, yyyy • h:mm a')
-                                    .format(entry.entryDate),
+                                DateFormat(
+                                  'EEEE, MMMM d, yyyy • h:mm a',
+                                ).format(entry.entryDate),
                                 style: TextStyle(
                                   fontSize: 13,
-                                  color: Colors.grey.shade500,
+                                  color: context.colors.textSecondary,
                                 ),
                               ),
                             ],
@@ -718,9 +736,11 @@ class _EntryDetailsSheet extends StatelessWidget {
                     // Category
                     Container(
                       padding: const EdgeInsets.symmetric(
-                          horizontal: 12, vertical: 6),
+                        horizontal: 12,
+                        vertical: 6,
+                      ),
                       decoration: BoxDecoration(
-                        color: categoryColor.withOpacity(0.15),
+                        color: categoryColor.withValues(alpha: 0.15),
                         borderRadius: BorderRadius.circular(16),
                       ),
                       child: Row(
@@ -744,7 +764,7 @@ class _EntryDetailsSheet extends StatelessWidget {
                     // Content
                     Text(
                       entry.content,
-                      style: const TextStyle(
+                      style: TextStyle(
                         fontSize: 16,
                         height: 1.6,
                         color: Color(0xFF2D3E40),
@@ -754,12 +774,12 @@ class _EntryDetailsSheet extends StatelessWidget {
                     // Tags
                     if (entry.tags.isNotEmpty) ...[
                       const SizedBox(height: 24),
-                      const Text(
+                      Text(
                         'Tags',
                         style: TextStyle(
                           fontSize: 14,
                           fontWeight: FontWeight.w600,
-                          color: Colors.grey,
+                          color: context.colors.textSecondary,
                         ),
                       ),
                       const SizedBox(height: 8),
@@ -767,10 +787,12 @@ class _EntryDetailsSheet extends StatelessWidget {
                         spacing: 8,
                         runSpacing: 8,
                         children: entry.tags
-                            .map((tag) => Chip(
-                                  label: Text(tag),
-                                  backgroundColor: Colors.grey.shade100,
-                                ))
+                            .map(
+                              (tag) => Chip(
+                                label: Text(tag),
+                                backgroundColor: context.colors.cardColor2,
+                              ),
+                            )
                             .toList(),
                       ),
                     ],
@@ -782,8 +804,8 @@ class _EntryDetailsSheet extends StatelessWidget {
                         Expanded(
                           child: OutlinedButton.icon(
                             onPressed: onEdit,
-                            icon: const Icon(Icons.edit_outlined),
-                            label: const Text('Edit'),
+                            icon: Icon(Icons.edit_outlined),
+                            label: Text('Edit'),
                             style: OutlinedButton.styleFrom(
                               padding: const EdgeInsets.symmetric(vertical: 14),
                             ),
@@ -793,10 +815,11 @@ class _EntryDetailsSheet extends StatelessWidget {
                         Expanded(
                           child: OutlinedButton.icon(
                             onPressed: onDelete,
-                            icon:
-                                const Icon(Icons.delete_outline, color: Colors.red),
-                            label: const Text('Delete',
-                                style: TextStyle(color: Colors.red)),
+                            icon: Icon(Icons.delete_outline, color: Colors.red),
+                            label: Text(
+                              'Delete',
+                              style: TextStyle(color: Colors.red),
+                            ),
                             style: OutlinedButton.styleFrom(
                               padding: const EdgeInsets.symmetric(vertical: 14),
                               side: const BorderSide(color: Colors.red),
@@ -822,13 +845,16 @@ class _EntryDetailsSheet extends StatelessWidget {
 
 class _AddEditEntrySheet extends StatefulWidget {
   final JournalEntry? entry;
-  final Function(String title, String content, String category, String? emoji,
-      List<String> tags) onSave;
+  final Function(
+    String title,
+    String content,
+    String category,
+    String? emoji,
+    List<String> tags,
+  )
+  onSave;
 
-  const _AddEditEntrySheet({
-    this.entry,
-    required this.onSave,
-  });
+  const _AddEditEntrySheet({this.entry, required this.onSave});
 
   @override
   State<_AddEditEntrySheet> createState() => _AddEditEntrySheetState();
@@ -846,8 +872,9 @@ class _AddEditEntrySheetState extends State<_AddEditEntrySheet> {
   void initState() {
     super.initState();
     _titleController = TextEditingController(text: widget.entry?.title ?? '');
-    _contentController =
-        TextEditingController(text: widget.entry?.content ?? '');
+    _contentController = TextEditingController(
+      text: widget.entry?.content ?? '',
+    );
     _tagController = TextEditingController();
     _selectedCategory = widget.entry?.category ?? 'Notes';
     _selectedEmoji = widget.entry?.emoji;
@@ -875,8 +902,8 @@ class _AddEditEntrySheetState extends State<_AddEditEntrySheet> {
         maxChildSize: 0.95,
         minChildSize: 0.5,
         builder: (context, scrollController) => Container(
-          decoration: const BoxDecoration(
-            color: Colors.white,
+          decoration: BoxDecoration(
+            color: context.colors.cardColor,
             borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
           ),
           child: Column(
@@ -887,37 +914,23 @@ class _AddEditEntrySheetState extends State<_AddEditEntrySheet> {
                 width: 40,
                 height: 4,
                 decoration: BoxDecoration(
-                  color: Colors.grey.shade300,
+                  color: context.colors.divider,
                   borderRadius: BorderRadius.circular(2),
                 ),
               ),
 
-              // Header
               Padding(
-                padding: const EdgeInsets.all(16),
-                child: Row(
-                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                  children: [
-                    TextButton(
-                      onPressed: () => Navigator.pop(context),
-                      child: const Text('Cancel'),
+                padding: const EdgeInsets.fromLTRB(24, 20, 24, 4),
+                child: Align(
+                  alignment: Alignment.centerLeft,
+                  child: Text(
+                    isEditing ? '✏️ Edit Entry' : '➕ New Entry',
+                    style: TextStyle(
+                      fontSize: 22,
+                      fontWeight: FontWeight.bold,
+                      color: context.colors.textPrimary,
                     ),
-                    Text(
-                      isEditing ? 'Edit Entry' : 'New Entry',
-                      style: const TextStyle(
-                        fontSize: 18,
-                        fontWeight: FontWeight.bold,
-                      ),
-                    ),
-                    ElevatedButton(
-                      onPressed: _save,
-                      style: ElevatedButton.styleFrom(
-                        backgroundColor: AppColors.primary,
-                        foregroundColor: Colors.white,
-                      ),
-                      child: const Text('Save'),
-                    ),
-                  ],
+                  ),
                 ),
               ),
 
@@ -930,7 +943,7 @@ class _AddEditEntrySheetState extends State<_AddEditEntrySheet> {
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
                       // Emoji selector
-                      const Text(
+                      Text(
                         'How are you feeling?',
                         style: TextStyle(
                           fontSize: 14,
@@ -949,8 +962,7 @@ class _AddEditEntrySheetState extends State<_AddEditEntrySheet> {
                             return GestureDetector(
                               onTap: () {
                                 setState(() {
-                                  _selectedEmoji =
-                                      isSelected ? null : emoji;
+                                  _selectedEmoji = isSelected ? null : emoji;
                                 });
                               },
                               child: Container(
@@ -959,17 +971,21 @@ class _AddEditEntrySheetState extends State<_AddEditEntrySheet> {
                                 margin: const EdgeInsets.only(right: 8),
                                 decoration: BoxDecoration(
                                   color: isSelected
-                                      ? AppColors.primary.withOpacity(0.2)
-                                      : Colors.grey.shade100,
+                                      ? AppColors.primary.withValues(alpha: 0.2)
+                                      : context.colors.cardColor2,
                                   borderRadius: BorderRadius.circular(12),
                                   border: isSelected
                                       ? Border.all(
-                                          color: AppColors.primary, width: 2)
+                                          color: AppColors.primary,
+                                          width: 2,
+                                        )
                                       : null,
                                 ),
                                 child: Center(
-                                  child: Text(emoji,
-                                      style: const TextStyle(fontSize: 24)),
+                                  child: Text(
+                                    emoji,
+                                    style: TextStyle(fontSize: 24),
+                                  ),
                                 ),
                               ),
                             );
@@ -981,26 +997,18 @@ class _AddEditEntrySheetState extends State<_AddEditEntrySheet> {
                       // Title
                       TextField(
                         controller: _titleController,
-                        decoration: InputDecoration(
-                          labelText: 'Title',
-                          hintText: 'Give your entry a title',
-                          border: OutlineInputBorder(
-                            borderRadius: BorderRadius.circular(12),
-                          ),
-                        ),
+                        decoration: _inputDec('Give your entry a title *'),
                         textCapitalization: TextCapitalization.sentences,
                       ),
-                      const SizedBox(height: 16),
+                      const SizedBox(height: 12),
 
                       // Category
                       DropdownButtonFormField<String>(
                         initialValue: _selectedCategory,
-                        decoration: InputDecoration(
-                          labelText: 'Category',
-                          border: OutlineInputBorder(
-                            borderRadius: BorderRadius.circular(12),
-                          ),
-                        ),
+                        decoration: _inputDec(
+                          'Category',
+                        ).copyWith(labelText: 'Category', hintText: null),
+                        borderRadius: BorderRadius.circular(14),
                         items: JournalCategories.all.map((c) {
                           return DropdownMenuItem(
                             value: c.name,
@@ -1022,21 +1030,16 @@ class _AddEditEntrySheetState extends State<_AddEditEntrySheet> {
                       // Content
                       TextField(
                         controller: _contentController,
-                        decoration: InputDecoration(
-                          labelText: 'Content',
-                          hintText: 'Write your thoughts...',
-                          alignLabelWithHint: true,
-                          border: OutlineInputBorder(
-                            borderRadius: BorderRadius.circular(12),
-                          ),
-                        ),
+                        decoration: _inputDec(
+                          'Write your thoughts... *',
+                        ).copyWith(alignLabelWithHint: true),
                         maxLines: 8,
                         textCapitalization: TextCapitalization.sentences,
                       ),
                       const SizedBox(height: 16),
 
                       // Tags
-                      const Text(
+                      Text(
                         'Tags',
                         style: TextStyle(
                           fontSize: 14,
@@ -1049,21 +1052,14 @@ class _AddEditEntrySheetState extends State<_AddEditEntrySheet> {
                           Expanded(
                             child: TextField(
                               controller: _tagController,
-                              decoration: InputDecoration(
-                                hintText: 'Add a tag',
-                                border: OutlineInputBorder(
-                                  borderRadius: BorderRadius.circular(12),
-                                ),
-                                contentPadding: const EdgeInsets.symmetric(
-                                    horizontal: 16, vertical: 12),
-                              ),
+                              decoration: _inputDec('Add a tag'),
                               onSubmitted: _addTag,
                             ),
                           ),
                           const SizedBox(width: 8),
                           IconButton(
                             onPressed: () => _addTag(_tagController.text),
-                            icon: const Icon(Icons.add_circle),
+                            icon: Icon(Icons.add_circle),
                             color: AppColors.primary,
                           ),
                         ],
@@ -1074,17 +1070,42 @@ class _AddEditEntrySheetState extends State<_AddEditEntrySheet> {
                           spacing: 8,
                           runSpacing: 8,
                           children: _tags
-                              .map((tag) => Chip(
-                                    label: Text(tag),
-                                    deleteIcon: const Icon(Icons.close, size: 16),
-                                    onDeleted: () {
-                                      setState(() => _tags.remove(tag));
-                                    },
-                                  ))
+                              .map(
+                                (tag) => Chip(
+                                  label: Text(tag),
+                                  deleteIcon: Icon(Icons.close, size: 16),
+                                  onDeleted: () {
+                                    setState(() => _tags.remove(tag));
+                                  },
+                                ),
+                              )
                               .toList(),
                         ),
                       ],
-                      const SizedBox(height: 40),
+                      const SizedBox(height: 24),
+                      SizedBox(
+                        width: double.infinity,
+                        child: ElevatedButton(
+                          onPressed: _save,
+                          style: ElevatedButton.styleFrom(
+                            backgroundColor: AppColors.primary,
+                            foregroundColor: Colors.white,
+                            padding: const EdgeInsets.symmetric(vertical: 16),
+                            elevation: 0,
+                            shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(16),
+                            ),
+                          ),
+                          child: Text(
+                            isEditing ? 'Save Changes' : 'Save Entry',
+                            style: TextStyle(
+                              fontSize: 16,
+                              fontWeight: FontWeight.bold,
+                            ),
+                          ),
+                        ),
+                      ),
+                      const SizedBox(height: 16),
                     ],
                   ),
                 ),
@@ -1106,11 +1127,23 @@ class _AddEditEntrySheetState extends State<_AddEditEntrySheet> {
     }
   }
 
+  InputDecoration _inputDec(String hint) => InputDecoration(
+    hintText: hint,
+    hintStyle: TextStyle(color: context.colors.textSecondary, fontSize: 14),
+    filled: true,
+    fillColor: context.colors.cardColor2,
+    border: OutlineInputBorder(
+      borderRadius: BorderRadius.circular(14),
+      borderSide: BorderSide.none,
+    ),
+    contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+  );
+
   void _save() {
     if (_titleController.text.isEmpty) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Please enter a title')),
-      );
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(const SnackBar(content: Text('Please enter a title')));
       return;
     }
 

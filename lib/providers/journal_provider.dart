@@ -2,6 +2,8 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:personal_haven/data/models/journal_entry.dart';
 import 'package:personal_haven/data/repositories/journal_repository.dart';
 import 'package:personal_haven/providers/auth_provider.dart';
+import 'package:riverpod_annotation/riverpod_annotation.dart';
+part 'journal_provider.g.dart';
 
 /// Provider for JournalRepository
 final journalRepositoryProvider = Provider<JournalRepository>((ref) {
@@ -69,10 +71,14 @@ class JournalState {
   /// Today's entries
   List<JournalEntry> get todayEntries {
     final now = DateTime.now();
-    return entries.where((e) =>
-        e.entryDate.year == now.year &&
-        e.entryDate.month == now.month &&
-        e.entryDate.day == now.day).toList();
+    return entries
+        .where(
+          (e) =>
+              e.entryDate.year == now.year &&
+              e.entryDate.month == now.month &&
+              e.entryDate.day == now.day,
+        )
+        .toList();
   }
 
   /// This week's entries
@@ -101,13 +107,19 @@ class JournalState {
   }
 }
 
-/// Journal State Notifier
-class JournalNotifier extends StateNotifier<JournalState> {
-  final JournalRepository _repository;
-  final String _userId;
+@riverpod
+class JournalNotifier extends _$JournalNotifier {
+  final JournalRepository _repository = JournalRepository();
 
-  JournalNotifier(this._repository, this._userId) : super(JournalState()) {
-    loadEntries();
+  String get _userId => ref.read(currentUserIdProvider);
+
+  @override
+  JournalState build() {
+    final userId = ref.watch(currentUserIdProvider);
+    if (userId.isNotEmpty) {
+      Future.microtask(loadEntries);
+    }
+    return JournalState();
   }
 
   // ─────────────────────────────────────────────────────────────
@@ -120,10 +132,7 @@ class JournalNotifier extends StateNotifier<JournalState> {
 
     try {
       final entries = await _repository.getAllEntries(_userId);
-      state = state.copyWith(
-        entries: entries,
-        isLoading: false,
-      );
+      state = state.copyWith(entries: entries, isLoading: false);
     } catch (e) {
       state = state.copyWith(
         isLoading: false,
@@ -157,13 +166,9 @@ class JournalNotifier extends StateNotifier<JournalState> {
       );
 
       // Add to beginning of list (most recent first)
-      state = state.copyWith(
-        entries: [newEntry, ...state.entries],
-      );
+      state = state.copyWith(entries: [newEntry, ...state.entries]);
     } catch (e) {
-      state = state.copyWith(
-        error: 'Failed to add entry: ${e.toString()}',
-      );
+      state = state.copyWith(error: 'Failed to add entry: ${e.toString()}');
     }
   }
 
@@ -182,9 +187,7 @@ class JournalNotifier extends StateNotifier<JournalState> {
 
       state = state.copyWith(entries: updatedEntries);
     } catch (e) {
-      state = state.copyWith(
-        error: 'Failed to update entry: ${e.toString()}',
-      );
+      state = state.copyWith(error: 'Failed to update entry: ${e.toString()}');
     }
   }
 
@@ -196,7 +199,9 @@ class JournalNotifier extends StateNotifier<JournalState> {
   Future<void> deleteEntry(String entryId) async {
     try {
       await _repository.deleteEntry(_userId, entryId);
-      final updatedEntries = state.entries.where((e) => e.id != entryId).toList();
+      final updatedEntries = state.entries
+          .where((e) => e.id != entryId)
+          .toList();
       state = state.copyWith(entries: updatedEntries);
     } catch (e) {
       state = state.copyWith(error: 'Failed to delete entry: ${e.toString()}');
@@ -209,7 +214,9 @@ class JournalNotifier extends StateNotifier<JournalState> {
       await _repository.deleteAllEntries(_userId);
       state = state.copyWith(entries: []);
     } catch (e) {
-      state = state.copyWith(error: 'Failed to delete entries: ${e.toString()}');
+      state = state.copyWith(
+        error: 'Failed to delete entries: ${e.toString()}',
+      );
     }
   }
 
@@ -228,16 +235,11 @@ class JournalNotifier extends StateNotifier<JournalState> {
       return;
     }
 
-    state = state.copyWith(
-      isSearching: true,
-      searchQuery: query,
-    );
+    state = state.copyWith(isSearching: true, searchQuery: query);
 
     try {
       final results = await _repository.searchEntries(_userId, query);
-      state = state.copyWith(
-        searchResults: results,
-      );
+      state = state.copyWith(searchResults: results);
     } catch (e) {
       state = state.copyWith(
         error: 'Failed to search entries: ${e.toString()}',
@@ -297,15 +299,6 @@ class JournalNotifier extends StateNotifier<JournalState> {
 // ─────────────────────────────────────────────────────────────
 // PROVIDERS
 // ─────────────────────────────────────────────────────────────
-
-/// Main journal provider
-final journalProvider =
-    StateNotifierProvider<JournalNotifier, JournalState>((ref) {
-  final repository = ref.watch(journalRepositoryProvider);
-  final userId = ref.watch(currentUserIdProvider);
-
-  return JournalNotifier(repository, userId);
-});
 
 /// Provider for today's entry count
 final todayEntryCountProvider = FutureProvider<int>((ref) async {

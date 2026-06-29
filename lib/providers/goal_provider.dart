@@ -2,7 +2,10 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:personal_haven/data/models/goal.dart';
 import 'package:personal_haven/data/repositories/goal_repository.dart';
 import 'package:personal_haven/providers/auth_provider.dart';
+import 'package:personal_haven/providers/notification_provider.dart';
 import 'package:personal_haven/services/notification_service.dart';
+import 'package:riverpod_annotation/riverpod_annotation.dart';
+part 'goal_provider.g.dart';
 
 final goalRepositoryProvider = Provider<GoalRepository>((ref) {
   return GoalRepository();
@@ -13,17 +16,9 @@ class GoalState {
   final bool isLoading;
   final String? error;
 
-  GoalState({
-    this.goals = const [],
-    this.isLoading = false,
-    this.error,
-  });
+  GoalState({this.goals = const [], this.isLoading = false, this.error});
 
-  GoalState copyWith({
-    List<Goal>? goals,
-    bool? isLoading,
-    String? error,
-  }) {
+  GoalState copyWith({List<Goal>? goals, bool? isLoading, String? error}) {
     return GoalState(
       goals: goals ?? this.goals,
       isLoading: isLoading ?? this.isLoading,
@@ -65,17 +60,23 @@ class GoalState {
       if (g.targetDate == null) return false;
       final daysRemaining = g.targetDate!.difference(now).inDays;
       return daysRemaining >= 0 && daysRemaining <= 7;
-    }).toList()
-      ..sort((a, b) => a.targetDate!.compareTo(b.targetDate!));
+    }).toList()..sort((a, b) => a.targetDate!.compareTo(b.targetDate!));
   }
 }
 
-class GoalNotifier extends StateNotifier<GoalState> {
-  final GoalRepository _repository;
-  final String _userId;
+@riverpod
+class GoalNotifier extends _$GoalNotifier {
+  final GoalRepository _repository = GoalRepository();
 
-  GoalNotifier(this._repository, this._userId) : super(GoalState()) {
-    loadGoals();
+  String get _userId => ref.read(currentUserIdProvider);
+
+  @override
+  GoalState build() {
+    final userId = ref.watch(currentUserIdProvider);
+    if (userId.isNotEmpty) {
+      Future.microtask(loadGoals);
+    }
+    return GoalState();
   }
 
   Future<void> loadGoals() async {
@@ -141,19 +142,33 @@ class GoalNotifier extends StateNotifier<GoalState> {
 
       state = state.copyWith(goals: updated);
 
+      final notificationPrefs = ref.read(notificationProvider);
+      final goalNotificationsEnabled =
+          notificationPrefs.masterEnabled && notificationPrefs.goalReminders;
+
       // Notify on completion
-      if (updatedGoal.isCompleted && !goal.isCompleted) {
-        await NotificationService.instance
-            .notifyGoalCompleted(updatedGoal.title);
+      if (goalNotificationsEnabled &&
+          updatedGoal.isCompleted &&
+          !goal.isCompleted) {
+        await NotificationService.instance.notifyGoalCompleted(
+          updatedGoal.title,
+        );
       }
       // Notify if deadline approaching
       final days = updatedGoal.daysRemaining;
-      if (!updatedGoal.isCompleted && (days == 3 || days == 1)) {
+      if (goalNotificationsEnabled &&
+          !updatedGoal.isCompleted &&
+          (days == 3 || days == 1)) {
         await NotificationService.instance.notifyGoalDeadlineApproaching(
-            updatedGoal.id, updatedGoal.title, days);
+          updatedGoal.id,
+          updatedGoal.title,
+          days,
+        );
       }
     } catch (e) {
-      state = state.copyWith(error: 'Failed to update progress: ${e.toString()}');
+      state = state.copyWith(
+        error: 'Failed to update progress: ${e.toString()}',
+      );
     }
   }
 
@@ -211,12 +226,6 @@ class GoalNotifier extends StateNotifier<GoalState> {
     state = state.copyWith(error: null);
   }
 }
-
-final goalProvider = StateNotifierProvider<GoalNotifier, GoalState>((ref) {
-  final repository = ref.watch(goalRepositoryProvider);
-  final userId = ref.watch(currentUserIdProvider);
-  return GoalNotifier(repository, userId);
-});
 
 // Additional providers
 final activeGoalsProvider = Provider<List<Goal>>((ref) {

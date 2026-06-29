@@ -122,7 +122,7 @@ class _SplashScreenState extends ConsumerState<SplashScreen>
                       shape: BoxShape.circle,
                       boxShadow: [
                         BoxShadow(
-                          color: Colors.black.withOpacity(0.2),
+                          color: Colors.black.withValues(alpha: 0.2),
                           blurRadius: 20,
                           offset: const Offset(0, 10),
                         ),
@@ -265,7 +265,7 @@ class _RippleSplashScreenState extends ConsumerState<RippleSplashScreen>
                       decoration: BoxDecoration(
                         shape: BoxShape.circle,
                         border: Border.all(
-                          color: Colors.white.withOpacity((1 - animValue) * 0.3),
+                          color: Colors.white.withValues(alpha: (1 - animValue) * 0.3),
                           width: 2,
                         ),
                       ),
@@ -397,7 +397,7 @@ class _ParticleSplashScreenState extends ConsumerState<ParticleSplashScreen>
                       shape: BoxShape.circle,
                       boxShadow: [
                         BoxShadow(
-                          color: Colors.black.withOpacity(0.2),
+                          color: Colors.black.withValues(alpha: 0.2),
                           blurRadius: 20,
                         ),
                       ],
@@ -465,7 +465,7 @@ class ParticlePainter extends CustomPainter {
   @override
   void paint(Canvas canvas, Size size) {
     final paint = Paint()
-      ..color = Colors.white.withOpacity(0.6)
+      ..color = Colors.white.withValues(alpha: 0.6)
       ..style = PaintingStyle.fill;
 
     final centerX = size.width / 2;
@@ -557,7 +557,7 @@ class _BreathingSplashScreenState extends ConsumerState<BreathingSplashScreen>
                     shape: BoxShape.circle,
                     boxShadow: [
                       BoxShadow(
-                        color: Colors.black.withOpacity(0.15),
+                        color: Colors.black.withValues(alpha: 0.15),
                         blurRadius: 30,
                         spreadRadius: 5,
                       ),
