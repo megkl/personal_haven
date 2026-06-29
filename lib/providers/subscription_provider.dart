@@ -2,29 +2,36 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:personal_haven/data/models/subscription.dart';
 import 'package:personal_haven/data/repositories/subscription_repository.dart';
 import 'package:personal_haven/providers/auth_provider.dart';
+import 'package:personal_haven/providers/notification_provider.dart';
 import 'package:personal_haven/services/notification_service.dart';
 import 'package:riverpod_annotation/riverpod_annotation.dart';
 part 'subscription_provider.g.dart';
+
 class SubscriptionState {
   final Subscription? active;
+  final bool premiumOverride;
   final bool isLoading;
   final String? error;
 
   const SubscriptionState({
     this.active,
+    this.premiumOverride = false,
     this.isLoading = true,
     this.error,
   });
 
-  bool get isPremium => active?.isActive ?? false;
+  bool get isPremium => (active?.isActive ?? false) || premiumOverride;
+  bool get hasFullAccess => isPremium;
 
   SubscriptionState copyWith({
     Subscription? active,
+    bool? premiumOverride,
     bool? isLoading,
     String? error,
   }) {
     return SubscriptionState(
       active: active ?? this.active,
+      premiumOverride: premiumOverride ?? this.premiumOverride,
       isLoading: isLoading ?? this.isLoading,
       error: error,
     );
@@ -35,28 +42,50 @@ class SubscriptionState {
 class SubscriptionNotifier extends _$SubscriptionNotifier {
   final SubscriptionRepository _repo = SubscriptionRepository();
 
-  String get _userId => ref.watch(currentUserIdProvider);
+  String get _userId => ref.read(currentUserIdProvider);
 
   @override
   SubscriptionState build() {
-    Future.microtask(_load);
+    final userId = ref.watch(currentUserIdProvider);
+    Future.microtask(() => _load(userId: userId));
     return SubscriptionState();
   }
 
-  Future<void> _load() async {
-    if (_userId.isEmpty) {
+  Future<void> _load({String? userId}) async {
+    final targetUserId = userId ?? _userId;
+    if (targetUserId.isEmpty) {
       state = const SubscriptionState(isLoading: false);
       return;
     }
     try {
-      final active = await _repo.getActive(_userId);
-      state = SubscriptionState(active: active, isLoading: false);
+      final previousActive = state.active;
+      final premiumOverride = await _repo.hasPremiumOverride(targetUserId);
+      Subscription? active;
+      try {
+        active = await _repo.getActive(targetUserId);
+      } catch (e) {
+        if (!premiumOverride) rethrow;
+      }
+      state = SubscriptionState(
+        active: active,
+        premiumOverride: premiumOverride,
+        isLoading: false,
+      );
+      final notificationPrefs = ref.read(notificationProvider);
+      final subscriptionNotificationsEnabled =
+          notificationPrefs.masterEnabled &&
+          notificationPrefs.subscriptionAlerts;
 
       // Schedule expiry reminders whenever we load an active subscription
-      if (active != null && active.isActive) {
-        await NotificationService.instance
-            .scheduleSubscriptionReminders(active.expiryDate);
-      } else if (active == null && state.active != null) {
+      if (subscriptionNotificationsEnabled &&
+          active != null &&
+          active.isActive) {
+        await NotificationService.instance.scheduleSubscriptionReminders(
+          active.expiryDate,
+        );
+      } else if (subscriptionNotificationsEnabled &&
+          active == null &&
+          previousActive != null) {
         // Was active, now expired
         await NotificationService.instance.notifySubscriptionExpired();
       }
@@ -82,21 +111,32 @@ class SubscriptionNotifier extends _$SubscriptionNotifier {
   /// Called after a successful payment to activate the subscription.
   Future<void> activatePaid({
     required SubscriptionPlan plan,
-    required PaymentMethod paymentMethod,
     required String transactionRef,
+    required String productId,
+    required String serverVerificationData,
+    required String verificationSource,
+    String? localVerificationData,
   }) async {
     state = state.copyWith(isLoading: true);
     try {
-      final sub = await _repo.createPaid(
+      final sub = await _repo.verifyStorePurchase(
         userId: _userId,
         plan: plan,
-        paymentMethod: paymentMethod,
-        transactionRef: transactionRef,
+        productId: productId,
+        transactionId: transactionRef,
+        serverVerificationData: serverVerificationData,
+        localVerificationData: localVerificationData,
+        verificationSource: verificationSource,
       );
       state = SubscriptionState(active: sub, isLoading: false);
-      // Schedule expiry reminders for the new subscription
-      await NotificationService.instance
-          .scheduleSubscriptionReminders(sub.expiryDate);
+      final notificationPrefs = ref.read(notificationProvider);
+      if (notificationPrefs.masterEnabled &&
+          notificationPrefs.subscriptionAlerts) {
+        // Schedule expiry reminders for the new subscription
+        await NotificationService.instance.scheduleSubscriptionReminders(
+          sub.expiryDate,
+        );
+      }
     } catch (e) {
       state = state.copyWith(isLoading: false, error: e.toString());
     }
@@ -106,7 +146,6 @@ class SubscriptionNotifier extends _$SubscriptionNotifier {
 
   void clearError() => state = state.copyWith(error: null);
 }
-
 
 /// Convenience — true when user has an active paid/trial subscription.
 final isPremiumProvider = Provider<bool>((ref) {

@@ -2,6 +2,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:personal_haven/data/models/task.dart';
 import 'package:personal_haven/data/repositories/task_repository.dart';
 import 'package:personal_haven/providers/auth_provider.dart';
+import 'package:personal_haven/providers/notification_provider.dart';
 import 'package:personal_haven/services/notification_service.dart';
 import 'package:riverpod_annotation/riverpod_annotation.dart';
 
@@ -17,7 +18,8 @@ class TaskState {
   final List<Task> tasks;
   final bool isLoading;
   final String? error;
-  final String filterType; // 'all', 'pending', 'completed', 'urgent', 'today', 'overdue'
+  final String
+  filterType; // 'all', 'pending', 'completed', 'urgent', 'today', 'overdue'
   final String? searchQuery;
 
   TaskState({
@@ -122,16 +124,16 @@ class TaskState {
   }
 }
 
-
 @riverpod
 class TaskNotifier extends _$TaskNotifier {
   final TaskRepository _repository = TaskRepository();
 
-  String get _userId => ref.watch(currentUserIdProvider);
+  String get _userId => ref.read(currentUserIdProvider);
 
   @override
   TaskState build() {
-    if (_userId.isNotEmpty) {
+    final userId = ref.watch(currentUserIdProvider);
+    if (userId.isNotEmpty) {
       Future.microtask(loadTasks);
     }
     return TaskState();
@@ -168,10 +170,7 @@ class TaskNotifier extends _$TaskNotifier {
           tasks = await _repository.getAllTasks(_userId);
       }
 
-      state = state.copyWith(
-        tasks: tasks,
-        isLoading: false,
-      );
+      state = state.copyWith(tasks: tasks, isLoading: false);
     } catch (e) {
       state = state.copyWith(
         isLoading: false,
@@ -204,13 +203,21 @@ class TaskNotifier extends _$TaskNotifier {
 
       state = state.copyWith(tasks: [newTask, ...state.tasks]);
 
+      final notificationPrefs = ref.read(notificationProvider);
+      final taskNotificationsEnabled =
+          notificationPrefs.masterEnabled && notificationPrefs.taskReminders;
+
       // Notify if due today or overdue
-      if (newTask.isDueToday) {
-        await NotificationService.instance
-            .notifyTaskDueToday(newTask.id, newTask.title);
-      } else if (newTask.isOverdue) {
-        await NotificationService.instance
-            .notifyTaskOverdue(newTask.id, newTask.title);
+      if (taskNotificationsEnabled && newTask.isDueToday) {
+        await NotificationService.instance.notifyTaskDueToday(
+          newTask.id,
+          newTask.title,
+        );
+      } else if (taskNotificationsEnabled && newTask.isOverdue) {
+        await NotificationService.instance.notifyTaskOverdue(
+          newTask.id,
+          newTask.title,
+        );
       }
     } catch (e) {
       state = state.copyWith(error: 'Failed to add task: ${e.toString()}');
@@ -232,9 +239,7 @@ class TaskNotifier extends _$TaskNotifier {
 
       state = state.copyWith(tasks: updatedTasks);
     } catch (e) {
-      state = state.copyWith(
-        error: 'Failed to toggle task: ${e.toString()}',
-      );
+      state = state.copyWith(error: 'Failed to toggle task: ${e.toString()}');
     }
   }
 
@@ -249,9 +254,7 @@ class TaskNotifier extends _$TaskNotifier {
 
       state = state.copyWith(tasks: updatedTasks);
     } catch (e) {
-      state = state.copyWith(
-        error: 'Failed to update task: ${e.toString()}',
-      );
+      state = state.copyWith(error: 'Failed to update task: ${e.toString()}');
     }
   }
 
@@ -294,7 +297,9 @@ class TaskNotifier extends _$TaskNotifier {
       final updatedTasks = state.tasks.where((t) => !t.isCompleted).toList();
       state = state.copyWith(tasks: updatedTasks);
     } catch (e) {
-      state = state.copyWith(error: 'Failed to delete completed tasks: ${e.toString()}');
+      state = state.copyWith(
+        error: 'Failed to delete completed tasks: ${e.toString()}',
+      );
     }
   }
 
@@ -353,7 +358,6 @@ class TaskNotifier extends _$TaskNotifier {
 // ─────────────────────────────────────────────────────────────
 // PROVIDERS
 // ─────────────────────────────────────────────────────────────
-
 
 /// Provider for task statistics
 final taskStatsProvider = FutureProvider<Map<String, int>>((ref) async {

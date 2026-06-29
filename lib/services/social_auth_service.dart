@@ -74,18 +74,25 @@ class SocialAuthService {
           if (e.code == GoogleSignInExceptionCode.canceled) {
             return SocialAuthResult(success: false, error: 'Sign-in cancelled');
           }
-          return SocialAuthResult(success: false, error: e.description ?? 'Sign-in failed');
+          return SocialAuthResult(
+            success: false,
+            error: e.description ?? 'Sign-in failed',
+          );
         }
       } else {
         // For web and other platforms that don't support authenticate(),
         // use the lightweight authentication method
         try {
-          account = await GoogleSignIn.instance.attemptLightweightAuthentication();
+          account = await GoogleSignIn.instance
+              .attemptLightweightAuthentication();
         } on GoogleSignInException catch (e) {
           if (e.code == GoogleSignInExceptionCode.canceled) {
             return SocialAuthResult(success: false, error: 'Sign-in cancelled');
           }
-          return SocialAuthResult(success: false, error: e.description ?? 'Sign-in failed');
+          return SocialAuthResult(
+            success: false,
+            error: e.description ?? 'Sign-in failed',
+          );
         }
       }
 
@@ -97,8 +104,9 @@ class SocialAuthService {
       final auth = await account.authentication;
       if (auth.idToken == null) {
         return SocialAuthResult(
-            success: false,
-            error: 'Google idToken was null — try again');
+          success: false,
+          error: 'Google idToken was null — try again',
+        );
       }
 
       // In google_sign_in 7.x, accessToken is obtained via authorization if needed
@@ -119,16 +127,20 @@ class SocialAuthService {
         credential: credential,
       );
     } catch (e) {
-      return SocialAuthResult(success: false, error: 'Google Sign-In error: $e');
+      return SocialAuthResult(
+        success: false,
+        error: 'Google Sign-In error: $e',
+      );
     }
   }
 
-  /// Disconnect from Google Sign-In.
-  /// This clears the cached current user.
+  /// Sign out from Google Sign-In.
+  /// Use signOut for app logout; disconnect revokes access and can fail with
+  /// HTTP 400 even when the local session can be cleared safely.
   Future<void> signOutGoogle() async {
     try {
       if (_googleInitialized) {
-        await GoogleSignIn.instance.disconnect();
+        await GoogleSignIn.instance.signOut();
       }
     } catch (e) {
       debugPrint('Error signing out from Google: $e');
@@ -150,9 +162,9 @@ class SocialAuthService {
         appleCredential.familyName,
       ].where((s) => s != null && s.isNotEmpty).join(' ');
 
-      final credential = fb.OAuthProvider('apple.com').credential(
-        idToken: appleCredential.identityToken,
-      );
+      final credential = fb.OAuthProvider(
+        'apple.com',
+      ).credential(idToken: appleCredential.identityToken);
 
       return SocialAuthResult(
         success: true,
@@ -185,10 +197,9 @@ class SocialAuthService {
         ),
       );
 
-      final credential = fb.OAuthProvider('microsoft.com').credential(
-        idToken: result.idToken,
-        accessToken: result.accessToken,
-      );
+      final credential = fb.OAuthProvider(
+        'microsoft.com',
+      ).credential(idToken: result.idToken, accessToken: result.accessToken);
 
       final claims = _decodeJwtPayload(result.idToken ?? '');
       return SocialAuthResult(

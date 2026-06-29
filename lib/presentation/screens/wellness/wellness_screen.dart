@@ -19,7 +19,7 @@ class _WellnessScreenState extends State<WellnessScreen>
   static const _tabs = [
     _WellnessTab('Budget'),
     _WellnessTab('Goals'),
-    _WellnessTab('Food'),
+   // _WellnessTab('Food'),
   ];
 
   @override
@@ -53,7 +53,7 @@ class _WellnessScreenState extends State<WellnessScreen>
               children: const [
                 BudgetScreen(key: PageStorageKey('wellness-budget')),
                 GoalsScreen(key: PageStorageKey('wellness-goals')),
-                FoodDiaryScreen(key: PageStorageKey('wellness-food')),
+                //FoodDiaryScreen(key: PageStorageKey('wellness-food')),
               ],
             ),
           ),

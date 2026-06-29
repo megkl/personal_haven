@@ -5,6 +5,7 @@ import 'package:personal_haven/presentation/screens/auth/login_screen.dart';
 import 'package:personal_haven/presentation/screens/legal/terms_screen.dart';
 import 'package:personal_haven/presentation/screens/profile/main_navigation_screen.dart';
 import 'package:personal_haven/providers/auth_provider.dart';
+import 'package:personal_haven/presentation/widgets/common/google_mark.dart';
 import 'package:personal_haven/services/social_auth_service.dart';
 
 class SignUpScreen extends ConsumerStatefulWidget {
@@ -31,7 +32,9 @@ class _SignUpScreenState extends ConsumerState<SignUpScreen> {
       if (ok) {
         Navigator.pushReplacement(
           context,
-          MaterialPageRoute(builder: (_) => const MainNavigationScreen()),
+          MaterialPageRoute(
+            builder: (_) => const MainNavigationScreen(currentIndex: 0),
+          ),
         );
         return;
       }
@@ -39,9 +42,10 @@ class _SignUpScreenState extends ConsumerState<SignUpScreen> {
 
     setState(() => _isLoading = false);
     if (mounted) {
+      final authError = ref.read(authProvider).error;
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
-          content: Text(result.error ?? 'Sign-up failed'),
+          content: Text(authError ?? result.error ?? 'Sign-up failed'),
           backgroundColor: Colors.red,
         ),
       );
@@ -102,22 +106,6 @@ class _SignUpScreenState extends ConsumerState<SignUpScreen> {
                     SocialAuthService.instance.signInWithGoogle,
                   ),
                 ),
-                const SizedBox(height: 16),
-                _SocialButton(
-                  label: 'Sign up with Microsoft',
-                  icon: Icon(Icons.window, size: 22, color: Color(0xFF00A4EF)),
-                  onTap: () => _handleSocialSignUp(
-                    SocialAuthService.instance.signInWithMicrosoft,
-                  ),
-                ),
-                const SizedBox(height: 16),
-                _SocialButton(
-                  label: 'Sign up with Apple',
-                  icon: Icon(Icons.apple, size: 22),
-                  onTap: () => _handleSocialSignUp(
-                    SocialAuthService.instance.signInWithApple,
-                  ),
-                ),
               ],
               const Spacer(),
               Row(
@@ -128,10 +116,7 @@ class _SignUpScreenState extends ConsumerState<SignUpScreen> {
                     style: TextStyle(color: Color(0xFF2D3E40), fontSize: 12),
                   ),
                   TextButton(
-                    onPressed: () => Navigator.push(
-                      context,
-                      MaterialPageRoute(builder: (_) => const TermsScreen()),
-                    ),
+                    onPressed: () => openTermsAndConditions(context),
                     style: TextButton.styleFrom(padding: EdgeInsets.zero),
                     child: Text(
                       'Terms',
@@ -147,12 +132,7 @@ class _SignUpScreenState extends ConsumerState<SignUpScreen> {
                     style: TextStyle(color: Color(0xFF2D3E40), fontSize: 12),
                   ),
                   TextButton(
-                    onPressed: () => Navigator.push(
-                      context,
-                      MaterialPageRoute(
-                        builder: (_) => const PrivacyPolicyScreen(),
-                      ),
-                    ),
+                    onPressed: () => openPrivacyPolicy(context),
                     style: TextButton.styleFrom(padding: EdgeInsets.zero),
                     child: Text(
                       'Privacy Policy',
@@ -196,13 +176,7 @@ class _SignUpScreenState extends ConsumerState<SignUpScreen> {
   }
 
   Widget _googleIcon() {
-    return Image.network(
-      'https://www.gstatic.com/firebasejs/ui/2.0.0/images/auth/google.svg',
-      width: 22,
-      height: 22,
-      errorBuilder: (_, _, _) =>
-          Icon(Icons.g_mobiledata, size: 22, color: Color(0xFF4285F4)),
-    );
+    return const GoogleMark(size: 22);
   }
 }
 

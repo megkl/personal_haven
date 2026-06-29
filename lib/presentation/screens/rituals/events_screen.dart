@@ -4,6 +4,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:intl/intl.dart';
 import 'package:personal_haven/core/constants/app_colors.dart';
 import 'package:personal_haven/data/models/event.dart';
+import 'package:personal_haven/presentation/widgets/common/app_confirm_dialog.dart';
 import 'package:personal_haven/providers/event_provider.dart';
 
 class EventsScreen extends ConsumerStatefulWidget {
@@ -38,6 +39,7 @@ class _EventsScreenState extends ConsumerState<EventsScreen> {
         ],
       ),
       floatingActionButton: FloatingActionButton(
+        heroTag: 'rituals_events_add',
         onPressed: () => _showAddEventDialog(context),
         backgroundColor: AppColors.primary,
         child: Icon(Icons.add, color: Colors.white),
@@ -552,37 +554,18 @@ class _EventsScreenState extends ConsumerState<EventsScreen> {
   }
 
   Future<bool> _confirmDelete(Event event) async {
-    return await showDialog<bool>(
-          context: context,
-          builder: (dialogContext) => AlertDialog(
-            shape: RoundedRectangleBorder(
-              borderRadius: BorderRadius.circular(20),
-            ),
-            title: Text('Delete Event?'),
-            content: Text('Delete "${event.title}"?'),
-            actions: [
-              TextButton(
-                onPressed: () => Navigator.pop(dialogContext, false),
-                child: Text('Cancel'),
-              ),
-              ElevatedButton(
-                onPressed: () {
-                  ref.read(eventProvider.notifier).deleteEvent(event.id);
-                  Navigator.pop(dialogContext, true);
-                },
-                style: ElevatedButton.styleFrom(
-                  backgroundColor: Colors.red,
-                  foregroundColor: Colors.white,
-                  shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(10),
-                  ),
-                ),
-                child: Text('Delete'),
-              ),
-            ],
-          ),
-        ) ??
-        false;
+    final confirmed = await showAppConfirmDialog(
+      context: context,
+      title: 'Delete event?',
+      message: 'Delete "${event.title}"? Its reminder will be removed too.',
+      confirmLabel: 'Delete',
+      icon: Icons.event_busy_rounded,
+      destructive: true,
+    );
+    if (confirmed) {
+      ref.read(eventProvider.notifier).deleteEvent(event.id);
+    }
+    return confirmed;
   }
 
   InputDecoration _inputDec(String hint) => InputDecoration(

@@ -14,11 +14,7 @@ class FoodState {
   final bool isLoading;
   final String? error;
 
-  FoodState({
-    this.entries = const [],
-    this.isLoading = false,
-    this.error,
-  });
+  FoodState({this.entries = const [], this.isLoading = false, this.error});
 
   FoodState copyWith({
     List<FoodEntry>? entries,
@@ -38,10 +34,14 @@ class FoodState {
 
   List<FoodEntry> get todayEntries {
     final now = DateTime.now();
-    return entries.where((e) =>
-        e.consumedAt.year == now.year &&
-        e.consumedAt.month == now.month &&
-        e.consumedAt.day == now.day).toList();
+    return entries
+        .where(
+          (e) =>
+              e.consumedAt.year == now.year &&
+              e.consumedAt.month == now.month &&
+              e.consumedAt.day == now.day,
+        )
+        .toList();
   }
 
   int get todayCalories {
@@ -90,17 +90,16 @@ class FoodState {
   }
 }
 
-
-
 @riverpod
 class FoodNotifier extends _$FoodNotifier {
   final FoodRepository _repository = FoodRepository();
 
-  String get _userId => ref.watch(currentUserIdProvider);
+  String get _userId => ref.read(currentUserIdProvider);
 
   @override
   FoodState build() {
-    if (_userId.isNotEmpty) {
+    final userId = ref.watch(currentUserIdProvider);
+    if (userId.isNotEmpty) {
       Future.microtask(loadEntries);
     }
     return FoodState();
@@ -145,7 +144,7 @@ class FoodNotifier extends _$FoodNotifier {
       final updatedEntries = [...state.entries, newEntry];
       // Sort by consumed time
       updatedEntries.sort((a, b) => a.consumedAt.compareTo(b.consumedAt));
-      
+
       state = state.copyWith(entries: updatedEntries);
     } catch (e) {
       state = state.copyWith(error: 'Failed to add entry: ${e.toString()}');
@@ -155,11 +154,11 @@ class FoodNotifier extends _$FoodNotifier {
   Future<void> updateEntry(FoodEntry entry) async {
     try {
       await _repository.updateEntry(entry);
-      
+
       final updatedEntries = state.entries.map((e) {
         return e.id == entry.id ? entry : e;
       }).toList();
-      
+
       state = state.copyWith(entries: updatedEntries);
     } catch (e) {
       state = state.copyWith(error: 'Failed to update entry: ${e.toString()}');
@@ -169,7 +168,9 @@ class FoodNotifier extends _$FoodNotifier {
   Future<void> deleteEntry(String entryId) async {
     try {
       await _repository.deleteEntry(_userId, entryId);
-      final updatedEntries = state.entries.where((e) => e.id != entryId).toList();
+      final updatedEntries = state.entries
+          .where((e) => e.id != entryId)
+          .toList();
       state = state.copyWith(entries: updatedEntries);
     } catch (e) {
       state = state.copyWith(error: 'Failed to delete entry: ${e.toString()}');

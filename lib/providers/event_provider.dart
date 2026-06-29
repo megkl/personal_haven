@@ -2,9 +2,11 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:personal_haven/data/models/event.dart';
 import 'package:personal_haven/data/repositories/event_repository.dart';
 import 'package:personal_haven/providers/auth_provider.dart';
+import 'package:personal_haven/providers/notification_provider.dart';
 import 'package:personal_haven/services/notification_service.dart';
 import 'package:riverpod_annotation/riverpod_annotation.dart';
 part 'event_provider.g.dart';
+
 /// Provider for EventRepository
 final eventRepositoryProvider = Provider<EventRepository>((ref) {
   return EventRepository();
@@ -61,17 +63,17 @@ class EventState {
   }
 }
 
-
 @riverpod
 class EventNotifier extends _$EventNotifier {
   final EventRepository _repository = EventRepository();
 
-  String get _userId => ref.watch(currentUserIdProvider);
+  String get _userId => ref.read(currentUserIdProvider);
 
   @override
   EventState build() {
     // only load when a user is signed in
-    if (_userId.isNotEmpty) {
+    final userId = ref.watch(currentUserIdProvider);
+    if (userId.isNotEmpty) {
       Future.microtask(loadEvents);
     }
     return EventState();
@@ -88,7 +90,10 @@ class EventNotifier extends _$EventNotifier {
     try {
       final events = await _repository.getAllEvents(_userId);
       final todayEvents = await _repository.getTodayEvents(_userId);
-      final upcomingEvents = await _repository.getUpcomingEvents(_userId, days: 7);
+      final upcomingEvents = await _repository.getUpcomingEvents(
+        _userId,
+        days: 7,
+      );
 
       state = state.copyWith(
         events: events,
@@ -109,7 +114,9 @@ class EventNotifier extends _$EventNotifier {
     try {
       return await _repository.getEventsByMonth(_userId, year, month);
     } catch (e) {
-      state = state.copyWith(error: 'Failed to load month events: ${e.toString()}');
+      state = state.copyWith(
+        error: 'Failed to load month events: ${e.toString()}',
+      );
       return [];
     }
   }
@@ -154,8 +161,11 @@ class EventNotifier extends _$EventNotifier {
       List<Event> updatedTodayEvents = state.todayEvents;
       if (newEvent.isToday) {
         updatedTodayEvents = [...state.todayEvents, newEvent]
-          ..sort((a, b) => (a.startTime ?? a.eventDate)
-              .compareTo(b.startTime ?? b.eventDate));
+          ..sort(
+            (a, b) => (a.startTime ?? a.eventDate).compareTo(
+              b.startTime ?? b.eventDate,
+            ),
+          );
       }
 
       // Update upcoming events if applicable
@@ -171,9 +181,15 @@ class EventNotifier extends _$EventNotifier {
         upcomingEvents: updatedUpcomingEvents,
       );
 
-      // Schedule a 1-hour-before reminder
-      await NotificationService.instance.scheduleEventReminder(
-          newEvent.id, newEvent.title, newEvent.startTime ?? newEvent.eventDate);
+      final notificationPrefs = ref.read(notificationProvider);
+      if (notificationPrefs.masterEnabled && notificationPrefs.eventReminders) {
+        // Schedule a 1-hour-before reminder
+        await NotificationService.instance.scheduleEventReminder(
+          newEvent.id,
+          newEvent.title,
+          newEvent.startTime ?? newEvent.eventDate,
+        );
+      }
     } catch (e) {
       state = state.copyWith(error: 'Failed to add event: ${e.toString()}');
     }
@@ -190,8 +206,7 @@ class EventNotifier extends _$EventNotifier {
 
       final updatedEvents = state.events.map((e) {
         return e.id == updatedEvent.id ? updatedEvent : e;
-      }).toList()
-        ..sort((a, b) => a.eventDate.compareTo(b.eventDate));
+      }).toList()..sort((a, b) => a.eventDate.compareTo(b.eventDate));
 
       state = state.copyWith(events: updatedEvents);
 
@@ -220,8 +235,9 @@ class EventNotifier extends _$EventNotifier {
       state = state.copyWith(
         events: state.events.where((e) => e.id != eventId).toList(),
         todayEvents: state.todayEvents.where((e) => e.id != eventId).toList(),
-        upcomingEvents:
-            state.upcomingEvents.where((e) => e.id != eventId).toList(),
+        upcomingEvents: state.upcomingEvents
+            .where((e) => e.id != eventId)
+            .toList(),
       );
     } catch (e) {
       state = state.copyWith(error: 'Failed to delete event: ${e.toString()}');
@@ -234,7 +250,9 @@ class EventNotifier extends _$EventNotifier {
       await _repository.deletePastEvents(_userId);
       await loadEvents();
     } catch (e) {
-      state = state.copyWith(error: 'Failed to delete past events: ${e.toString()}');
+      state = state.copyWith(
+        error: 'Failed to delete past events: ${e.toString()}',
+      );
     }
   }
 
@@ -245,7 +263,10 @@ class EventNotifier extends _$EventNotifier {
   Future<void> _reloadTodayAndUpcoming() async {
     try {
       final todayEvents = await _repository.getTodayEvents(_userId);
-      final upcomingEvents = await _repository.getUpcomingEvents(_userId, days: 7);
+      final upcomingEvents = await _repository.getUpcomingEvents(
+        _userId,
+        days: 7,
+      );
 
       state = state.copyWith(
         todayEvents: todayEvents,
@@ -296,10 +317,16 @@ final weekEventCountProvider = Provider<int>((ref) {
 
 /// Provider for dates with events (for calendar)
 final datesWithEventsProvider =
-    FutureProvider.family<Set<String>, ({int year, int month})>(
-        (ref, params) async {
-  final repository = ref.watch(eventRepositoryProvider);
-  final userId = ref.watch(currentUserIdProvider);
+    FutureProvider.family<Set<String>, ({int year, int month})>((
+      ref,
+      params,
+    ) async {
+      final repository = ref.watch(eventRepositoryProvider);
+      final userId = ref.watch(currentUserIdProvider);
 
-  return await repository.getDatesWithEvents(userId, params.year, params.month);
-});
+      return await repository.getDatesWithEvents(
+        userId,
+        params.year,
+        params.month,
+      );
+    });

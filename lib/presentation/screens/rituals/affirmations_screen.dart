@@ -66,6 +66,7 @@ class _AffirmationsScreenState extends State<AffirmationsScreen> {
         ],
       ),
       floatingActionButton: FloatingActionButton(
+        heroTag: 'affirmations_add',
         onPressed: () {
           _showAddAffirmationDialog();
         },

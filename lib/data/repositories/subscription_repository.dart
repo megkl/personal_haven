@@ -1,4 +1,5 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:cloud_functions/cloud_functions.dart';
 import 'package:personal_haven/data/models/subscription.dart';
 import 'package:personal_haven/services/firestore_service.dart';
 import 'package:uuid/uuid.dart';
@@ -13,13 +14,13 @@ class SubscriptionRepository {
     final snap = await _fs.query(
       userId,
       _col,
-      (c) => c
-          .where('status', isEqualTo: 'active')
-          .orderBy('expiryDate', descending: true)
-          .limit(1),
+      (c) => c.where('status', isEqualTo: 'active'),
     );
     if (snap.docs.isEmpty) return null;
-    final sub = Subscription.fromFirestore(snap.docs.first);
+    final subscriptions =
+        snap.docs.map((d) => Subscription.fromFirestore(d)).toList()
+          ..sort((a, b) => b.expiryDate.compareTo(a.expiryDate));
+    final sub = subscriptions.first;
     // Auto-expire if past expiry
     if (!sub.isActive) {
       await _expire(userId, sub.id);
@@ -38,6 +39,15 @@ class SubscriptionRepository {
     return snap.docs.map((d) => Subscription.fromFirestore(d)).toList();
   }
 
+  /// Manual override used for admin/test access on users/{uid}.isPremium.
+  Future<bool> hasPremiumOverride(String userId) async {
+    final doc = await FirebaseFirestore.instance
+        .collection('users')
+        .doc(userId)
+        .get();
+    return doc.data()?['isPremium'] as bool? ?? false;
+  }
+
   /// Check if the user has ever used their free trial.
   Future<bool> hasUsedTrial(String userId) async {
     final snap = await _fs.query(
@@ -48,7 +58,7 @@ class SubscriptionRepository {
     return snap.docs.isNotEmpty;
   }
 
-  /// Create a free 30-day trial subscription (once per user).
+  /// Create a free 7-day trial subscription (once per user).
   Future<Subscription> createTrial(String userId) async {
     final now = DateTime.now();
     final sub = Subscription(
@@ -90,6 +100,33 @@ class SubscriptionRepository {
     return sub;
   }
 
+  /// Verify an App Store or Google Play purchase on the backend, then return
+  /// the subscription document written by the Cloud Function.
+  Future<Subscription> verifyStorePurchase({
+    required String userId,
+    required SubscriptionPlan plan,
+    required String productId,
+    required String serverVerificationData,
+    required String verificationSource,
+    String? transactionId,
+    String? localVerificationData,
+  }) async {
+    final callable = FirebaseFunctions.instanceFor(
+      region: 'us-central1',
+    ).httpsCallable('verifyStorePurchase');
+    final result = await callable.call<Map<String, dynamic>>({
+      'plan': plan.name,
+      'productId': productId,
+      'transactionId': transactionId,
+      'verificationSource': verificationSource,
+      'serverVerificationData': serverVerificationData,
+      'localVerificationData': localVerificationData,
+    });
+    final data = Map<String, dynamic>.from(result.data);
+    final subscription = Map<String, dynamic>.from(data['subscription'] as Map);
+    return Subscription.fromMap(subscription);
+  }
+
   /// Mark a subscription as expired.
   Future<void> _expire(String userId, String subId) async {
     await _fs.update(userId, _col, subId, {'status': 'expired'});
@@ -104,9 +141,8 @@ class SubscriptionRepository {
 
   /// Sync isPremium on the user profile document.
   Future<void> _updateUserPremium(String userId, bool isPremium) async {
-    await FirebaseFirestore.instance
-        .collection('users')
-        .doc(userId)
-        .update({'isPremium': isPremium});
+    await FirebaseFirestore.instance.collection('users').doc(userId).update({
+      'isPremium': isPremium,
+    });
   }
 }

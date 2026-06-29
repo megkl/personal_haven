@@ -1,5 +1,4 @@
 import 'dart:math' as math;
-import 'dart:ui' as ui;
 
 import 'package:flutter/material.dart';
 import 'package:personal_haven/core/theme/app_theme.dart';
@@ -7,14 +6,19 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:intl/intl.dart';
 import 'package:personal_haven/core/constants/app_colors.dart';
 import 'package:personal_haven/core/utils/affirmations_helper.dart';
+import 'package:personal_haven/core/utils/currency_formatter.dart';
 import 'package:personal_haven/data/data_sources/local/shared_prefs_helper.dart';
+import 'package:personal_haven/data/models/event.dart';
 import 'package:personal_haven/data/models/food_entry.dart';
 import 'package:personal_haven/data/models/goal.dart';
 import 'package:personal_haven/data/models/journal_entry.dart';
 import 'package:personal_haven/data/models/mood_log.dart';
 import 'package:personal_haven/data/models/task.dart';
+import 'package:personal_haven/presentation/screens/home/widgets/haven_ai_chat_sheet.dart';
 import 'package:personal_haven/presentation/screens/home/widgets/mood_caurosel_sheet.dart';
 import 'package:personal_haven/presentation/screens/profile/main_navigation_screen.dart';
+import 'package:personal_haven/presentation/screens/subscription/subscription_screen.dart';
+import 'package:personal_haven/presentation/widgets/common/task_complete_toggle.dart';
 import 'package:personal_haven/providers/event_provider.dart';
 import 'package:personal_haven/providers/food_provider.dart';
 import 'package:personal_haven/providers/goal_provider.dart';
@@ -22,6 +26,7 @@ import 'package:personal_haven/providers/journal_provider.dart';
 import 'package:personal_haven/providers/mood_provider.dart';
 import 'package:personal_haven/providers/streak_provider.dart';
 import 'package:personal_haven/providers/task_provider.dart';
+import 'package:personal_haven/providers/subscription_provider.dart';
 
 class HomeScreen extends ConsumerStatefulWidget {
   const HomeScreen({super.key});
@@ -40,12 +45,10 @@ class _HomeScreenState extends ConsumerState<HomeScreen>
 
   // Animation controllers
   late AnimationController _staggerController;
-  late AnimationController _floatController;
   late AnimationController _pulseController;
 
   final List<Animation<double>> _fadeAnims = [];
   final List<Animation<Offset>> _slideAnims = [];
-  late Animation<double> _floatAnim;
   late Animation<double> _pulseAnim;
 
   static const int _cardCount = 6;
@@ -59,19 +62,10 @@ class _HomeScreenState extends ConsumerState<HomeScreen>
       duration: const Duration(milliseconds: 1200),
     );
 
-    _floatController = AnimationController(
-      vsync: this,
-      duration: const Duration(milliseconds: 3000),
-    )..repeat(reverse: true);
-
     _pulseController = AnimationController(
       vsync: this,
       duration: const Duration(milliseconds: 2000),
     )..repeat(reverse: true);
-
-    _floatAnim = Tween<double>(begin: -4, end: 4).animate(
-      CurvedAnimation(parent: _floatController, curve: Curves.easeInOut),
-    );
 
     _pulseAnim = Tween<double>(begin: 0.97, end: 1.03).animate(
       CurvedAnimation(parent: _pulseController, curve: Curves.easeInOut),
@@ -106,7 +100,6 @@ class _HomeScreenState extends ConsumerState<HomeScreen>
   @override
   void dispose() {
     _staggerController.dispose();
-    _floatController.dispose();
     _pulseController.dispose();
     super.dispose();
   }
@@ -151,12 +144,6 @@ class _HomeScreenState extends ConsumerState<HomeScreen>
     if (mounted) setState(() => _todayAffirmation = affirmation);
   }
 
-  /// Shows the mood overlay — used both for first-open check-in
-  /// and when the user taps the mood card to edit.
-  void _openMoodOverlay() {
-    setState(() => _showMoodOverlay = true);
-  }
-
   Future<void> _onMoodOverlaySaved(MoodOption mood, String? note) async {
     await ref
         .read(moodProvider.notifier)
@@ -198,6 +185,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen>
     final journalState = ref.watch(journalProvider);
     final streakAsync = ref.watch(streakProvider);
     final streakState = streakAsync.value ?? const StreakState();
+    final upcomingEvents = _upcomingEventsFromNow(eventState.events);
 
     if (_isLoading || moodState.isLoading) {
       return const Scaffold(
@@ -207,12 +195,9 @@ class _HomeScreenState extends ConsumerState<HomeScreen>
     }
 
     return Scaffold(
-      backgroundColor: const Color(0xFFB8E6E3),
+      backgroundColor: context.colors.homeBackground,
       body: Stack(
         children: [
-          // ── Home content ───────────────────────────────────────
-          _buildBackgroundDecor(),
-
           SafeArea(
             child: Column(
               children: [
@@ -223,7 +208,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen>
                     color: AppColors.primaryDark,
                     child: SingleChildScrollView(
                       physics: const AlwaysScrollableScrollPhysics(),
-                      padding: const EdgeInsets.fromLTRB(20, 4, 20, 24),
+                      padding: const EdgeInsets.fromLTRB(20, 4, 20, 104),
                       child: Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
@@ -265,7 +250,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen>
                           ],
 
                           // Events
-                          _animated(5, _buildEventsCard(eventState.events)),
+                          _animated(5, _buildEventsCard(upcomingEvents)),
                           const SizedBox(height: 14),
 
                           // Food (conditional)
@@ -297,6 +282,9 @@ class _HomeScreenState extends ConsumerState<HomeScreen>
             ),
           ),
 
+          if (!_showMoodOverlay)
+            Positioned(right: 18, bottom: 18, child: _buildAssistantButton()),
+
           // ── Mood check-in overlay (seamless, no bottom sheet) ──
           if (_showMoodOverlay)
             Positioned.fill(
@@ -312,47 +300,87 @@ class _HomeScreenState extends ConsumerState<HomeScreen>
     );
   }
 
-  // ─── BACKGROUND DECORATION ────────────────────────────────────
+  // ─── HEADER ───────────────────────────────────────────────────
 
-  Widget _buildBackgroundDecor() {
-    return AnimatedBuilder(
-      animation: _floatAnim,
-      builder: (context, child) {
-        return Stack(
-          children: [
-            Positioned(
-              top: -60 + _floatAnim.value * 0.5,
-              right: -40,
-              child: _blob(160, const Color(0xFF4ECDC4), 0.18),
+  Widget _buildAssistantButton() {
+    return Semantics(
+      button: true,
+      label: 'Open Haven assistant',
+      child: Material(
+        color: Colors.transparent,
+        child: InkWell(
+          borderRadius: BorderRadius.circular(18),
+          onTap: _openAssistant,
+          child: Container(
+            height: 54,
+            padding: const EdgeInsets.fromLTRB(10, 0, 16, 0),
+            decoration: BoxDecoration(
+              gradient: const LinearGradient(
+                colors: [AppColors.primary, AppColors.primaryDark],
+              ),
+              borderRadius: BorderRadius.circular(18),
+              border: Border.all(color: Colors.white.withValues(alpha: 0.35)),
+              boxShadow: [
+                BoxShadow(
+                  color: AppColors.primaryDark.withValues(alpha: 0.32),
+                  blurRadius: 18,
+                  offset: const Offset(0, 7),
+                ),
+              ],
             ),
-            Positioned(
-              top: 180 + _floatAnim.value,
-              left: -50,
-              child: _blob(120, const Color(0xFFFFB347), 0.12),
+            child: Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Container(
+                  width: 36,
+                  height: 36,
+                  decoration: BoxDecoration(
+                    color: Colors.white.withValues(alpha: 0.2),
+                    shape: BoxShape.circle,
+                  ),
+                  child: const Icon(
+                    Icons.auto_awesome_rounded,
+                    color: Colors.white,
+                    size: 19,
+                  ),
+                ),
+                const SizedBox(width: 9),
+                const Text(
+                  'Ask Haven',
+                  style: TextStyle(
+                    color: Colors.white,
+                    fontSize: 13,
+                    fontWeight: FontWeight.w700,
+                  ),
+                ),
+              ],
             ),
-            Positioned(
-              bottom: 200 - _floatAnim.value * 0.6,
-              right: -30,
-              child: _blob(100, const Color(0xFFFF9A9E), 0.15),
-            ),
-          ],
-        );
-      },
-    );
-  }
-
-  Widget _blob(double size, Color color, double opacity) {
-    return Container(
-      width: size,
-      height: size,
-      decoration: BoxDecoration(
-        shape: BoxShape.circle,
-        color: color.withValues(alpha: opacity),
+          ),
+        ),
       ),
     );
   }
 
-  // ─── HEADER ───────────────────────────────────────────────────
+  void _openAssistant() {
+    final subscriptionState = ref.read(subscriptionProvider);
+    final hasAccess =
+        subscriptionState.isLoading || subscriptionState.hasFullAccess;
+
+    if (!hasAccess) {
+      Navigator.of(context).push(
+        MaterialPageRoute<void>(builder: (_) => const SubscriptionScreen()),
+      );
+      return;
+    }
+
+    showModalBottomSheet<void>(
+      context: context,
+      isScrollControlled: true,
+      useSafeArea: false,
+      backgroundColor: Colors.transparent,
+      builder: (_) => const HavenAiChatSheet(),
+    );
+  }
 
   Widget _buildHeader(StreakState streakState) {
     return Padding(
@@ -499,181 +527,6 @@ class _HomeScreenState extends ConsumerState<HomeScreen>
             ],
           ),
         ],
-      ),
-    );
-  }
-
-  // ─── MOOD CARD ────────────────────────────────────────────────
-
-  Widget _buildMoodCard(MoodLog? todayMood) {
-    final baseColor = todayMood != null
-        ? MoodOptions.getByEmoji(todayMood.moodEmoji)?.color ??
-              AppColors.primary
-        : AppColors.primary;
-
-    return GestureDetector(
-      onTap: _openMoodOverlay,
-      child: AnimatedBuilder(
-        animation: _floatAnim,
-        builder: (ctx, child) => Transform.translate(
-          offset: Offset(0, _floatAnim.value * 0.4),
-          child: child,
-        ),
-        child: ClipRRect(
-          borderRadius: BorderRadius.circular(20),
-          child: BackdropFilter(
-            filter: ui.ImageFilter.blur(sigmaX: 16, sigmaY: 16),
-            child: Container(
-              width: double.infinity,
-              padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 18),
-              decoration: BoxDecoration(
-                gradient: LinearGradient(
-                  colors: [
-                    baseColor.withValues(alpha: 0.30),
-                    baseColor.withValues(alpha: 0.12),
-                  ],
-                  begin: Alignment.topLeft,
-                  end: Alignment.bottomRight,
-                ),
-                borderRadius: BorderRadius.circular(20),
-                border: Border.all(color: Colors.white.withValues(alpha: 0.35)),
-                boxShadow: [
-                  BoxShadow(
-                    color: baseColor.withValues(alpha: 0.15),
-                    blurRadius: 24,
-                    offset: const Offset(0, 10),
-                  ),
-                ],
-              ),
-              child: todayMood != null
-                  ? Row(
-                      children: [
-                        // Big emoji with glow
-                        Container(
-                          padding: const EdgeInsets.all(10),
-                          decoration: BoxDecoration(
-                            color: baseColor.withValues(alpha: 0.2),
-                            shape: BoxShape.circle,
-                          ),
-                          child: Text(
-                            todayMood.moodEmoji,
-                            style: TextStyle(fontSize: 36),
-                          ),
-                        ),
-                        const SizedBox(width: 16),
-                        Expanded(
-                          child: Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                              Text(
-                                "Today's Mood",
-                                style: TextStyle(
-                                  fontSize: 11,
-                                  color: Colors.white.withValues(alpha: 0.85),
-                                  fontWeight: FontWeight.w500,
-                                  letterSpacing: 0.5,
-                                ),
-                              ),
-                              const SizedBox(height: 2),
-                              Text(
-                                todayMood.moodLabel ?? '',
-                                style: TextStyle(
-                                  fontSize: 22,
-                                  fontWeight: FontWeight.bold,
-                                  color: Colors.white,
-                                ),
-                              ),
-                              if (todayMood.notes != null &&
-                                  todayMood.notes!.isNotEmpty)
-                                Text(
-                                  '"${todayMood.notes}"',
-                                  style: TextStyle(
-                                    fontSize: 12,
-                                    fontStyle: FontStyle.italic,
-                                    color: Colors.white.withValues(alpha: 0.85),
-                                  ),
-                                  maxLines: 1,
-                                  overflow: TextOverflow.ellipsis,
-                                ),
-                            ],
-                          ),
-                        ),
-                        Container(
-                          padding: const EdgeInsets.all(6),
-                          decoration: BoxDecoration(
-                            color: context.colors.cardColor.withValues(
-                              alpha: 0.2,
-                            ),
-                            shape: BoxShape.circle,
-                          ),
-                          child: Icon(
-                            Icons.edit_outlined,
-                            color: Colors.white.withValues(alpha: 0.9),
-                            size: 16,
-                          ),
-                        ),
-                      ],
-                    )
-                  : Row(
-                      children: [
-                        Container(
-                          padding: const EdgeInsets.all(10),
-                          decoration: BoxDecoration(
-                            color: context.colors.cardColor.withValues(
-                              alpha: 0.2,
-                            ),
-                            shape: BoxShape.circle,
-                          ),
-                          child: Text('🌸', style: TextStyle(fontSize: 30)),
-                        ),
-                        const SizedBox(width: 14),
-                        Expanded(
-                          child: Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                              Text(
-                                'How are you feeling today?',
-                                style: TextStyle(
-                                  fontSize: 17,
-                                  fontWeight: FontWeight.bold,
-                                  color: Colors.white,
-                                ),
-                              ),
-                              Text(
-                                'Tap to check in',
-                                style: TextStyle(
-                                  fontSize: 12,
-                                  color: Colors.white.withValues(alpha: 0.8),
-                                ),
-                              ),
-                            ],
-                          ),
-                        ),
-                        Container(
-                          padding: const EdgeInsets.symmetric(
-                            horizontal: 12,
-                            vertical: 6,
-                          ),
-                          decoration: BoxDecoration(
-                            color: context.colors.cardColor.withValues(
-                              alpha: 0.25,
-                            ),
-                            borderRadius: BorderRadius.circular(20),
-                          ),
-                          child: Text(
-                            'Log',
-                            style: TextStyle(
-                              color: Colors.white,
-                              fontWeight: FontWeight.w600,
-                              fontSize: 12,
-                            ),
-                          ),
-                        ),
-                      ],
-                    ),
-            ),
-          ),
-        ),
       ),
     );
   }
@@ -1018,7 +871,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen>
             children: [
               _buildStatItem(
                 emoji: '🌱',
-                label: 'Tasks',
+                label: _unitLabel(taskState.completedCount, 'task'),
                 value: '${taskState.completedCount}',
                 color: const Color(0xFFFF9A9E),
                 onTap: () => _navigateTo(3),
@@ -1026,7 +879,10 @@ class _HomeScreenState extends ConsumerState<HomeScreen>
               const SizedBox(width: 12),
               _buildStatItem(
                 emoji: '✍️',
-                label: 'Journals',
+                label: _unitLabel(
+                  journalState?.todayEntries.length ?? 0,
+                  'journal',
+                ),
                 value: '${journalState?.todayEntries.length ?? 0}',
                 color: const Color(0xFFFFB347),
                 onTap: () => _navigateTo(1),
@@ -1034,7 +890,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen>
               const SizedBox(width: 12),
               _buildStatItem(
                 emoji: '💪',
-                label: 'Goals',
+                label: _unitLabel(goalState.activeCount, 'goal'),
                 value: '${goalState.activeCount}',
                 color: const Color(0xFF667eea),
                 onTap: () => _navigateTo(2),
@@ -1051,7 +907,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen>
                 if (taskState.pendingCount > 0)
                   Expanded(
                     child: Text(
-                      '${taskState.pendingCount} tasks pending',
+                      '${taskState.pendingCount} ${_unitLabel(taskState.pendingCount, 'task')} pending',
                       style: TextStyle(
                         fontSize: 12,
                         color: context.colors.textSecondary,
@@ -1060,7 +916,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen>
                   ),
                 if (goalState.completedCount > 0)
                   Text(
-                    '${goalState.completedCount} goals done 🎉',
+                    '${goalState.completedCount} ${_unitLabel(goalState.completedCount, 'goal')} done 🎉',
                     style: TextStyle(
                       fontSize: 12,
                       color: Colors.green.shade600,
@@ -1092,7 +948,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen>
           ),
           child: Column(
             children: [
-              Text(emoji, style: TextStyle(fontSize: 26)),
+              _buildAnimatedProgressIcon(emoji, color),
               const SizedBox(height: 6),
               Text(
                 value,
@@ -1117,6 +973,46 @@ class _HomeScreenState extends ConsumerState<HomeScreen>
     );
   }
 
+  Widget _buildAnimatedProgressIcon(String emoji, Color color) {
+    return AnimatedBuilder(
+      animation: _pulseController,
+      builder: (context, child) {
+        final t = _pulseController.value * math.pi * 2;
+        final dy = math.sin(t) * 2.2;
+        final angle = math.sin(t) * 0.045;
+        final glow = 0.12 + (math.sin(t) + 1) * 0.06;
+
+        return Transform.translate(
+          offset: Offset(0, dy),
+          child: Transform.rotate(
+            angle: angle,
+            child: Container(
+              width: 46,
+              height: 46,
+              decoration: BoxDecoration(
+                shape: BoxShape.circle,
+                color: color.withValues(alpha: glow),
+                boxShadow: [
+                  BoxShadow(
+                    color: color.withValues(alpha: glow),
+                    blurRadius: 12,
+                    spreadRadius: 1,
+                  ),
+                ],
+              ),
+              alignment: Alignment.center,
+              child: Text(emoji, style: const TextStyle(fontSize: 24)),
+            ),
+          ),
+        );
+      },
+    );
+  }
+
+  String _unitLabel(int count, String singular) {
+    return count == 1 ? singular : '${singular}s';
+  }
+
   // ─── GOALS CARD ───────────────────────────────────────────────
 
   Widget _buildGoalsCard(GoalState goalState) {
@@ -1130,7 +1026,10 @@ class _HomeScreenState extends ConsumerState<HomeScreen>
           const SizedBox(height: 12),
           ...goals.map((goal) => _buildGoalItem(goal)),
           if (goalState.activeGoals.length > 3)
-            _viewAllButton('View all ${goalState.activeCount} goals', () {}),
+            _viewAllButton(
+              'View all ${goalState.activeCount} goals',
+              () => _navigateTo(2),
+            ),
         ],
       ),
     );
@@ -1196,7 +1095,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen>
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
               Text(
-                '${goal.currentValue.toStringAsFixed(0)}/${goal.targetValue.toStringAsFixed(0)} ${goal.unit}',
+                '${CurrencyFormatter.formatUnitAmount(goal.currentValue, goal.unit)} / ${CurrencyFormatter.formatUnitAmount(goal.targetValue, goal.unit)}',
                 style: TextStyle(
                   fontSize: 11,
                   color: context.colors.textSecondary,
@@ -1237,27 +1136,31 @@ class _HomeScreenState extends ConsumerState<HomeScreen>
             spacing: 8,
             runSpacing: 8,
             children: sorted.take(5).map((entry) {
+              final mood = MoodOptions.getByEmoji(entry.key);
+              final label = mood?.label ?? _shortMoodLabel(entry.key);
+              final color = mood?.color ?? AppColors.primary;
+
               return Container(
                 padding: const EdgeInsets.symmetric(
-                  horizontal: 12,
-                  vertical: 6,
+                  horizontal: 10,
+                  vertical: 7,
                 ),
                 decoration: BoxDecoration(
-                  color: context.colors.cardColor2,
-                  borderRadius: BorderRadius.circular(16),
-                  border: Border.all(color: context.colors.divider),
+                  color: color.withValues(alpha: 0.12),
+                  borderRadius: BorderRadius.circular(12),
+                  border: Border.all(color: color.withValues(alpha: 0.28)),
                 ),
                 child: Row(
                   mainAxisSize: MainAxisSize.min,
                   children: [
-                    Text(entry.key, style: TextStyle(fontSize: 18)),
-                    const SizedBox(width: 5),
+                    Text(entry.key, style: TextStyle(fontSize: 16)),
+                    const SizedBox(width: 6),
                     Text(
-                      '×${entry.value}',
+                      label,
                       style: TextStyle(
                         fontSize: 12,
-                        fontWeight: FontWeight.w600,
-                        color: context.colors.textSecondary,
+                        fontWeight: FontWeight.w700,
+                        color: context.colors.textPrimary,
                       ),
                     ),
                   ],
@@ -1319,7 +1222,10 @@ class _HomeScreenState extends ConsumerState<HomeScreen>
           else
             ...pendingTasks.map((task) => _buildTaskItem(task)),
           if (taskState.pendingCount > 3)
-            _viewAllButton('View all ${taskState.pendingCount} tasks', () {}),
+            _viewAllButton(
+              'View all ${taskState.pendingCount} tasks',
+              () => _navigateTo(3),
+            ),
         ],
       ),
     );
@@ -1338,26 +1244,11 @@ class _HomeScreenState extends ConsumerState<HomeScreen>
       padding: const EdgeInsets.only(bottom: 10),
       child: Row(
         children: [
-          GestureDetector(
+          TaskCompleteToggle(
+            isCompleted: task.isCompleted,
+            color: color,
+            size: 24,
             onTap: () => ref.read(taskProvider.notifier).toggleTask(task),
-            child: AnimatedContainer(
-              duration: const Duration(milliseconds: 200),
-              width: 24,
-              height: 24,
-              decoration: BoxDecoration(
-                shape: BoxShape.circle,
-                border: Border.all(
-                  color: task.isCompleted ? AppColors.primary : color,
-                  width: 2,
-                ),
-                color: task.isCompleted
-                    ? AppColors.primary
-                    : Colors.transparent,
-              ),
-              child: task.isCompleted
-                  ? Icon(Icons.check, size: 14, color: Colors.white)
-                  : null,
-            ),
           ),
           const SizedBox(width: 12),
           Expanded(
@@ -1368,7 +1259,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen>
                   task.title,
                   style: TextStyle(
                     fontSize: 14,
-                    fontWeight: FontWeight.w500,
+                    fontWeight: FontWeight.bold,
                     decoration: task.isCompleted
                         ? TextDecoration.lineThrough
                         : null,
@@ -1409,7 +1300,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen>
 
   // ─── EVENTS CARD ──────────────────────────────────────────────
 
-  Widget _buildEventsCard(List events) {
+  Widget _buildEventsCard(List<Event> events) {
     return _glassCard(
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -1426,7 +1317,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen>
             )
           else
             ...events.take(3).map((event) {
-              final time = _formatEventTime(event);
+              final schedule = _formatEventSchedule(event);
               return Padding(
                 padding: const EdgeInsets.only(bottom: 10),
                 child: Row(
@@ -1449,21 +1340,36 @@ class _HomeScreenState extends ConsumerState<HomeScreen>
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
                           Text(
-                            event.title ?? 'Untitled Event',
+                            event.title,
                             style: TextStyle(
                               fontSize: 14,
                               fontWeight: FontWeight.w600,
-                              color: Color(0xFF2D3E40),
+                              color: context.colors.textPrimary,
                             ),
                           ),
-                          if (time.isNotEmpty)
-                            Text(
-                              time,
-                              style: TextStyle(
-                                fontSize: 11,
-                                color: context.colors.textSecondary,
+                          const SizedBox(height: 3),
+                          Row(
+                            children: [
+                              Icon(
+                                event.isAllDay
+                                    ? Icons.calendar_today_outlined
+                                    : Icons.schedule_rounded,
+                                size: 13,
+                                color: AppColors.primaryDark,
                               ),
-                            ),
+                              const SizedBox(width: 4),
+                              Expanded(
+                                child: Text(
+                                  schedule,
+                                  style: TextStyle(
+                                    fontSize: 11,
+                                    fontWeight: FontWeight.w600,
+                                    color: context.colors.textSecondary,
+                                  ),
+                                ),
+                              ),
+                            ],
+                          ),
                         ],
                       ),
                     ),
@@ -1471,6 +1377,11 @@ class _HomeScreenState extends ConsumerState<HomeScreen>
                 ),
               );
             }),
+          if (events.length > 3)
+            _viewAllButton(
+              'View all ${events.length} events',
+              () => _navigateTo(3),
+            ),
         ],
       ),
     );
@@ -1514,7 +1425,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen>
               children: [
                 Text(
                   entry.title,
-                  style: TextStyle(fontSize: 14, fontWeight: FontWeight.w500),
+                  style: TextStyle(fontSize: 14, fontWeight: FontWeight.bold),
                   maxLines: 1,
                   overflow: TextOverflow.ellipsis,
                 ),
@@ -1616,15 +1527,16 @@ class _HomeScreenState extends ConsumerState<HomeScreen>
   Widget _glassCard({required Widget child}) {
     return Container(
       width: double.infinity,
-      padding: const EdgeInsets.all(20),
+      padding: const EdgeInsets.all(18),
       decoration: BoxDecoration(
         color: context.colors.cardColor,
-        borderRadius: BorderRadius.circular(20),
+        borderRadius: BorderRadius.circular(18),
+        border: Border.all(color: context.colors.divider),
         boxShadow: [
           BoxShadow(
-            color: Colors.black.withValues(alpha: 0.05),
-            blurRadius: 20,
-            offset: const Offset(0, 4),
+            color: Colors.black.withValues(alpha: context.isDark ? 0.16 : 0.04),
+            blurRadius: 14,
+            offset: const Offset(0, 3),
           ),
         ],
       ),
@@ -1633,15 +1545,37 @@ class _HomeScreenState extends ConsumerState<HomeScreen>
   }
 
   Widget _cardHeader(String title, String? trailing) {
+    final icon = switch (title) {
+      "Today's Progress" => Icons.insights_outlined,
+      'Active Goals' => Icons.flag_outlined,
+      "This Week's Moods" => Icons.mood_outlined,
+      'Tasks' => Icons.task_alt_outlined,
+      'Upcoming Events' => Icons.calendar_month_outlined,
+      'Journal' => Icons.menu_book_outlined,
+      "Today's Meals" => Icons.restaurant_outlined,
+      _ => Icons.spa_outlined,
+    };
+
     return Row(
-      mainAxisAlignment: MainAxisAlignment.spaceBetween,
       children: [
-        Text(
-          title,
-          style: TextStyle(
-            fontSize: 16,
-            fontWeight: FontWeight.bold,
-            color: Color(0xFF2D3E40),
+        Container(
+          width: 34,
+          height: 34,
+          decoration: BoxDecoration(
+            color: AppColors.primary.withValues(alpha: 0.12),
+            borderRadius: BorderRadius.circular(10),
+          ),
+          child: Icon(icon, size: 18, color: AppColors.primaryDark),
+        ),
+        const SizedBox(width: 10),
+        Expanded(
+          child: Text(
+            title,
+            style: TextStyle(
+              fontSize: 15,
+              fontWeight: FontWeight.w700,
+              color: context.colors.textPrimary,
+            ),
           ),
         ),
         if (trailing != null)
@@ -1710,18 +1644,66 @@ class _HomeScreenState extends ConsumerState<HomeScreen>
     return 'Good Evening 🌙';
   }
 
-  String _formatEventTime(dynamic event) {
-    try {
-      if (event.eventTime != null && event.eventTime.toString().isNotEmpty) {
-        return event.eventTime.toString();
-      }
-      if (event.eventDate != null) {
-        final date = event.eventDate is DateTime
-            ? event.eventDate
-            : DateTime.tryParse(event.eventDate.toString());
-        if (date != null) return DateFormat('MMM d, h:mm a').format(date);
-      }
-    } catch (_) {}
-    return '';
+  String _formatEventSchedule(Event event) {
+    final now = DateTime.now();
+    final today = DateTime(now.year, now.month, now.day);
+    final eventDay = DateTime(
+      event.eventDate.year,
+      event.eventDate.month,
+      event.eventDate.day,
+    );
+    final dayLabel = eventDay == today
+        ? 'Today'
+        : eventDay == today.add(const Duration(days: 1))
+        ? 'Tomorrow'
+        : DateFormat('EEE, MMM d').format(event.eventDate);
+
+    if (event.isAllDay || event.startTime == null) {
+      return '$dayLabel · All day';
+    }
+    return '$dayLabel · ${DateFormat('h:mm a').format(event.startTime!)}';
+  }
+
+  List<Event> _upcomingEventsFromNow(List<Event> events) {
+    final now = DateTime.now();
+    final upcoming =
+        events.where((event) => _eventVisibleUntil(event).isAfter(now)).toList()
+          ..sort((a, b) => _eventSortTime(a).compareTo(_eventSortTime(b)));
+    return upcoming;
+  }
+
+  DateTime _eventSortTime(Event event) {
+    return event.startTime ?? event.eventDate;
+  }
+
+  DateTime _eventVisibleUntil(Event event) {
+    if (event.endTime != null) return event.endTime!;
+    if (!event.isAllDay && event.startTime != null) return event.startTime!;
+    return DateTime(
+      event.eventDate.year,
+      event.eventDate.month,
+      event.eventDate.day,
+      23,
+      59,
+      59,
+      999,
+    );
+  }
+
+  String _shortMoodLabel(String value) {
+    const labels = {
+      '😀': 'Happy',
+      '😃': 'Happy',
+      '😄': 'Happy',
+      '😁': 'Happy',
+      '🙂': 'Good',
+      '😡': 'Angry',
+      '😠': 'Angry',
+      '😞': 'Sad',
+      '😭': 'Sad',
+      '😟': 'Worried',
+      '😨': 'Anxious',
+    };
+    return labels[value] ?? 'Mood';
   }
 }

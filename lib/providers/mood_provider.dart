@@ -2,9 +2,11 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:personal_haven/data/models/mood_log.dart';
 import 'package:personal_haven/data/repositories/mood_repository.dart';
 import 'package:personal_haven/providers/auth_provider.dart';
+import 'package:personal_haven/providers/notification_provider.dart';
 import 'package:personal_haven/services/notification_service.dart';
 import 'package:riverpod_annotation/riverpod_annotation.dart';
 part 'mood_provider.g.dart';
+
 final moodRepositoryProvider = Provider<MoodRepository>((ref) {
   return MoodRepository();
 });
@@ -41,21 +43,24 @@ class MoodState {
 class MoodNotifier extends _$MoodNotifier {
   final MoodRepository _repository = MoodRepository();
 
-  String get _userId => ref.watch(currentUserIdProvider);
+  String get _userId => ref.read(currentUserIdProvider);
 
   @override
   MoodState build() {
-    if (_userId.isNotEmpty) {
-      Future.microtask(loadTodayMood);
+    final userId = ref.watch(currentUserIdProvider);
+    if (userId.isNotEmpty) {
+      Future.microtask(() => loadTodayMood(userId: userId));
     }
     return MoodState();
   }
 
-  Future<void> loadTodayMood() async {
+  Future<void> loadTodayMood({String? userId}) async {
+    final targetUserId = userId ?? _userId;
+    if (targetUserId.isEmpty) return;
     state = state.copyWith(isLoading: true);
     try {
-      final todayMood = await _repository.getTodayMood(_userId);
-      final weekMoods = await _repository.getWeekMoods(_userId);
+      final todayMood = await _repository.getTodayMood(targetUserId);
+      final weekMoods = await _repository.getWeekMoods(targetUserId);
       state = state.copyWith(
         todayMood: todayMood,
         weekMoods: weekMoods,
@@ -69,19 +74,29 @@ class MoodNotifier extends _$MoodNotifier {
     }
   }
 
-  Future<void> logMood(int moodLevel, String moodEmoji, {String? moodLabel, String? notes}) async {
+  Future<void> logMood(
+    int moodLevel,
+    String moodEmoji, {
+    String? moodLabel,
+    String? notes,
+  }) async {
     try {
+      final userId = _userId;
+      if (userId.isEmpty) return;
       final log = await _repository.logMood(
-        userId: _userId,
+        userId: userId,
         moodLevel: moodLevel,
         moodLabel: moodLabel ?? '',
         moodEmoji: moodEmoji,
         notes: notes,
       );
       state = state.copyWith(todayMood: log);
-      await loadTodayMood();
-      // Notify after logging mood
-      await NotificationService.instance.notifyMoodLogged(moodEmoji);
+      await loadTodayMood(userId: userId);
+      final notificationPrefs = ref.read(notificationProvider);
+      if (notificationPrefs.masterEnabled && notificationPrefs.moodReminder) {
+        // Notify after logging mood
+        await NotificationService.instance.notifyMoodLogged(moodEmoji);
+      }
     } catch (e) {
       state = state.copyWith(error: 'Failed to log mood: ${e.toString()}');
     }

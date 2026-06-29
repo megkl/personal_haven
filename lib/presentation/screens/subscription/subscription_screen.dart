@@ -1,14 +1,13 @@
-import 'dart:async';
 import 'dart:io';
 
 import 'package:flutter/material.dart';
+import 'package:in_app_purchase/in_app_purchase.dart';
 import 'package:personal_haven/core/theme/app_theme.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:personal_haven/core/constants/app_colors.dart';
 import 'package:personal_haven/data/models/subscription.dart';
 import 'package:personal_haven/providers/subscription_provider.dart';
 import 'package:personal_haven/services/iap_service.dart';
-import 'package:personal_haven/services/mpesa_service.dart';
 
 class SubscriptionScreen extends ConsumerStatefulWidget {
   const SubscriptionScreen({super.key});
@@ -19,240 +18,122 @@ class SubscriptionScreen extends ConsumerStatefulWidget {
 
 class _SubscriptionScreenState extends ConsumerState<SubscriptionScreen> {
   SubscriptionPlan _selectedPlan = SubscriptionPlan.monthly;
-  PaymentMethod _selectedMethod = PaymentMethod.mpesa;
-  final _phoneController = TextEditingController();
   bool _isProcessing = false;
   bool _isRestoring = false;
+  bool _isLoadingCatalog = true;
+  IAPCatalog? _catalog;
 
   @override
-  void dispose() {
-    _phoneController.dispose();
-    super.dispose();
+  void initState() {
+    super.initState();
+    _loadCatalog();
+  }
+
+  Future<void> _loadCatalog() async {
+    final catalog = await IAPService.instance.getCatalog();
+    if (!mounted) return;
+
+    final selectedProduct = catalog.productForPlan(_selectedPlan);
+    SubscriptionPlan? fallbackPlan;
+    for (final plan in <SubscriptionPlan>[
+      SubscriptionPlan.monthly,
+      SubscriptionPlan.yearly,
+      SubscriptionPlan.weekly,
+    ]) {
+      if (catalog.isPlanAvailable(plan)) {
+        fallbackPlan = plan;
+        break;
+      }
+    }
+
+    setState(() {
+      _catalog = catalog;
+      _isLoadingCatalog = false;
+      if (selectedProduct == null && fallbackPlan != null) {
+        _selectedPlan = fallbackPlan;
+      }
+    });
   }
 
   Future<void> _subscribe() async {
     if (_isProcessing) return;
+    final catalog = _catalog;
+    if (catalog == null || !catalog.isPlanAvailable(_selectedPlan)) {
+      _showError('This subscription is not available in the store yet.');
+      return;
+    }
     setState(() => _isProcessing = true);
 
     try {
-      switch (_selectedMethod) {
-        case PaymentMethod.mpesa:
-          await _handleMpesa();
-          break;
-        case PaymentMethod.card:
-          _showCardInfo();
-          break;
-        case PaymentMethod.usdt:
-          _showUsdtInfo();
-          break;
-        case PaymentMethod.appStore:
-          //await _handleIAP();
-          break;
-      }
+      await _handleStorePurchase();
     } finally {
       if (mounted) setState(() => _isProcessing = false);
     }
   }
 
-  Future<void> _handleMpesa() async {
-    final phone = _phoneController.text.trim();
-    if (phone.isEmpty) {
-      _showError('Please enter your M-Pesa phone number');
-      return;
-    }
-
-    // Normalise to 2547XXXXXXXX
-    final normalised = _normalisePhone(phone);
-    if (normalised == null) {
-      _showError('Enter a valid Kenyan phone number (07XX or 2547XX)');
-      return;
-    }
-
-    final amount = Subscription.priceFor(_selectedPlan);
-    final result = await MpesaService.instance.stkPush(
-      phone: normalised,
-      amount: amount,
-      accountRef: 'PersonalHaven',
-      description: 'Personal Haven ${Subscription.labelFor(_selectedPlan)}',
-    );
-
+  Future<void> _handleStorePurchase() async {
+    final result = await IAPService.instance.purchase(_selectedPlan);
     if (!mounted) return;
 
-    if (result.success && result.checkoutRequestId != null) {
-      _showMpesaWaiting(result.checkoutRequestId!);
+    if (result.success) {
+      await ref
+          .read(subscriptionProvider.notifier)
+          .activatePaid(
+            plan: _selectedPlan,
+            transactionRef:
+                result.transactionId ?? IAPProducts.idForPlan(_selectedPlan),
+            productId: result.productId ?? IAPProducts.idForPlan(_selectedPlan),
+            serverVerificationData: result.serverVerificationData ?? '',
+            localVerificationData: result.localVerificationData,
+            verificationSource: result.verificationSource ?? '',
+          );
+      if (mounted) {
+        Navigator.pop(context);
+        _showSuccess();
+      }
     } else {
-      _showError(result.error ?? 'M-Pesa request failed');
+      _showError(result.error ?? 'Purchase failed');
     }
   }
 
-  // Future<void> _handleIAP() async {
-  //   final productId = _selectedPlan == SubscriptionPlan.monthly
-  //       ? IAPProducts.monthlyId
-  //       : IAPProducts.weeklyId;
+  Future<void> _restorePurchases() async {
+    setState(() => _isRestoring = true);
+    try {
+      final result = await IAPService.instance.restorePurchases();
+      if (!mounted) return;
 
-  //   final result = await IAPService.instance.purchase(productId);
-  //   if (!mounted) return;
+      if (!result.success || result.productId == null) {
+        _showError(result.error ?? 'No previous purchases found');
+        return;
+      }
 
-  //   if (result.success) {
-  //     await ref.read(subscriptionProvider.notifier).activatePaid(
-  //           plan: _selectedPlan,
-  //           paymentMethod: PaymentMethod.appStore,
-  //           transactionRef: result.transactionId ?? productId,
-  //         );
-  //     if (mounted) {
-  //       Navigator.pop(context);
-  //       _showSuccess();
-  //     }
-  //   } else {
-  //     _showError(result.error ?? 'Purchase failed');
-  //   }
-  // }
+      final plan = IAPProducts.planForId(result.productId!);
+      if (plan == null) {
+        _showError('No active Personal Haven subscription found');
+        return;
+      }
 
-  // Future<void> _restorePurchases() async {
-  //   setState(() => _isRestoring = true);
-  //   try {
-  //     final purchases = await IAPService.instance.restorePurchases();
-  //     if (!mounted) return;
-
-  //     if (purchases.isEmpty) {
-  //       _showError('No previous purchases found');
-  //       return;
-  //     }
-
-  //     // Find the most recent active subscription
-  //     final monthly = purchases.any(
-  //         (p) => p.productId == IAPProducts.monthlyId);
-  //     final weekly =
-  //         purchases.any((p) => p.productId == IAPProducts.weeklyId);
-
-  //     final plan = monthly
-  //         ? SubscriptionPlan.monthly
-  //         : weekly
-  //             ? SubscriptionPlan.weekly
-  //             : null;
-
-  //     if (plan == null) {
-  //       _showError('No active subscription found to restore');
-  //       return;
-  //     }
-
-  //     final latest = purchases.firstWhere(
-  //         (p) => p.productId == IAPProducts.monthlyId || p.productId == IAPProducts.weeklyId);
-
-  //     await ref.read(subscriptionProvider.notifier).activatePaid(
-  //           plan: plan,
-  //           paymentMethod: PaymentMethod.appStore,
-  //           transactionRef: latest.transactionId ?? 'restored',
-  //         );
-
-  //     if (mounted) {
-  //       ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
-  //         content: Text('✅ Subscription restored successfully'),
-  //         backgroundColor: AppColors.primary,
-  //       ));
-  //     }
-  //   } finally {
-  //     if (mounted) setState(() => _isRestoring = false);
-  //   }
-  // }
-
-  void _showMpesaWaiting(String checkoutRequestId) {
-    showDialog(
-      context: context,
-      barrierDismissible: false,
-      builder: (_) => _MpesaWaitingDialog(
-        checkoutRequestId: checkoutRequestId,
-        plan: _selectedPlan,
-        onSuccess: (ref) async {
-          await ref
-              .read(subscriptionProvider.notifier)
-              .activatePaid(
-                plan: _selectedPlan,
-                paymentMethod: PaymentMethod.mpesa,
-                transactionRef: checkoutRequestId,
-              );
-          if (mounted) {
-            Navigator.pop(context); // close dialog
-            Navigator.pop(context); // close subscription screen
-            _showSuccess();
-          }
-        },
-        onFailed: () {
-          if (mounted)
-            _showError('Payment was not completed. Please try again.');
-        },
-      ),
-    );
-  }
-
-  void _showCardInfo() {
-    showDialog(
-      context: context,
-      builder: (_) => AlertDialog(
-        title: Text('Card Payment'),
-        content: Text(
-          'Card payments are processed via our secure payment gateway.\n\n'
-          'You will be redirected to complete your payment.\n\n'
-          'Coming soon — contact support@personalhaven.app to pay by card.',
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(context),
-            child: Text('OK'),
+      await ref
+          .read(subscriptionProvider.notifier)
+          .activatePaid(
+            plan: plan,
+            transactionRef: result.transactionId ?? result.productId!,
+            productId: result.productId!,
+            serverVerificationData: result.serverVerificationData ?? '',
+            localVerificationData: result.localVerificationData,
+            verificationSource: result.verificationSource ?? '',
+          );
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Subscription restored successfully'),
+            backgroundColor: AppColors.primary,
           ),
-        ],
-      ),
-    );
-  }
-
-  void _showUsdtInfo() {
-    showDialog(
-      context: context,
-      builder: (_) => AlertDialog(
-        title: Text('Pay with USDT'),
-        content: Column(
-          mainAxisSize: MainAxisSize.min,
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Text('Send USDT (TRC-20) to:'),
-            const SizedBox(height: 8),
-            Container(
-              padding: const EdgeInsets.all(12),
-              decoration: BoxDecoration(
-                color: AppColors.primaryLight,
-                borderRadius: BorderRadius.circular(8),
-              ),
-              child: const SelectableText(
-                'YOUR_USDT_WALLET_ADDRESS',
-                style: TextStyle(
-                  fontFamily: 'monospace',
-                  fontWeight: FontWeight.bold,
-                ),
-              ),
-            ),
-            const SizedBox(height: 12),
-            Text(
-              'Amount: \$${(Subscription.priceFor(_selectedPlan) / 130).toStringAsFixed(2)} USDT',
-              style: TextStyle(fontWeight: FontWeight.w600),
-            ),
-            const SizedBox(height: 8),
-            Text(
-              'After sending, email your transaction hash to:\nsupport@personalhaven.app',
-              style: TextStyle(
-                fontSize: 12,
-                color: context.colors.textSecondary,
-              ),
-            ),
-          ],
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(context),
-            child: Text('Close'),
-          ),
-        ],
-      ),
-    );
+        );
+      }
+    } finally {
+      if (mounted) setState(() => _isRestoring = false);
+    }
   }
 
   void _showError(String msg) {
@@ -270,21 +151,23 @@ class _SubscriptionScreenState extends ConsumerState<SubscriptionScreen> {
     );
   }
 
-  String? _normalisePhone(String phone) {
-    phone = phone.replaceAll(RegExp(r'\s+|-'), '');
-    if (phone.startsWith('07') && phone.length == 10) {
-      return '254${phone.substring(1)}';
-    }
-    if (phone.startsWith('2547') && phone.length == 12) return phone;
-    if (phone.startsWith('+2547') && phone.length == 13) {
-      return phone.substring(1);
-    }
-    return null;
+  String _storeButtonLabel(SubscriptionPlan plan) {
+    final storeName = Platform.isIOS ? 'App Store' : 'Google Play';
+    final product = _catalog?.productForPlan(plan);
+    final label = product?.price ?? Subscription.labelFor(plan);
+    return 'Subscribe with $storeName — $label';
   }
 
   @override
   Widget build(BuildContext context) {
     final subState = ref.watch(subscriptionProvider);
+    final catalog = _catalog;
+    final selectedProduct = catalog?.productForPlan(_selectedPlan);
+    final canSubscribe =
+        !_isProcessing &&
+        !_isLoadingCatalog &&
+        catalog?.isAvailable == true &&
+        selectedProduct != null;
 
     return Scaffold(
       backgroundColor: Theme.of(context).scaffoldBackgroundColor,
@@ -316,10 +199,28 @@ class _SubscriptionScreenState extends ConsumerState<SubscriptionScreen> {
                 ),
               ),
               const SizedBox(height: 12),
+              if (_isLoadingCatalog)
+                const Padding(
+                  padding: EdgeInsets.only(bottom: 12),
+                  child: LinearProgressIndicator(minHeight: 2),
+                ),
+              _PlanCard(
+                plan: SubscriptionPlan.yearly,
+                selected: _selectedPlan == SubscriptionPlan.yearly,
+                product: catalog?.productForPlan(SubscriptionPlan.yearly),
+                available:
+                    catalog?.isPlanAvailable(SubscriptionPlan.yearly) ?? false,
+                badge: 'Best Value',
+                onTap: () =>
+                    setState(() => _selectedPlan = SubscriptionPlan.yearly),
+              ),
+              const SizedBox(height: 10),
               _PlanCard(
                 plan: SubscriptionPlan.monthly,
                 selected: _selectedPlan == SubscriptionPlan.monthly,
-                badge: 'Best Value',
+                product: catalog?.productForPlan(SubscriptionPlan.monthly),
+                available:
+                    catalog?.isPlanAvailable(SubscriptionPlan.monthly) ?? false,
                 onTap: () =>
                     setState(() => _selectedPlan = SubscriptionPlan.monthly),
               ),
@@ -327,94 +228,35 @@ class _SubscriptionScreenState extends ConsumerState<SubscriptionScreen> {
               _PlanCard(
                 plan: SubscriptionPlan.weekly,
                 selected: _selectedPlan == SubscriptionPlan.weekly,
+                product: catalog?.productForPlan(SubscriptionPlan.weekly),
+                available:
+                    catalog?.isPlanAvailable(SubscriptionPlan.weekly) ?? false,
                 onTap: () =>
                     setState(() => _selectedPlan = SubscriptionPlan.weekly),
               ),
-              const SizedBox(height: 24),
-
-              // Payment method
-              Text(
-                'Payment Method',
-                style: TextStyle(
-                  fontSize: 18,
-                  fontWeight: FontWeight.bold,
-                  color: context.colors.textPrimary,
-                ),
-              ),
-              const SizedBox(height: 12),
-              // _PaymentMethodSelector(
-              //   selected: _selectedMethod,
-              //   onChanged: (m) => setState(() => _selectedMethod = m),
-              // ),
               const SizedBox(height: 16),
 
-              // App Store / Play Store note
-              if (_selectedMethod == PaymentMethod.appStore) ...[
-                Container(
-                  padding: const EdgeInsets.all(12),
-                  decoration: BoxDecoration(
-                    color: Colors.blue.shade50,
-                    borderRadius: BorderRadius.circular(10),
-                    border: Border.all(color: Colors.blue.shade200),
-                  ),
-                  child: Row(
-                    children: [
-                      Icon(
-                        Platform.isIOS ? Icons.apple : Icons.android,
-                        color: Colors.blue.shade700,
-                      ),
-                      const SizedBox(width: 10),
-                      Expanded(
-                        child: Text(
-                          Platform.isIOS
-                              ? 'Billed through your Apple ID. Manage in Settings → Apple ID → Subscriptions.'
-                              : 'Billed through Google Play. Manage in Play Store → Subscriptions.',
-                          style: TextStyle(
-                            fontSize: 12,
-                            color: Colors.blue.shade700,
-                          ),
-                        ),
-                      ),
-                    ],
-                  ),
+              if (!_isLoadingCatalog &&
+                  (catalog?.isAvailable != true ||
+                      catalog?.products.isEmpty == true))
+                _StoreIssueNotice(
+                  message:
+                      catalog?.error ??
+                      'Store products are not available yet. Check your App Store Connect or Google Play product IDs.',
+                  onRetry: _loadCatalog,
                 ),
-                const SizedBox(height: 16),
-              ],
+              if (!_isLoadingCatalog && catalog?.notFoundIds.isNotEmpty == true)
+                _MissingProductsNotice(ids: catalog!.notFoundIds),
 
-              // Phone field for M-Pesa
-              if (_selectedMethod == PaymentMethod.mpesa) ...[
-                TextField(
-                  controller: _phoneController,
-                  keyboardType: TextInputType.phone,
-                  decoration: InputDecoration(
-                    labelText: 'M-Pesa Phone Number',
-                    hintText: '07XX XXX XXX',
-                    prefixIcon: Icon(Icons.phone, color: AppColors.primary),
-                    filled: true,
-                    fillColor: context.colors.cardColor,
-                    border: OutlineInputBorder(
-                      borderRadius: BorderRadius.circular(12),
-                      borderSide: BorderSide.none,
-                    ),
-                  ),
-                ),
-                const SizedBox(height: 8),
-                Text(
-                  'You will receive an STK push on your phone to confirm payment.',
-                  style: TextStyle(
-                    fontSize: 12,
-                    color: context.colors.textSecondary,
-                  ),
-                ),
-                const SizedBox(height: 16),
-              ],
+              _StoreBillingNote(),
+              const SizedBox(height: 16),
 
               // Subscribe button
               SizedBox(
                 width: double.infinity,
                 height: 56,
                 child: ElevatedButton(
-                  onPressed: _isProcessing ? null : _subscribe,
+                  onPressed: canSubscribe ? _subscribe : null,
                   style: ElevatedButton.styleFrom(
                     backgroundColor: AppColors.primary,
                     foregroundColor: Colors.white,
@@ -422,7 +264,7 @@ class _SubscriptionScreenState extends ConsumerState<SubscriptionScreen> {
                       borderRadius: BorderRadius.circular(28),
                     ),
                   ),
-                  child: _isProcessing
+                  child: _isProcessing || _isLoadingCatalog
                       ? const SizedBox(
                           width: 24,
                           height: 24,
@@ -432,7 +274,7 @@ class _SubscriptionScreenState extends ConsumerState<SubscriptionScreen> {
                           ),
                         )
                       : Text(
-                          'Subscribe — ${Subscription.labelFor(_selectedPlan)}',
+                          _storeButtonLabel(_selectedPlan),
                           style: TextStyle(
                             fontSize: 16,
                             fontWeight: FontWeight.w600,
@@ -442,22 +284,24 @@ class _SubscriptionScreenState extends ConsumerState<SubscriptionScreen> {
               ),
               const SizedBox(height: 24),
 
-              // // Restore purchases (App Store requirement)
-              // if (IAPService.isAvailable)
-              //   Center(
-              //     child: TextButton.icon(
-              //       onPressed: _isRestoring ? null : _restorePurchases,
-              //       icon: _isRestoring
-              //           ? const SizedBox(
-              //               width: 14,
-              //               height: 14,
-              //               child: CircularProgressIndicator(strokeWidth: 2))
-              //           : Icon(Icons.restore, size: 18),
-              //       label: Text('Restore Purchases'),
-              //       style: TextButton.styleFrom(
-              //           foregroundColor: context.colors.textSecondary),
-              //     ),
-              //   ),
+              Center(
+                child: TextButton.icon(
+                  onPressed: (_isRestoring || catalog?.isAvailable != true)
+                      ? null
+                      : _restorePurchases,
+                  icon: _isRestoring
+                      ? const SizedBox(
+                          width: 14,
+                          height: 14,
+                          child: CircularProgressIndicator(strokeWidth: 2),
+                        )
+                      : const Icon(Icons.restore, size: 18),
+                  label: const Text('Restore Purchases'),
+                  style: TextButton.styleFrom(
+                    foregroundColor: context.colors.textSecondary,
+                  ),
+                ),
+              ),
               const SizedBox(height: 16),
 
               // Features list
@@ -513,28 +357,40 @@ class _HeroCard extends StatelessWidget {
 class _PlanCard extends StatelessWidget {
   final SubscriptionPlan plan;
   final bool selected;
+  final ProductDetails? product;
+  final bool available;
   final String? badge;
   final VoidCallback onTap;
 
   const _PlanCard({
     required this.plan,
     required this.selected,
+    required this.product,
+    required this.available,
     required this.onTap,
     this.badge,
   });
 
   @override
   Widget build(BuildContext context) {
+    final textColor = available
+        ? context.colors.textPrimary
+        : context.colors.textSecondary.withValues(alpha: 0.65);
+
     return GestureDetector(
-      onTap: onTap,
+      onTap: available ? onTap : null,
       child: AnimatedContainer(
         duration: const Duration(milliseconds: 200),
         padding: const EdgeInsets.all(16),
         decoration: BoxDecoration(
-          color: context.colors.cardColor,
+          color: available
+              ? context.colors.cardColor
+              : context.colors.cardColor2.withValues(alpha: 0.65),
           borderRadius: BorderRadius.circular(14),
           border: Border.all(
-            color: selected ? AppColors.primary : Colors.transparent,
+            color: selected && available
+                ? AppColors.primary
+                : context.colors.divider.withValues(alpha: 0.35),
             width: 2,
           ),
           boxShadow: selected
@@ -549,12 +405,13 @@ class _PlanCard extends StatelessWidget {
         ),
         child: Row(
           children: [
-            Radio<SubscriptionPlan>(
-              value: plan,
-              groupValue: selected ? plan : null,
-              onChanged: (_) => onTap(),
-              activeColor: AppColors.primary,
+            Icon(
+              selected
+                  ? Icons.radio_button_checked
+                  : Icons.radio_button_unchecked,
+              color: selected ? AppColors.primary : context.colors.divider,
             ),
+            const SizedBox(width: 12),
             Expanded(
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
@@ -562,11 +419,11 @@ class _PlanCard extends StatelessWidget {
                   Row(
                     children: [
                       Text(
-                        plan == SubscriptionPlan.monthly ? 'Monthly' : 'Weekly',
+                        product?.title ?? _planName(plan),
                         style: TextStyle(
                           fontSize: 16,
                           fontWeight: FontWeight.bold,
-                          color: context.colors.textPrimary,
+                          color: textColor,
                         ),
                       ),
                       if (badge != null) ...[
@@ -593,9 +450,11 @@ class _PlanCard extends StatelessWidget {
                     ],
                   ),
                   Text(
-                    plan == SubscriptionPlan.monthly
-                        ? 'KES 100 / month'
-                        : 'KES 30 / week',
+                    available
+                        ? (product?.description.isNotEmpty == true
+                              ? product!.description
+                              : _planSubtitle(plan))
+                        : 'Not available in store yet',
                     style: TextStyle(
                       color: context.colors.textSecondary,
                       fontSize: 13,
@@ -605,11 +464,11 @@ class _PlanCard extends StatelessWidget {
               ),
             ),
             Text(
-              plan == SubscriptionPlan.monthly ? 'KES 100' : 'KES 30',
+              product?.price ?? 'KES ${Subscription.priceFor(plan).toInt()}',
               style: TextStyle(
                 fontSize: 18,
                 fontWeight: FontWeight.bold,
-                color: AppColors.primary,
+                color: available ? AppColors.primary : context.colors.divider,
               ),
             ),
           ],
@@ -617,94 +476,126 @@ class _PlanCard extends StatelessWidget {
       ),
     );
   }
+
+  String _planName(SubscriptionPlan plan) {
+    switch (plan) {
+      case SubscriptionPlan.weekly:
+        return 'Weekly';
+      case SubscriptionPlan.monthly:
+        return 'Monthly';
+      case SubscriptionPlan.yearly:
+        return 'Yearly';
+      case SubscriptionPlan.free:
+        return 'Free Trial';
+    }
+  }
+
+  String _planSubtitle(SubscriptionPlan plan) {
+    switch (plan) {
+      case SubscriptionPlan.weekly:
+        return 'KES 30 / week';
+      case SubscriptionPlan.monthly:
+        return 'KES 100 / month';
+      case SubscriptionPlan.yearly:
+        return 'KES 800 / year';
+      case SubscriptionPlan.free:
+        return '7 days free';
+    }
+  }
 }
 
-class _PaymentMethodSelector extends StatelessWidget {
-  final PaymentMethod selected;
-  final ValueChanged<PaymentMethod> onChanged;
-
-  const _PaymentMethodSelector({
-    required this.selected,
-    required this.onChanged,
-  });
-
+class _StoreBillingNote extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
-    return Wrap(
-      spacing: 10,
-      runSpacing: 10,
-      children: [
-        //if (IAPService.isAvailable)
-        _MethodChip(
-          label: Platform.isIOS ? 'App Store' : 'Play Store',
-          icon: Platform.isIOS ? '🍎' : '▶',
-          selected: selected == PaymentMethod.appStore,
-          onTap: () => onChanged(PaymentMethod.appStore),
-        ),
-        _MethodChip(
-          label: 'M-Pesa',
-          icon: '📱',
-          selected: selected == PaymentMethod.mpesa,
-          onTap: () => onChanged(PaymentMethod.mpesa),
-        ),
-        _MethodChip(
-          label: 'Card',
-          icon: '💳',
-          selected: selected == PaymentMethod.card,
-          onTap: () => onChanged(PaymentMethod.card),
-        ),
-        _MethodChip(
-          label: 'USDT',
-          icon: '₮',
-          selected: selected == PaymentMethod.usdt,
-          onTap: () => onChanged(PaymentMethod.usdt),
-        ),
-      ],
+    final storeName = Platform.isIOS ? 'App Store' : 'Google Play';
+    final icon = Platform.isIOS ? Icons.apple : Icons.shop_outlined;
+    final manageText = Platform.isIOS
+        ? 'Manage or cancel in Apple ID Subscriptions.'
+        : 'Manage or cancel in Google Play Subscriptions.';
+
+    return Container(
+      padding: const EdgeInsets.all(12),
+      decoration: BoxDecoration(
+        color: Colors.blue.shade50,
+        borderRadius: BorderRadius.circular(10),
+        border: Border.all(color: Colors.blue.shade200),
+      ),
+      child: Row(
+        children: [
+          Icon(icon, color: Colors.blue.shade700),
+          const SizedBox(width: 10),
+          Expanded(
+            child: Text(
+              'Billed through $storeName. $manageText',
+              style: TextStyle(fontSize: 12, color: Colors.blue.shade700),
+            ),
+          ),
+        ],
+      ),
     );
   }
 }
 
-class _MethodChip extends StatelessWidget {
-  final String label;
-  final String icon;
-  final bool selected;
-  final VoidCallback onTap;
+class _StoreIssueNotice extends StatelessWidget {
+  final String message;
+  final VoidCallback onRetry;
 
-  const _MethodChip({
-    required this.label,
-    required this.icon,
-    required this.selected,
-    required this.onTap,
-  });
+  const _StoreIssueNotice({required this.message, required this.onRetry});
 
   @override
   Widget build(BuildContext context) {
-    return GestureDetector(
-      onTap: onTap,
-      child: AnimatedContainer(
-        duration: const Duration(milliseconds: 150),
-        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
-        decoration: BoxDecoration(
-          color: selected ? AppColors.primary : Colors.white,
-          borderRadius: BorderRadius.circular(24),
-          border: Border.all(
-            color: selected ? AppColors.primary : context.colors.divider,
-          ),
-        ),
-        child: Row(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Text(icon, style: TextStyle(fontSize: 16)),
-            const SizedBox(width: 6),
-            Text(
-              label,
-              style: TextStyle(
-                color: selected ? Colors.white : context.colors.textPrimary,
-                fontWeight: FontWeight.w600,
-              ),
+    return Container(
+      margin: const EdgeInsets.only(bottom: 16),
+      padding: const EdgeInsets.all(12),
+      decoration: BoxDecoration(
+        color: Colors.orange.shade50,
+        borderRadius: BorderRadius.circular(10),
+        border: Border.all(color: Colors.orange.shade200),
+      ),
+      child: Row(
+        children: [
+          Icon(Icons.info_outline, color: Colors.orange.shade800),
+          const SizedBox(width: 10),
+          Expanded(
+            child: Text(
+              message,
+              style: TextStyle(fontSize: 12, color: Colors.orange.shade900),
             ),
-          ],
-        ),
+          ),
+          TextButton(onPressed: onRetry, child: const Text('Retry')),
+        ],
+      ),
+    );
+  }
+}
+
+class _MissingProductsNotice extends StatelessWidget {
+  final Set<String> ids;
+
+  const _MissingProductsNotice({required this.ids});
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      margin: const EdgeInsets.only(bottom: 16),
+      padding: const EdgeInsets.all(12),
+      decoration: BoxDecoration(
+        color: Colors.red.shade50,
+        borderRadius: BorderRadius.circular(10),
+        border: Border.all(color: Colors.red.shade100),
+      ),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Icon(Icons.warning_amber_rounded, color: Colors.red.shade700),
+          const SizedBox(width: 10),
+          Expanded(
+            child: Text(
+              'Missing store products: ${ids.join(', ')}',
+              style: TextStyle(fontSize: 12, color: Colors.red.shade700),
+            ),
+          ),
+        ],
       ),
     );
   }
@@ -813,97 +704,6 @@ class _ActiveBanner extends StatelessWidget {
             ),
         ],
       ),
-    );
-  }
-}
-
-// ── M-Pesa waiting dialog ─────────────────────────────────────────────────────
-
-class _MpesaWaitingDialog extends ConsumerStatefulWidget {
-  final String checkoutRequestId;
-  final SubscriptionPlan plan;
-  final void Function(WidgetRef ref) onSuccess;
-  final VoidCallback onFailed;
-
-  const _MpesaWaitingDialog({
-    required this.checkoutRequestId,
-    required this.plan,
-    required this.onSuccess,
-    required this.onFailed,
-  });
-
-  @override
-  ConsumerState<_MpesaWaitingDialog> createState() =>
-      _MpesaWaitingDialogState();
-}
-
-class _MpesaWaitingDialogState extends ConsumerState<_MpesaWaitingDialog> {
-  Timer? _timer;
-  int _attempts = 0;
-  String _status = 'Waiting for payment confirmation…';
-
-  @override
-  void initState() {
-    super.initState();
-    // Poll every 5 seconds, up to 12 times (1 minute)
-    _timer = Timer.periodic(const Duration(seconds: 5), (_) => _poll());
-  }
-
-  @override
-  void dispose() {
-    _timer?.cancel();
-    super.dispose();
-  }
-
-  Future<void> _poll() async {
-    _attempts++;
-    final result = await MpesaService.instance.queryStatus(
-      widget.checkoutRequestId,
-    );
-
-    if (!mounted) return;
-
-    if (result.status == 'success') {
-      _timer?.cancel();
-      widget.onSuccess(ref);
-    } else if (_attempts >= 12) {
-      _timer?.cancel();
-      Navigator.pop(context);
-      widget.onFailed();
-    } else {
-      setState(() => _status = 'Checking payment… ($_attempts/12)');
-    }
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    return AlertDialog(
-      title: Text('Complete Payment'),
-      content: Column(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          const CircularProgressIndicator(color: AppColors.primary),
-          const SizedBox(height: 16),
-          Text(
-            'Check your phone for the M-Pesa prompt and enter your PIN.',
-            textAlign: TextAlign.center,
-          ),
-          const SizedBox(height: 8),
-          Text(
-            _status,
-            style: TextStyle(fontSize: 12, color: context.colors.textSecondary),
-          ),
-        ],
-      ),
-      actions: [
-        TextButton(
-          onPressed: () {
-            _timer?.cancel();
-            Navigator.pop(context);
-          },
-          child: Text('Cancel'),
-        ),
-      ],
     );
   }
 }

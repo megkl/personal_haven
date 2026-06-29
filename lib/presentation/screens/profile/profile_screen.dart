@@ -3,7 +3,6 @@ import 'package:personal_haven/core/theme/app_theme.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:personal_haven/core/constants/app_colors.dart';
 import 'package:personal_haven/presentation/screens/legal/terms_screen.dart';
-import 'package:personal_haven/presentation/screens/profile/favourites_screen.dart';
 import 'package:personal_haven/presentation/screens/subscription/subscription_screen.dart';
 import 'package:personal_haven/data/models/subscription.dart';
 import 'package:personal_haven/providers/subscription_provider.dart';
@@ -112,7 +111,9 @@ class ProfileScreen extends ConsumerWidget {
                   child: Text(
                     subState.active?.plan == SubscriptionPlan.free
                         ? '✨ Free Trial — ${subState.active!.daysRemaining}d left'
-                        : '✨ Premium — ${subState.active!.daysRemaining}d left',
+                        : subState.active != null
+                        ? '✨ Premium — ${subState.active!.daysRemaining}d left'
+                        : '✨ Premium',
                     style: TextStyle(
                       color: Colors.white,
                       fontSize: 12,
@@ -147,36 +148,6 @@ class ProfileScreen extends ConsumerWidget {
                   children: [
                     _buildProfileOption(
                       context,
-                      Icons.favorite,
-                      'My Favorites',
-                      AppColors.primary,
-                      () {
-                        Navigator.push(
-                          context,
-                          MaterialPageRoute(
-                            builder: (_) => const FavoritesScreen(),
-                          ),
-                        );
-                      },
-                    ),
-                    const Divider(),
-                    _buildProfileOption(
-                      context,
-                      Icons.show_chart,
-                      'Mood Insights',
-                      AppColors.primary,
-                      () {
-                        Navigator.push(
-                          context,
-                          MaterialPageRoute(
-                            builder: (_) => const MoodInsightsScreen(),
-                          ),
-                        );
-                      },
-                    ),
-                    const Divider(),
-                    _buildProfileOption(
-                      context,
                       Icons.settings,
                       'App Settings',
                       AppColors.primary,
@@ -205,30 +176,29 @@ class ProfileScreen extends ConsumerWidget {
                       },
                     ),
                     const Divider(),
-                    _buildProfileOption(
-                      context,
-                      Icons.workspace_premium,
-                      subState.isPremium ? 'Manage Subscription' : 'Go Premium',
-                      Colors.amber.shade700,
-                      () {
-                        Navigator.push(
-                          context,
-                          MaterialPageRoute(
-                            builder: (_) => const SubscriptionScreen(),
-                          ),
-                        );
-                      },
-                    ),
-                    const Divider(),
+                    if (!subState.hasFullAccess) ...[
+                      _buildProfileOption(
+                        context,
+                        Icons.workspace_premium,
+                        'Go Premium',
+                        Colors.amber.shade700,
+                        () {
+                          Navigator.push(
+                            context,
+                            MaterialPageRoute(
+                              builder: (_) => const SubscriptionScreen(),
+                            ),
+                          );
+                        },
+                      ),
+                      const Divider(),
+                    ],
                     _buildProfileOption(
                       context,
                       Icons.description_outlined,
                       'Terms & Conditions',
                       AppColors.primary,
-                      () => Navigator.push(
-                        context,
-                        MaterialPageRoute(builder: (_) => const TermsScreen()),
-                      ),
+                      () => openTermsAndConditions(context),
                     ),
                     const Divider(),
                     _buildProfileOption(
@@ -236,12 +206,22 @@ class ProfileScreen extends ConsumerWidget {
                       Icons.privacy_tip_outlined,
                       'Privacy Policy',
                       AppColors.primary,
-                      () => Navigator.push(
-                        context,
-                        MaterialPageRoute(
-                          builder: (_) => const PrivacyPolicyScreen(),
-                        ),
-                      ),
+                      () => openPrivacyPolicy(context),
+                    ),
+                    const Divider(),
+                    _buildProfileOption(
+                      context,
+                      Icons.show_chart,
+                      'Insights',
+                      AppColors.primary,
+                      () {
+                        Navigator.push(
+                          context,
+                          MaterialPageRoute(
+                            builder: (_) => const MoodInsightsScreen(),
+                          ),
+                        );
+                      },
                     ),
                   ],
                 ),

@@ -93,6 +93,7 @@ class _FoodDiaryScreenState extends ConsumerState<FoodDiaryScreen> {
               ],
             ),
       floatingActionButton: FloatingActionButton(
+        heroTag: 'wellness_food_add',
         onPressed: () => _showAddFoodDialog(context, ref),
         backgroundColor: AppColors.primary,
         child: Icon(Icons.add, color: Colors.white),
@@ -105,139 +106,110 @@ class _FoodDiaryScreenState extends ConsumerState<FoodDiaryScreen> {
     final remaining = _calorieGoal - todayCalories;
 
     return Container(
-      margin: const EdgeInsets.all(16),
-      padding: const EdgeInsets.all(20),
+      margin: const EdgeInsets.fromLTRB(16, 8, 16, 8),
+      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
       decoration: BoxDecoration(
-        gradient: LinearGradient(
-          colors: remaining >= 0
-              ? [const Color(0xFF4ECDC4), const Color(0xFF44A3AA)]
-              : [Colors.orange.shade400, Colors.red.shade400],
-          begin: Alignment.topLeft,
-          end: Alignment.bottomRight,
-        ),
-        borderRadius: BorderRadius.circular(20),
-        boxShadow: [
-          BoxShadow(
-            color: const Color(0xFF4ECDC4).withValues(alpha: 0.3),
-            blurRadius: 15,
-            offset: const Offset(0, 8),
-          ),
-        ],
+        color: context.colors.cardColor,
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(color: context.colors.divider),
       ),
-      child: Column(
+      child: Row(
         children: [
-          Row(
-            children: [
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      'Today\'s Calories',
-                      style: TextStyle(fontSize: 14, color: Colors.white70),
-                    ),
-                    const SizedBox(height: 8),
-                    Row(
-                      crossAxisAlignment: CrossAxisAlignment.end,
-                      children: [
-                        Text(
-                          '$todayCalories',
-                          style: TextStyle(
-                            fontSize: 36,
-                            fontWeight: FontWeight.bold,
-                            color: Colors.white,
-                          ),
-                        ),
-                        Padding(
-                          padding: const EdgeInsets.only(bottom: 6, left: 4),
-                          child: Text(
-                            '/ $_calorieGoal',
-                            style: TextStyle(
-                              fontSize: 16,
-                              color: Colors.white70,
-                            ),
-                          ),
-                        ),
-                      ],
-                    ),
-                    const SizedBox(height: 4),
-                    Text(
-                      remaining >= 0
-                          ? '$remaining cal remaining'
-                          : '${remaining.abs()} cal over',
-                      style: TextStyle(fontSize: 13, color: Colors.white70),
-                    ),
-                  ],
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  'Calories',
+                  style: TextStyle(
+                    fontSize: 11,
+                    color: context.colors.textSecondary,
+                  ),
                 ),
-              ),
-              // Progress circle
-              SizedBox(
-                width: 90,
-                height: 90,
-                child: Stack(
-                  children: [
-                    Center(
-                      child: SizedBox(
-                        width: 80,
-                        height: 80,
-                        child: CircularProgressIndicator(
-                          value: percentage / 100,
-                          strokeWidth: 10,
-                          backgroundColor: context.colors.cardColor.withValues(
-                            alpha: 0.2,
-                          ),
-                          valueColor: const AlwaysStoppedAnimation<Color>(
-                            Colors.white,
-                          ),
-                          strokeCap: StrokeCap.round,
-                        ),
-                      ),
-                    ),
-                    Center(
-                      child: Text(
-                        '${percentage.toInt()}%',
-                        style: TextStyle(
-                          fontSize: 18,
-                          fontWeight: FontWeight.bold,
-                          color: Colors.white,
-                        ),
-                      ),
-                    ),
-                  ],
+                const SizedBox(height: 2),
+                Text(
+                  '$todayCalories / $_calorieGoal',
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: TextStyle(
+                    fontSize: 16,
+                    fontWeight: FontWeight.w800,
+                    color: context.colors.textPrimary,
+                  ),
                 ),
+                Text(
+                  remaining >= 0
+                      ? '$remaining cal left'
+                      : '${remaining.abs()} cal over',
+                  style: TextStyle(
+                    fontSize: 10,
+                    color: remaining >= 0 ? AppColors.primaryDark : Colors.red,
+                    fontWeight: FontWeight.w600,
+                  ),
+                ),
+              ],
+            ),
+          ),
+          const SizedBox(width: 8),
+          Container(
+            padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 7),
+            decoration: BoxDecoration(
+              color: AppColors.primary.withValues(alpha: 0.1),
+              borderRadius: BorderRadius.circular(12),
+            ),
+            child: Text(
+              '${percentage.toInt()}%',
+              style: const TextStyle(
+                color: AppColors.primaryDark,
+                fontSize: 12,
+                fontWeight: FontWeight.w800,
               ),
-            ],
+            ),
           ),
-          const SizedBox(height: 16),
-          // Macros row
-          Row(
-            mainAxisAlignment: MainAxisAlignment.spaceAround,
-            children: [
-              _buildMacroItem('Protein', '${foodState.todayProtein}g', '🥩'),
-              _buildMacroItem('Carbs', '${foodState.todayCarbs}g', '🍞'),
-              _buildMacroItem('Fat', '${foodState.todayFat}g', '🥑'),
-            ],
-          ),
+          const SizedBox(width: 6),
+          _buildMacroItem(context, 'P', '${foodState.todayProtein}g', '🥩'),
+          const SizedBox(width: 6),
+          _buildMacroItem(context, 'C', '${foodState.todayCarbs}g', '🍞'),
+          const SizedBox(width: 6),
+          _buildMacroItem(context, 'F', '${foodState.todayFat}g', '🥑'),
         ],
       ),
     );
   }
 
-  Widget _buildMacroItem(String label, String value, String emoji) {
-    return Column(
-      children: [
-        Text(emoji, style: TextStyle(fontSize: 20)),
-        const SizedBox(height: 4),
-        Text(
-          value,
-          style: TextStyle(
-            fontSize: 16,
-            fontWeight: FontWeight.bold,
-            color: Colors.white,
+  Widget _buildMacroItem(
+    BuildContext context,
+    String label,
+    String value,
+    String emoji,
+  ) {
+    return Container(
+      constraints: const BoxConstraints(minWidth: 44),
+      padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 6),
+      decoration: BoxDecoration(
+        color: context.colors.cardColor2,
+        borderRadius: BorderRadius.circular(12),
+      ),
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Text(emoji, style: TextStyle(fontSize: 13)),
+          const SizedBox(height: 1),
+          Text(
+            value,
+            style: TextStyle(
+              fontSize: 10,
+              fontWeight: FontWeight.w800,
+              color: context.colors.textPrimary,
+              height: 1,
+            ),
           ),
-        ),
-        Text(label, style: TextStyle(fontSize: 11, color: Colors.white70)),
-      ],
+          Text(
+            label,
+            style: TextStyle(fontSize: 8, color: context.colors.textSecondary),
+          ),
+        ],
+      ),
     );
   }
 
@@ -754,173 +726,272 @@ class _FoodDiaryScreenState extends ConsumerState<FoodDiaryScreen> {
     String selectedMealType = mealType ?? 'breakfast';
     bool showMacros = false;
 
-    showDialog(
+    showModalBottomSheet(
       context: context,
+      isScrollControlled: true,
+      backgroundColor: Colors.transparent,
       builder: (context) => StatefulBuilder(
-        builder: (context, setState) => AlertDialog(
-          shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(20),
+        builder: (context, setState) => Padding(
+          padding: EdgeInsets.only(
+            bottom: MediaQuery.of(context).viewInsets.bottom,
           ),
-          title: Text('Add ${_getMealTypeEmoji(selectedMealType)} Food'),
-          content: SingleChildScrollView(
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                TextField(
-                  controller: foodController,
-                  decoration: InputDecoration(
-                    labelText: 'Food name',
-                    hintText: 'e.g., Oatmeal with berries',
-                    border: OutlineInputBorder(
-                      borderRadius: BorderRadius.circular(12),
-                    ),
-                  ),
-                  autofocus: true,
-                ),
-                const SizedBox(height: 12),
-                TextField(
-                  controller: caloriesController,
-                  decoration: InputDecoration(
-                    labelText: 'Calories',
-                    hintText: 'e.g., 300',
-                    suffixText: 'cal',
-                    border: OutlineInputBorder(
-                      borderRadius: BorderRadius.circular(12),
-                    ),
-                  ),
-                  keyboardType: TextInputType.number,
-                ),
-                const SizedBox(height: 12),
-                if (mealType == null)
-                  DropdownButtonFormField<String>(
-                    initialValue: selectedMealType,
-                    decoration: InputDecoration(
-                      labelText: 'Meal type',
-                      border: OutlineInputBorder(
-                        borderRadius: BorderRadius.circular(12),
-                      ),
-                    ),
-                    items: const [
-                      DropdownMenuItem(
-                        value: 'breakfast',
-                        child: Text('🌅 Breakfast'),
-                      ),
-                      DropdownMenuItem(value: 'lunch', child: Text('☀️ Lunch')),
-                      DropdownMenuItem(
-                        value: 'dinner',
-                        child: Text('🌙 Dinner'),
-                      ),
-                      DropdownMenuItem(value: 'snack', child: Text('🍎 Snack')),
-                    ],
-                    onChanged: (value) {
-                      if (value != null) {
-                        setState(() => selectedMealType = value);
-                      }
-                    },
-                  ),
-                const SizedBox(height: 8),
-                TextButton(
-                  onPressed: () => setState(() => showMacros = !showMacros),
-                  child: Row(
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      Icon(
-                        showMacros
-                            ? Icons.keyboard_arrow_up
-                            : Icons.keyboard_arrow_down,
-                        size: 18,
-                      ),
-                      const SizedBox(width: 4),
-                      Text(showMacros ? 'Hide macros' : 'Add macros'),
-                    ],
-                  ),
-                ),
-                if (showMacros) ...[
-                  const SizedBox(height: 8),
-                  Row(
-                    children: [
-                      Expanded(
-                        child: TextField(
-                          controller: proteinController,
-                          decoration: InputDecoration(
-                            labelText: 'Protein',
-                            suffixText: 'g',
-                            border: OutlineInputBorder(
-                              borderRadius: BorderRadius.circular(12),
-                            ),
-                          ),
-                          keyboardType: TextInputType.number,
-                        ),
-                      ),
-                      const SizedBox(width: 8),
-                      Expanded(
-                        child: TextField(
-                          controller: carbsController,
-                          decoration: InputDecoration(
-                            labelText: 'Carbs',
-                            suffixText: 'g',
-                            border: OutlineInputBorder(
-                              borderRadius: BorderRadius.circular(12),
-                            ),
-                          ),
-                          keyboardType: TextInputType.number,
-                        ),
-                      ),
-                      const SizedBox(width: 8),
-                      Expanded(
-                        child: TextField(
-                          controller: fatController,
-                          decoration: InputDecoration(
-                            labelText: 'Fat',
-                            suffixText: 'g',
-                            border: OutlineInputBorder(
-                              borderRadius: BorderRadius.circular(12),
-                            ),
-                          ),
-                          keyboardType: TextInputType.number,
-                        ),
-                      ),
-                    ],
-                  ),
-                ],
-              ],
-            ),
-          ),
-          actions: [
-            TextButton(
-              onPressed: () => Navigator.pop(context),
-              child: Text('Cancel'),
-            ),
-            ElevatedButton(
-              onPressed: () {
-                if (foodController.text.isNotEmpty) {
-                  ref
-                      .read(foodProvider.notifier)
-                      .addEntry(
-                        mealType: selectedMealType,
-                        foodName: foodController.text.trim(),
-                        calories: int.tryParse(caloriesController.text),
-                        protein: int.tryParse(proteinController.text),
-                        carbs: int.tryParse(carbsController.text),
-                        fat: int.tryParse(fatController.text),
-                      );
-                  Navigator.pop(context);
-                  ScaffoldMessenger.of(context).showSnackBar(
-                    SnackBar(
-                      content: Text('Added ${foodController.text}!'),
-                      backgroundColor: _getMealTypeColor(selectedMealType),
-                      behavior: SnackBarBehavior.floating,
-                    ),
-                  );
-                }
-              },
-              style: ElevatedButton.styleFrom(
-                backgroundColor: _getMealTypeColor(selectedMealType),
-                foregroundColor: Colors.white,
+          child: Container(
+            padding: const EdgeInsets.all(24),
+            decoration: BoxDecoration(
+              color: context.colors.cardColor,
+              borderRadius: const BorderRadius.vertical(
+                top: Radius.circular(28),
               ),
-              child: Text('Add'),
             ),
-          ],
+            child: SingleChildScrollView(
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Center(
+                    child: Container(
+                      width: 40,
+                      height: 4,
+                      decoration: BoxDecoration(
+                        color: context.colors.divider,
+                        borderRadius: BorderRadius.circular(2),
+                      ),
+                    ),
+                  ),
+                  const SizedBox(height: 20),
+                  Text(
+                    '${_getMealTypeEmoji(selectedMealType)} New Food',
+                    style: TextStyle(
+                      fontSize: 22,
+                      fontWeight: FontWeight.bold,
+                      color: context.colors.textPrimary,
+                    ),
+                  ),
+                  const SizedBox(height: 20),
+                  TextField(
+                    controller: foodController,
+                    decoration: InputDecoration(
+                      hintText: 'Food name *',
+                      hintStyle: TextStyle(
+                        color: context.colors.textSecondary,
+                        fontSize: 14,
+                      ),
+                      filled: true,
+                      fillColor: context.colors.cardColor2,
+                      border: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(14),
+                        borderSide: BorderSide.none,
+                      ),
+                      contentPadding: const EdgeInsets.symmetric(
+                        horizontal: 16,
+                        vertical: 14,
+                      ),
+                    ),
+                    textCapitalization: TextCapitalization.words,
+                    autofocus: true,
+                  ),
+                  const SizedBox(height: 12),
+                  TextField(
+                    controller: caloriesController,
+                    decoration: InputDecoration(
+                      hintText: 'Calories',
+                      suffixText: 'cal',
+                      hintStyle: TextStyle(
+                        color: context.colors.textSecondary,
+                        fontSize: 14,
+                      ),
+                      filled: true,
+                      fillColor: context.colors.cardColor2,
+                      border: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(14),
+                        borderSide: BorderSide.none,
+                      ),
+                      contentPadding: const EdgeInsets.symmetric(
+                        horizontal: 16,
+                        vertical: 14,
+                      ),
+                    ),
+                    keyboardType: TextInputType.number,
+                  ),
+                  const SizedBox(height: 12),
+                  if (mealType == null) ...[
+                    DropdownButtonFormField<String>(
+                      initialValue: selectedMealType,
+                      decoration: InputDecoration(
+                        hintText: 'Meal type',
+                        filled: true,
+                        fillColor: context.colors.cardColor2,
+                        border: OutlineInputBorder(
+                          borderRadius: BorderRadius.circular(14),
+                          borderSide: BorderSide.none,
+                        ),
+                        contentPadding: const EdgeInsets.symmetric(
+                          horizontal: 16,
+                          vertical: 14,
+                        ),
+                      ),
+                      borderRadius: BorderRadius.circular(14),
+                      items: const [
+                        DropdownMenuItem(
+                          value: 'breakfast',
+                          child: Text('🌅 Breakfast'),
+                        ),
+                        DropdownMenuItem(
+                          value: 'lunch',
+                          child: Text('☀️ Lunch'),
+                        ),
+                        DropdownMenuItem(
+                          value: 'dinner',
+                          child: Text('🌙 Dinner'),
+                        ),
+                        DropdownMenuItem(
+                          value: 'snack',
+                          child: Text('🍎 Snack'),
+                        ),
+                      ],
+                      onChanged: (value) {
+                        if (value != null) {
+                          setState(() => selectedMealType = value);
+                        }
+                      },
+                    ),
+                    const SizedBox(height: 8),
+                  ],
+                  TextButton.icon(
+                    onPressed: () => setState(() => showMacros = !showMacros),
+                    icon: Icon(
+                      showMacros
+                          ? Icons.keyboard_arrow_up
+                          : Icons.keyboard_arrow_down,
+                      size: 18,
+                    ),
+                    label: Text(showMacros ? 'Hide macros' : 'Add macros'),
+                  ),
+                  if (showMacros) ...[
+                    const SizedBox(height: 8),
+                    Row(
+                      children: [
+                        Expanded(
+                          child: TextField(
+                            controller: proteinController,
+                            decoration: InputDecoration(
+                              hintText: 'Protein',
+                              suffixText: 'g',
+                              filled: true,
+                              fillColor: context.colors.cardColor2,
+                              border: OutlineInputBorder(
+                                borderRadius: BorderRadius.circular(14),
+                                borderSide: BorderSide.none,
+                              ),
+                              contentPadding: const EdgeInsets.symmetric(
+                                horizontal: 12,
+                                vertical: 14,
+                              ),
+                            ),
+                            keyboardType: TextInputType.number,
+                          ),
+                        ),
+                        const SizedBox(width: 8),
+                        Expanded(
+                          child: TextField(
+                            controller: carbsController,
+                            decoration: InputDecoration(
+                              hintText: 'Carbs',
+                              suffixText: 'g',
+                              filled: true,
+                              fillColor: context.colors.cardColor2,
+                              border: OutlineInputBorder(
+                                borderRadius: BorderRadius.circular(14),
+                                borderSide: BorderSide.none,
+                              ),
+                              contentPadding: const EdgeInsets.symmetric(
+                                horizontal: 12,
+                                vertical: 14,
+                              ),
+                            ),
+                            keyboardType: TextInputType.number,
+                          ),
+                        ),
+                        const SizedBox(width: 8),
+                        Expanded(
+                          child: TextField(
+                            controller: fatController,
+                            decoration: InputDecoration(
+                              hintText: 'Fat',
+                              suffixText: 'g',
+                              filled: true,
+                              fillColor: context.colors.cardColor2,
+                              border: OutlineInputBorder(
+                                borderRadius: BorderRadius.circular(14),
+                                borderSide: BorderSide.none,
+                              ),
+                              contentPadding: const EdgeInsets.symmetric(
+                                horizontal: 12,
+                                vertical: 14,
+                              ),
+                            ),
+                            keyboardType: TextInputType.number,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ],
+                  const SizedBox(height: 24),
+                  SizedBox(
+                    width: double.infinity,
+                    child: ElevatedButton(
+                      onPressed: () {
+                        if (foodController.text.trim().isEmpty) {
+                          ScaffoldMessenger.of(context).showSnackBar(
+                            const SnackBar(
+                              content: Text('Please enter a food name'),
+                            ),
+                          );
+                          return;
+                        }
+
+                        ref
+                            .read(foodProvider.notifier)
+                            .addEntry(
+                              mealType: selectedMealType,
+                              foodName: foodController.text.trim(),
+                              calories: int.tryParse(caloriesController.text),
+                              protein: int.tryParse(proteinController.text),
+                              carbs: int.tryParse(carbsController.text),
+                              fat: int.tryParse(fatController.text),
+                            );
+                        Navigator.pop(context);
+                        ScaffoldMessenger.of(context).showSnackBar(
+                          SnackBar(
+                            content: Text('Added ${foodController.text}!'),
+                            backgroundColor: AppColors.primary,
+                            behavior: SnackBarBehavior.floating,
+                          ),
+                        );
+                      },
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: AppColors.primary,
+                        foregroundColor: Colors.white,
+                        padding: const EdgeInsets.symmetric(vertical: 16),
+                        elevation: 0,
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(16),
+                        ),
+                      ),
+                      child: Text(
+                        'Add Food',
+                        style: TextStyle(
+                          fontSize: 16,
+                          fontWeight: FontWeight.bold,
+                        ),
+                      ),
+                    ),
+                  ),
+                  const SizedBox(height: 8),
+                ],
+              ),
+            ),
+          ),
         ),
       ),
     );

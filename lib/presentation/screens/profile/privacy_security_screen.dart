@@ -54,81 +54,82 @@ class _PrivacySecurityScreenState extends State<PrivacySecurityScreen> {
                     activeThumbColor: AppColors.primary,
                   ),
                 ),
-                const Divider(height: 32),
-                _buildSecurityRow(
-                  'Cloud Sync',
-                  'Sync your data across devices',
-                  Icons.cloud,
-                  Switch(
-                    value: _cloudSync,
-                    onChanged: (value) {
-                      setState(() => _cloudSync = value);
-                    },
-                    activeThumbColor: AppColors.primary,
-                  ),
-                ),
-                if (!_cloudSync)
-                  Padding(
-                    padding: const EdgeInsets.only(left: 40, top: 8),
-                    child: Text(
-                      'All data will be stored only on this device',
-                      style: TextStyle(
-                        fontSize: 12,
-                        color: Colors.orange.shade700,
-                      ),
-                    ),
-                  ),
+                // const Divider(height: 32),
+                // _buildSecurityRow(
+                //   'Cloud Sync',
+                //   'Sync your data across devices',
+                //   Icons.cloud,
+                //   Switch(
+                //     value: _cloudSync,
+                //     onChanged: (value) {
+                //       setState(() => _cloudSync = value);
+                //     },
+                //     activeThumbColor: AppColors.primary,
+                //   ),
+                // ),
+                // if (!_cloudSync)
+                //   Padding(
+                //     padding: const EdgeInsets.only(left: 40, top: 8),
+                //     child: Text(
+                //       'All data will be stored only on this device',
+                //       style: TextStyle(
+                //         fontSize: 12,
+                //         color: Colors.orange.shade700,
+                //       ),
+                //     ),
+                //   ),
               ],
             ),
           ),
-          const SizedBox(height: 20),
-          Container(
-            padding: const EdgeInsets.all(20),
-            decoration: BoxDecoration(
-              color: context.colors.cardColor,
-              borderRadius: BorderRadius.circular(16),
-            ),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  'Data Management',
-                  style: TextStyle(
-                    fontSize: 18,
-                    fontWeight: FontWeight.bold,
-                    color: context.colors.textPrimary,
-                  ),
-                ),
-                const SizedBox(height: 16),
-                _buildActionButton(
-                  'Export All Data',
-                  'Download your data as ZIP file',
-                  Icons.download,
-                  () {
-                    ScaffoldMessenger.of(context).showSnackBar(
-                      const SnackBar(
-                        content: Text('Export feature coming soon'),
-                      ),
-                    );
-                  },
-                ),
-                const Divider(height: 32),
-                _buildActionButton(
-                  'Clear Cache',
-                  'Free up storage space',
-                  Icons.cleaning_services,
-                  () {
-                    ScaffoldMessenger.of(context).showSnackBar(
-                      const SnackBar(
-                        content: Text('Cache cleared successfully'),
-                        backgroundColor: AppColors.success,
-                      ),
-                    );
-                  },
-                ),
-              ],
-            ),
-          ),
+          // const SizedBox(height: 20),
+          // Container(
+          //   padding: const EdgeInsets.all(20),
+          //   decoration: BoxDecoration(
+          //     color: context.colors.cardColor,
+          //     borderRadius: BorderRadius.circular(16),
+          //   ),
+          //   child: Column(
+          //     crossAxisAlignment: CrossAxisAlignment.start,
+          //     children: [
+          //       Text(
+          //         'Data Management',
+          //         style: TextStyle(
+          //           fontSize: 18,
+          //           fontWeight: FontWeight.bold,
+          //           color: context.colors.textPrimary,
+          //         ),
+          //       ),
+          //       const SizedBox(height: 16),
+          //       _buildActionButton(
+          //         'Export All Data',
+          //         'Download your data as ZIP file',
+          //         Icons.download,
+          //         () {
+          //           ScaffoldMessenger.of(context).showSnackBar(
+          //             const SnackBar(
+          //               content: Text('Export feature coming soon'),
+          //             ),
+          //           );
+          //         },
+          //       ),
+          //       const Divider(height: 32),
+          //       _buildActionButton(
+          //         'Clear Cache',
+          //         'Free up storage space',
+          //         Icons.cleaning_services,
+          //         () {
+          //           ScaffoldMessenger.of(context).showSnackBar(
+          //             const SnackBar(
+          //               content: Text('Cache cleared successfully'),
+          //               backgroundColor: AppColors.success,
+          //             ),
+          //           );
+          //         },
+          //       ),
+          //     ],
+          //   ),
+          // ),
+        
         ],
       ),
     );
