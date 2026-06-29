@@ -73,6 +73,7 @@ dependencies:
   firebase_analytics: ^12.4.3
   firebase_crashlytics: ^5.2.4
   firebase_data_connect: ^0.3.0+5
+  cloud_functions: ^6.3.3
 
   
 dev_dependencies:
