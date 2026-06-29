@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:personal_haven/core/theme/app_theme.dart';
 import 'package:personal_haven/core/constants/app_colors.dart';
 import 'package:personal_haven/presentation/screens/rituals/events_screen.dart';
+import 'package:personal_haven/presentation/screens/rituals/shopping_list_screen.dart';
 import 'package:personal_haven/presentation/screens/rituals/tasks_screen.dart';
 
 class RitualsScreen extends StatefulWidget {
@@ -15,7 +16,11 @@ class _RitualsScreenState extends State<RitualsScreen>
     with SingleTickerProviderStateMixin {
   late final TabController _tabController;
 
-  static const _tabs = [_TabData('Tasks'), _TabData('Events')];
+  static const _tabs = [
+    _TabData('Tasks'),
+    _TabData('Events'),
+    _TabData('Shopping'),
+  ];
 
   @override
   void initState() {
@@ -48,6 +53,7 @@ class _RitualsScreenState extends State<RitualsScreen>
               children: const [
                 TasksScreen(key: PageStorageKey('rituals-tasks')),
                 EventsScreen(key: PageStorageKey('rituals-events')),
+                ShoppingListScreen(key: PageStorageKey('rituals-shopping')),
               ],
             ),
           ),

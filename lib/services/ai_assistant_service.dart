@@ -18,12 +18,23 @@ class AiAssistantService {
       });
 
       return AiAssistantResult.fromMap(Map<String, dynamic>.from(result.data));
-    } on FirebaseFunctionsException {
+    } on FirebaseFunctionsException catch (e) {
+      if (e.code == 'resource-exhausted') {
+        throw AiAssistantLimitException(
+          e.message ?? 'AI action limit reached.',
+        );
+      }
       return null;
     } catch (_) {
       return null;
     }
   }
+}
+
+class AiAssistantLimitException implements Exception {
+  const AiAssistantLimitException(this.message);
+
+  final String message;
 }
 
 class AiAssistantResult {

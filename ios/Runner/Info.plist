@@ -41,6 +41,10 @@
 	<true/>
 	<key>NSFaceIDUsageDescription</key>
 	<string>Personal Haven uses Face ID to securely unlock the app.</string>
+	<key>NSMicrophoneUsageDescription</key>
+	<string>Personal Haven uses the microphone so Haven Assistant can capture spoken actions.</string>
+	<key>NSSpeechRecognitionUsageDescription</key>
+	<string>Personal Haven uses speech recognition to turn spoken actions into text.</string>
 	<key>UIApplicationSceneManifest</key>
 	<dict>
 		<key>UIApplicationSupportsMultipleScenes</key>

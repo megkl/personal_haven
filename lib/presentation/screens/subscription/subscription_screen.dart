@@ -603,14 +603,14 @@ class _MissingProductsNotice extends StatelessWidget {
 
 class _FeaturesList extends StatelessWidget {
   final _features = const [
+    ('📓', 'AI Chat Assistant'),
     ('📓', 'Unlimited Journal Entries'),
     ('😊', 'Mood Tracking & Insights'),
     ('🎯', 'Goal Setting & Progress'),
     ('💰', 'Budget & Expense Tracker'),
     ('🥗', 'Food & Nutrition Diary'),
     ('📅', 'Calendar & Events'),
-    ('✅', 'Tasks & Rituals'),
-    ('🔒', 'Private & Secure'),
+    ('✅', 'Tasks, Shopping List Creation')
   ];
 
   @override

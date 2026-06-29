@@ -65,10 +65,11 @@ class _TasksScreenState extends ConsumerState<TasksScreen>
       ),
       floatingActionButton: FloatingActionButton(
         heroTag: 'rituals_tasks_add',
+        tooltip: 'Add task',
         onPressed: () => _showAddTaskSheet(context),
         backgroundColor: AppColors.primary,
-        child: Icon(Icons.add, color: Colors.white),
         elevation: 4,
+        child: Icon(Icons.add, color: Colors.white),
       ),
     );
   }

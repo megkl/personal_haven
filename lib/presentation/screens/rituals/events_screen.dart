@@ -40,6 +40,7 @@ class _EventsScreenState extends ConsumerState<EventsScreen> {
       ),
       floatingActionButton: FloatingActionButton(
         heroTag: 'rituals_events_add',
+        tooltip: 'Add event',
         onPressed: () => _showAddEventDialog(context),
         backgroundColor: AppColors.primary,
         child: Icon(Icons.add, color: Colors.white),

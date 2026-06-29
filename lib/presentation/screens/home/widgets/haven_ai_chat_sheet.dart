@@ -14,8 +14,10 @@ import 'package:personal_haven/providers/food_provider.dart';
 import 'package:personal_haven/providers/goal_provider.dart';
 import 'package:personal_haven/providers/journal_provider.dart';
 import 'package:personal_haven/providers/mood_provider.dart';
+import 'package:personal_haven/providers/shopping_list_provider.dart';
 import 'package:personal_haven/providers/task_provider.dart';
 import 'package:personal_haven/services/ai_assistant_service.dart';
+import 'package:speech_to_text/speech_to_text.dart' as stt;
 
 class HavenAiChatSheet extends ConsumerStatefulWidget {
   const HavenAiChatSheet({super.key});
@@ -28,6 +30,7 @@ class _HavenAiChatSheetState extends ConsumerState<HavenAiChatSheet> {
   final _controller = TextEditingController();
   final _scrollController = ScrollController();
   final _aiAssistantService = AiAssistantService();
+  final stt.SpeechToText _speech = stt.SpeechToText();
   final List<_ChatMessage> _messages = [
     const _ChatMessage(
       text:
@@ -36,6 +39,9 @@ class _HavenAiChatSheetState extends ConsumerState<HavenAiChatSheet> {
     ),
   ];
   bool _isWorking = false;
+  bool _isListening = false;
+  bool _speechReady = false;
+  String _lastRecognizedAction = '';
   _AssistantDraft? _assistantDraft;
   _GuidedTaskDraft? _taskDraft;
   _GuidedActionDraft? _guidedDraft;
@@ -43,21 +49,76 @@ class _HavenAiChatSheetState extends ConsumerState<HavenAiChatSheet> {
 
   static const _suggestions = [
     ('Add task', Icons.task_alt, 'I want to add a task'),
-    ('Log mood', Icons.mood_outlined, 'Log mood calm notes: slow morning'),
     ('Track spend', Icons.payments_outlined, 'Spent KES 500 on groceries'),
+    ('Shopping', Icons.shopping_basket_outlined, 'Add milk to shopping list'),
     ('Journal', Icons.edit_note_outlined, 'Journal: I feel proud of today'),
     (
       'Plan event',
       Icons.calendar_month_outlined,
       'Team catch-up Friday at 10 AM at the office',
     ),
+    ('Log mood', Icons.mood_outlined, 'Log mood calm notes: slow morning')
   ];
 
   @override
   void dispose() {
+    _speech.stop();
     _controller.dispose();
     _scrollController.dispose();
     super.dispose();
+  }
+
+  Future<void> _toggleVoiceAction() async {
+    if (_isWorking) return;
+
+    if (_isListening) {
+      await _speech.stop();
+      final text = _lastRecognizedAction.trim();
+      setState(() => _isListening = false);
+      if (text.isNotEmpty) await _send(text);
+      return;
+    }
+
+    _speechReady =
+        _speechReady ||
+        await _speech.initialize(
+          onStatus: (status) {
+            if (!mounted) return;
+            if (status == 'done' || status == 'notListening') {
+              setState(() => _isListening = false);
+            }
+          },
+          onError: (_) {
+            if (!mounted) return;
+            setState(() => _isListening = false);
+            _reply('I could not hear that clearly. Try the mic again.');
+          },
+        );
+
+    if (!_speechReady) {
+      _reply('Speech recognition is not available on this device.');
+      return;
+    }
+
+    _lastRecognizedAction = '';
+    setState(() => _isListening = true);
+    await _speech.listen(
+      listenOptions: stt.SpeechListenOptions(
+        listenMode: stt.ListenMode.confirmation,
+      ),
+      onResult: (result) async {
+        _lastRecognizedAction = result.recognizedWords;
+        if (mounted) {
+          setState(() => _controller.text = _lastRecognizedAction);
+        }
+        if (result.finalResult && _lastRecognizedAction.trim().isNotEmpty) {
+          await _speech.stop();
+          if (!mounted) return;
+          setState(() => _isListening = false);
+          await _send(_lastRecognizedAction);
+        }
+      },
+    );
   }
 
   Future<void> _send([String? preset]) async {
@@ -88,7 +149,13 @@ class _HavenAiChatSheetState extends ConsumerState<HavenAiChatSheet> {
     final currencyCode =
         ref.read(currencyProvider).value ?? CurrencyFormatter.defaultCode;
 
-    final aiResult = await _aiAssistantService.parseAction(text);
+    AiAssistantResult? aiResult;
+    try {
+      aiResult = await _aiAssistantService.parseAction(text);
+    } on AiAssistantLimitException catch (e) {
+      _reply(e.message);
+      return;
+    }
     if (aiResult != null && aiResult.isConfident) {
       final handled = await _handleAiResult(aiResult, currencyCode);
       if (handled) return;
@@ -97,6 +164,12 @@ class _HavenAiChatSheetState extends ConsumerState<HavenAiChatSheet> {
     if (_startAssistantDraftForRequest(text)) return;
 
     if (_startGuidedFlowForRequest(text)) return;
+
+    final shoppingCommand = _ShoppingCommand.parse(text);
+    if (shoppingCommand != null) {
+      await _executeShoppingCommand(shoppingCommand);
+      return;
+    }
 
     final action = _HavenAction.parse(text);
     final command = action == null ? _PlannerCommand.parse(text) : null;
@@ -228,6 +301,11 @@ class _HavenAiChatSheetState extends ConsumerState<HavenAiChatSheet> {
             r'^(log|add|record|track)?\s*(an?\s+)?(expense|income|transaction|spend)$',
           ).hasMatch(value) =>
         _GuidedFlowType.transaction,
+      final value
+          when RegExp(
+            r'^(i\s+want\s+to\s+)?(add|create|make)?\s*(a\s+)?(shopping\s+)?(list|shopping item|grocery item)$',
+          ).hasMatch(value) =>
+        _GuidedFlowType.shopping,
       _ => null,
     };
 
@@ -274,6 +352,11 @@ class _HavenAiChatSheetState extends ConsumerState<HavenAiChatSheet> {
             r'^(log|add|record|track)?\s*(an?\s+)?(expense|income|transaction|spend)$',
           ).hasMatch(value) =>
         'transaction',
+      final value
+          when RegExp(
+            r'^(i\s+want\s+to\s+)?(add|create|make)?\s*(a\s+)?(shopping\s+)?(list|shopping item|grocery item)$',
+          ).hasMatch(value) =>
+        'shopping',
       _ => null,
     };
     if (intent == null) return false;
@@ -390,6 +473,8 @@ class _HavenAiChatSheetState extends ConsumerState<HavenAiChatSheet> {
       'location' || 'place' => 'location',
       'title' || 'name' => 'title',
       'meal' || 'meal type' => 'mealType',
+      'item' || 'shopping item' || 'grocery item' => 'itemName',
+      'quantity' || 'count' => 'quantity',
       'mood' || 'feeling' => 'label',
       _ => rawField.replaceAll(' ', ''),
     };
@@ -420,6 +505,10 @@ class _HavenAiChatSheetState extends ConsumerState<HavenAiChatSheet> {
     if (lower.contains('title') || lower.contains('name')) return 'title';
     if (lower.contains('meal')) return 'mealType';
     if (lower.contains('food')) return 'foodName';
+    if (lower.contains('item') || lower.contains('grocery')) return 'itemName';
+    if (lower.contains('quantity') || lower.contains('count')) {
+      return 'quantity';
+    }
     if (lower.contains('mood') || lower.contains('feeling')) return 'label';
     return null;
   }
@@ -451,6 +540,7 @@ class _HavenAiChatSheetState extends ConsumerState<HavenAiChatSheet> {
       'food' => ['mealType', 'foodName'],
       'journal' => ['content', 'category'],
       'transaction' => ['type', 'amount', 'category'],
+      'shopping' => ['itemName', 'quantity'],
       _ => <String>[],
     };
     return required.where((field) => !_hasDraftField(draft, field)).toList();
@@ -491,6 +581,8 @@ class _HavenAiChatSheetState extends ConsumerState<HavenAiChatSheet> {
       ('transaction', 'type') => 'Is this income or an expense?',
       ('transaction', 'amount') => 'How much was it?',
       ('transaction', 'category') => 'Which category?',
+      ('shopping', 'itemName') => 'What should I add to your shopping list?',
+      ('shopping', 'quantity') => 'How much do you need?',
       _ => 'Tell me a little more.',
     };
   }
@@ -544,6 +636,8 @@ class _HavenAiChatSheetState extends ConsumerState<HavenAiChatSheet> {
         'Groceries',
         'Bills',
       ],
+      ('shopping', 'itemName') => const ['Milk', 'Eggs', 'Bread', 'Coffee'],
+      ('shopping', 'quantity') => const ['1 ct', '1 gal', '4 ct', 'Skip'],
       _ => const [],
     };
   }
@@ -567,6 +661,9 @@ class _HavenAiChatSheetState extends ConsumerState<HavenAiChatSheet> {
           _journalCategoryFor(input);
     }
     if (field == 'mealType') return input.toLowerCase();
+    if (field == 'quantity' && intent == 'shopping' && lowerSkip(input)) {
+      return '';
+    }
     return input.trim();
   }
 
@@ -597,6 +694,8 @@ class _HavenAiChatSheetState extends ConsumerState<HavenAiChatSheet> {
         'I’ll save this journal entry under ${fields['category']}. Save it?',
       'transaction' =>
         'I’ll log ${fields['amount']} as ${fields['type']} in ${fields['category']}. Save it?',
+      'shopping' =>
+        'I’ll add ${fields['itemName']}${fields['quantity'] == null || fields['quantity'].toString().isEmpty ? '' : ' (${fields['quantity']})'} to your shopping list. Save it?',
       _ => 'Should I save this?',
     };
   }
@@ -617,6 +716,7 @@ class _HavenAiChatSheetState extends ConsumerState<HavenAiChatSheet> {
         'Change category',
         'Change type',
       ],
+      'shopping' => const ['Change item', 'Change quantity', 'Cancel'],
       _ => const ['Change title', 'Cancel'],
     };
   }
@@ -741,6 +841,15 @@ class _HavenAiChatSheetState extends ConsumerState<HavenAiChatSheet> {
                     fields['category']?.toString(),
               );
           break;
+        case 'shopping':
+          await ref
+              .read(shoppingListProvider.notifier)
+              .addItem(
+                listTitle: fields['listTitle']?.toString(),
+                name: fields['itemName'].toString(),
+                quantity: fields['quantity']?.toString() ?? '',
+              );
+          break;
       }
       _assistantDraft = null;
       _reply('Done. I saved it.');
@@ -807,6 +916,12 @@ class _HavenAiChatSheetState extends ConsumerState<HavenAiChatSheet> {
           prompts: const ['Expense', 'Income'],
         );
         break;
+      case _GuidedFlowType.shopping:
+        _reply(
+          'What should I add to your shopping list?',
+          prompts: const ['Milk', 'Eggs', 'Bread', 'Coffee'],
+        );
+        break;
     }
   }
 
@@ -840,6 +955,33 @@ class _HavenAiChatSheetState extends ConsumerState<HavenAiChatSheet> {
       case _GuidedFlowType.transaction:
         await _continueTransactionFlow(draft, input);
         break;
+      case _GuidedFlowType.shopping:
+        await _continueShoppingFlow(draft, input);
+        break;
+    }
+  }
+
+  Future<void> _continueShoppingFlow(
+    _GuidedActionDraft draft,
+    String input,
+  ) async {
+    switch (draft.step) {
+      case 0:
+        _guidedDraft = draft
+            .put('itemName', _HavenAction._capitalize(input))
+            .next();
+        _reply(
+          'How much do you need?',
+          prompts: const ['1 ct', '1 gal', '4 ct', 'Skip'],
+        );
+        break;
+      default:
+        final quantity = lowerSkip(input) ? '' : input.trim();
+        _guidedDraft = null;
+        await ref
+            .read(shoppingListProvider.notifier)
+            .addItem(name: draft.string('itemName')!, quantity: quantity);
+        _reply('Done. I added ${draft.string('itemName')} to your list.');
     }
   }
 
@@ -1274,6 +1416,12 @@ class _HavenAiChatSheetState extends ConsumerState<HavenAiChatSheet> {
           (normalized['amount'] as num?)?.toDouble() ??
           double.tryParse(normalized['amount'].toString());
     }
+    if (intent == 'shopping') {
+      if (normalized['item'] != null && normalized['itemName'] == null) {
+        normalized['itemName'] = normalized['item'];
+      }
+      normalized['quantity'] = normalized['quantity']?.toString() ?? '';
+    }
     return normalized;
   }
 
@@ -1284,6 +1432,7 @@ class _HavenAiChatSheetState extends ConsumerState<HavenAiChatSheet> {
         .replaceAll('dateText', 'date')
         .replaceAll('mealType', 'meal')
         .replaceAll('foodName', 'food')
+        .replaceAll('itemName', 'item')
         .replaceAll(RegExp(r'([a-z])([A-Z])'), r'$1 $2')
         .toLowerCase();
   }
@@ -1363,6 +1512,18 @@ class _HavenAiChatSheetState extends ConsumerState<HavenAiChatSheet> {
     }
   }
 
+  Future<void> _executeShoppingCommand(_ShoppingCommand command) async {
+    await ref
+        .read(shoppingListProvider.notifier)
+        .addItem(
+          listTitle: command.listTitle,
+          name: command.itemName,
+          quantity: command.quantity,
+        );
+    final quantity = command.quantity.isEmpty ? '' : ' (${command.quantity})';
+    _reply('Done. I added ${command.itemName}$quantity to your shopping list.');
+  }
+
   Future<String> _executeHavenAction(
     _HavenAction action,
     String currencyCode,
@@ -1440,10 +1601,10 @@ class _HavenAiChatSheetState extends ConsumerState<HavenAiChatSheet> {
     if (lower.contains('help') ||
         lower.contains('what can') ||
         lower.contains('how do')) {
-      return 'You can ask me to add tasks, goals, events, moods, meals, journal entries, income, and expenses. Try “Pay rent Friday”, “Save KES 10000 by December 31”, “Log mood calm”, “Spent KES 500 on groceries”, or “Journal: I felt proud today”.';
+      return 'You can ask me to add tasks, goals, events, shopping items, moods, meals, journal entries, income, and expenses. Try “Pay rent Friday”, “Add milk to shopping list”, “Log mood calm”, “Spent KES 500 on groceries”, or “Journal: I felt proud today”.';
     }
 
-    return 'I can help add tasks, goals, events, moods, meals, journal entries, income, and expenses. Try “remind me to…”, “log mood…”, “spent…”, “ate…”, or “journal: …”.';
+    return 'I can help add tasks, goals, events, shopping items, moods, meals, journal entries, income, and expenses. Try “remind me to…”, “add eggs to shopping list”, “log mood…”, “spent…”, “ate…”, or “journal: …”.';
   }
 
   String _buildSummaryReply(String currencyCode) {
@@ -1695,6 +1856,24 @@ class _HavenAiChatSheetState extends ConsumerState<HavenAiChatSheet> {
               ),
             ),
             const SizedBox(width: 8),
+            IconButton.filledTonal(
+              tooltip: _isListening ? 'Stop recording action' : 'Record action',
+              onPressed: _isWorking ? null : _toggleVoiceAction,
+              style: IconButton.styleFrom(
+                backgroundColor: _isListening
+                    ? AppColors.primary.withValues(alpha: 0.16)
+                    : context.colors.cardColor2,
+                foregroundColor: _isListening
+                    ? AppColors.primaryDark
+                    : context.colors.textSecondary,
+              ),
+              icon: Icon(
+                _isListening
+                    ? Icons.graphic_eq_rounded
+                    : Icons.mic_none_rounded,
+              ),
+            ),
+            const SizedBox(width: 8),
             IconButton.filled(
               tooltip: 'Send',
               onPressed: _isWorking ? null : _send,
@@ -1782,11 +1961,84 @@ class _ChatMessage {
   const _ChatMessage({required this.text, required this.isUser});
 }
 
+class _ShoppingCommand {
+  const _ShoppingCommand({
+    required this.itemName,
+    this.quantity = '',
+    this.listTitle,
+  });
+
+  final String itemName;
+  final String quantity;
+  final String? listTitle;
+
+  static _ShoppingCommand? parse(String input) {
+    final text = input.trim();
+    final lower = text.toLowerCase();
+    final mentionsShopping =
+        lower.contains('shopping') ||
+        lower.contains('grocery') ||
+        lower.contains('list');
+    if (!lower.contains('shopping') &&
+        !lower.contains('grocery') &&
+        !lower.startsWith('buy ') &&
+        !lower.startsWith('get ') &&
+        !lower.startsWith('add ') &&
+        !lower.startsWith('put ')) {
+      return null;
+    }
+    if ((lower.startsWith('add ') || lower.startsWith('put ')) &&
+        !mentionsShopping) {
+      return null;
+    }
+
+    final match = RegExp(
+      r'^(?:please\s+)?(?:add|put|buy|get)\s+(.+?)(?:\s+(?:to|on|in)\s+(?:my\s+)?(.+?))?$',
+      caseSensitive: false,
+    ).firstMatch(text);
+    if (match == null) return null;
+
+    var itemText = match.group(1)!.trim();
+    final destination = match.group(2)?.trim();
+    if (destination != null &&
+        !destination.toLowerCase().contains('shopping') &&
+        !destination.toLowerCase().contains('grocery') &&
+        !destination.toLowerCase().contains('list')) {
+      return null;
+    }
+
+    itemText = itemText
+        .replaceAll(
+          RegExp(r'\b(shopping|grocery|list)\b', caseSensitive: false),
+          '',
+        )
+        .trim();
+    if (itemText.isEmpty) return null;
+
+    final quantityMatch = RegExp(
+      r'\b(\d+(?:[./]\d+)?\s*(?:ct|gal|g|kg|ml|l|lbs?|packs?|bottles?|loaves?)?)$',
+      caseSensitive: false,
+    ).firstMatch(itemText);
+    final quantity = quantityMatch?.group(1)?.trim() ?? '';
+    if (quantity.isNotEmpty) {
+      itemText = itemText.substring(0, quantityMatch!.start).trim();
+    }
+
+    return _ShoppingCommand(
+      itemName: _HavenAction._capitalize(itemText),
+      quantity: quantity,
+      listTitle: destination?.toLowerCase().contains('breakfast') == true
+          ? 'Morning breakfast'
+          : null,
+    );
+  }
+}
+
 enum _PlannerType { task, goal, event }
 
 enum _TaskPromptStep { title, priority, time }
 
-enum _GuidedFlowType { goal, event, mood, food, journal, transaction }
+enum _GuidedFlowType { goal, event, mood, food, journal, transaction, shopping }
 
 class _GuidedTaskDraft {
   final _TaskPromptStep step;

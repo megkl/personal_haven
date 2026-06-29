@@ -74,6 +74,7 @@ dependencies:
   firebase_crashlytics: ^5.2.4
   firebase_data_connect: ^0.3.0+5
   cloud_functions: ^6.3.3
+  speech_to_text: ^7.3.0
 
   
 dev_dependencies:

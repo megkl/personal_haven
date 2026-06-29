@@ -24,6 +24,14 @@ const androidPackageName = defineSecret("ANDROID_PACKAGE_NAME");
 const aiModel = "gpt-4o-mini";
 const aiEndpoint = "https://api.openai.com/v1/chat/completions";
 
+const aiPlanLimits = {
+  free: {limit: 20, window: "week"},
+  weekly: {limit: 30, window: "week"},
+  monthly: {limit: 300, window: "month"},
+  yearly: {limit: 400, window: "month"},
+  override: {limit: 300, window: "month"},
+};
+
 const storeProducts = {
   personal_haven_weekly: {
     plan: "weekly",
@@ -48,7 +56,7 @@ const assistantSystemPrompt = [
   "Return one object with keys: intent, confidence, action, reply,",
   "fields, missingFields, suggestedPrompts.",
   "intent must be one of task, goal, event, mood, food, journal,",
-  "transaction, summary, unknown.",
+  "transaction, shopping, summary, unknown.",
   "action must be create, update, answer, or unknown.",
   "fields is an object. Use null for missing values.",
   "missingFields is an array of required field names still needed.",
@@ -64,6 +72,8 @@ const assistantSystemPrompt = [
   "carbs, fat.",
   "For journal fields include title, content, category.",
   "For transaction fields include type, amount, category, description.",
+  "For shopping fields include itemName, quantity, listTitle, category.",
+  "Use shopping for groceries, shopping lists, buy, pick up, or add to list.",
   "If key details are missing, reply with the next short question.",
   "If all fields are present, reply with a brief confirmation question.",
 ].join(" ");
@@ -91,6 +101,7 @@ exports.parseAssistantAction = onCall(
       if (!message || typeof message !== "string") {
         throw new HttpsError("invalid-argument", "Message is required.");
       }
+      const usage = await reserveAssistantUsage(request.auth.uid);
 
       const response = await fetch(aiEndpoint, {
         method: "POST",
@@ -125,7 +136,10 @@ exports.parseAssistantAction = onCall(
       }
 
       try {
-        return normalizeAssistantResult(JSON.parse(content));
+        return {
+          ...normalizeAssistantResult(JSON.parse(content)),
+          usage,
+        };
       } catch (error) {
         throw new HttpsError("internal", "AI response was not valid JSON.");
       }
@@ -197,6 +211,154 @@ exports.verifyStorePurchase = onCall(
       };
     },
 );
+
+/**
+ * Reserves one AI assistant action before any paid model request is made.
+ * @param {string} uid Firebase Auth uid.
+ * @return {Promise<object>} Usage metadata for the client.
+ */
+async function reserveAssistantUsage(uid) {
+  const db = admin.firestore();
+  const plan = await activeSubscriptionPlan(uid);
+  const limit = aiPlanLimits[plan] || aiPlanLimits.free;
+  const period = usagePeriod(limit.window);
+  const usageRef = db
+      .collection("users")
+      .doc(uid)
+      .collection("ai_usage")
+      .doc(`assistant_${limit.window}_${period.key}`);
+
+  return db.runTransaction(async (transaction) => {
+    const snap = await transaction.get(usageRef);
+    const current = snap.exists ? Number(snap.data().count || 0) : 0;
+    if (current >= limit.limit) {
+      throw new HttpsError(
+          "resource-exhausted",
+          `AI action limit reached. Your ${limit.window}ly limit is ` +
+            `${limit.limit}. It resets on ${period.resetAt}.`,
+          {
+            plan,
+            limit: limit.limit,
+            used: current,
+            remaining: 0,
+            window: limit.window,
+            resetAt: period.resetAt,
+          },
+      );
+    }
+
+    const next = current + 1;
+    transaction.set(
+        usageRef,
+        {
+          plan,
+          count: next,
+          limit: limit.limit,
+          window: limit.window,
+          periodKey: period.key,
+          resetAt: period.resetAt,
+          updatedAt: admin.firestore.FieldValue.serverTimestamp(),
+        },
+        {merge: true},
+    );
+
+    return {
+      plan,
+      limit: limit.limit,
+      used: next,
+      remaining: Math.max(limit.limit - next, 0),
+      window: limit.window,
+      resetAt: period.resetAt,
+    };
+  });
+}
+
+/**
+ * @param {string} uid Firebase Auth uid.
+ * @return {Promise<string>} Active plan used for AI limits.
+ */
+async function activeSubscriptionPlan(uid) {
+  const db = admin.firestore();
+  const userRef = db.collection("users").doc(uid);
+  const userSnap = await userRef.get();
+  const premiumOverride = userSnap.exists && userSnap.data().isPremium === true;
+  const now = new Date();
+  const snap = await userRef
+      .collection("subscriptions")
+      .where("status", "==", "active")
+      .get();
+  const active = snap.docs
+      .map((doc) => doc.data())
+      .filter((sub) => {
+        const expiryDate = parseDateValue(sub.expiryDate);
+        return expiryDate && expiryDate > now;
+      })
+      .sort((a, b) => {
+        return parseDateValue(b.expiryDate) - parseDateValue(a.expiryDate);
+      })[0];
+
+  if (active && aiPlanLimits[active.plan]) return active.plan;
+  if (premiumOverride) return "override";
+  return "free";
+}
+
+/**
+ * @param {string} window Billing window: week or month.
+ * @return {object} Period key and reset date.
+ */
+function usagePeriod(window) {
+  const now = new Date();
+  if (window === "week") {
+    const start = startOfUtcWeek(now);
+    const reset = addDays(start, 7);
+    return {
+      key: start.toISOString().slice(0, 10),
+      resetAt: reset.toISOString(),
+    };
+  }
+  const start = new Date(Date.UTC(
+      now.getUTCFullYear(),
+      now.getUTCMonth(),
+      1,
+  ));
+  const reset = new Date(Date.UTC(
+      now.getUTCFullYear(),
+      now.getUTCMonth() + 1,
+      1,
+  ));
+  const month = String(start.getUTCMonth() + 1).padStart(2, "0");
+  return {
+    key: `${start.getUTCFullYear()}-${month}`,
+    resetAt: reset.toISOString(),
+  };
+}
+
+/**
+ * @param {Date} date Date in the target week.
+ * @return {Date} Monday 00:00 UTC.
+ */
+function startOfUtcWeek(date) {
+  const start = new Date(Date.UTC(
+      date.getUTCFullYear(),
+      date.getUTCMonth(),
+      date.getUTCDate(),
+  ));
+  const day = start.getUTCDay() || 7;
+  start.setUTCDate(start.getUTCDate() - day + 1);
+  return start;
+}
+
+/**
+ * @param {string|Date|undefined} value Date-like value.
+ * @return {?Date} Parsed date.
+ */
+function parseDateValue(value) {
+  if (!value) return null;
+  if (value instanceof Date) return value;
+  if (typeof value.toDate === "function") return value.toDate();
+  const date = new Date(value);
+  return Number.isNaN(date.getTime()) ? null : date;
+}
 
 /**
  * @param {object} options Store verification inputs.
@@ -543,6 +705,7 @@ function normalizeAssistantResult(result) {
     "food",
     "journal",
     "transaction",
+    "shopping",
     "summary",
     "unknown",
   ];

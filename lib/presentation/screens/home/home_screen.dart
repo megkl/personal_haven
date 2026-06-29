@@ -271,7 +271,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen>
                               );
                             },
                             loading: () => const SizedBox.shrink(),
-                            error: (_, __) => const SizedBox.shrink(),
+                            error: (_, _) => const SizedBox.shrink(),
                           ),
                         ],
                       ),
@@ -361,10 +361,15 @@ class _HomeScreenState extends ConsumerState<HomeScreen>
     );
   }
 
-  void _openAssistant() {
-    final subscriptionState = ref.read(subscriptionProvider);
-    final hasAccess =
-        subscriptionState.isLoading || subscriptionState.hasFullAccess;
+  Future<void> _openAssistant() async {
+    var subscriptionState = ref.read(subscriptionProvider);
+    if (subscriptionState.isLoading) {
+      await ref.read(subscriptionProvider.notifier).refresh();
+      if (!mounted) return;
+      subscriptionState = ref.read(subscriptionProvider);
+    }
+
+    final hasAccess = subscriptionState.hasFullAccess;
 
     if (!hasAccess) {
       Navigator.of(context).push(
@@ -1620,8 +1625,8 @@ class _HomeScreenState extends ConsumerState<HomeScreen>
     Navigator.pushReplacement(
       context,
       PageRouteBuilder(
-        pageBuilder: (_, __, ___) => MainNavigationScreen(currentIndex: index),
-        transitionsBuilder: (_, anim, __, child) =>
+        pageBuilder: (_, _, _) => MainNavigationScreen(currentIndex: index),
+        transitionsBuilder: (_, anim, _, child) =>
             FadeTransition(opacity: anim, child: child),
         transitionDuration: const Duration(milliseconds: 250),
       ),
