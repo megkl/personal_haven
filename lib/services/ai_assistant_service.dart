@@ -59,6 +59,28 @@ class AiAssistantService {
       return null;
     }
   }
+
+  Future<String?> chat(String message) async {
+    try {
+      final callable = _functions.httpsCallable(
+        'chatWithHavenAI',
+        options: HttpsCallableOptions(timeout: const Duration(seconds: 30)),
+      );
+      final result = await callable.call<Map<Object?, Object?>>({
+        'message': message,
+      });
+
+      final data = Map<String, dynamic>.from(result.data);
+      return data['reply'] as String?;
+    } on FirebaseFunctionsException catch (e) {
+      if (e.code == 'unauthenticated') {
+        return 'Please sign in first so I can keep your Haven conversation safe.';
+      }
+      return e.message ?? 'Haven AI could not reply just now.';
+    } catch (_) {
+      return null;
+    }
+  }
 }
 
 class AiAssistantLimitException implements Exception {

@@ -496,7 +496,7 @@ class _TasksScreenState extends ConsumerState<TasksScreen>
                           maxLines: 2,
                           overflow: TextOverflow.ellipsis,
                           style: TextStyle(
-                            fontSize: 15,
+                            fontSize: 12,
                             height: 1.2,
                             fontWeight: FontWeight.w800,
                             color: context.colors.textPrimary,
@@ -510,7 +510,7 @@ class _TasksScreenState extends ConsumerState<TasksScreen>
                             maxLines: 1,
                             overflow: TextOverflow.ellipsis,
                             style: TextStyle(
-                              fontSize: 12,
+                              fontSize: 10,
                               height: 1.2,
                               fontWeight: FontWeight.w600,
                               color: context.colors.textSecondary,

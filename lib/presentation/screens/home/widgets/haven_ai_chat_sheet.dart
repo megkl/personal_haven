@@ -191,7 +191,8 @@ class _HavenAiChatSheetState extends ConsumerState<HavenAiChatSheet> {
     final action = _HavenAction.parse(text);
     final command = action == null ? _PlannerCommand.parse(text) : null;
     if (command == null && action == null) {
-      _reply(_helpReply(text));
+      final reply = await _aiAssistantService.chat(text);
+      _reply(reply ?? _helpReply(text));
       return;
     }
 
@@ -576,7 +577,7 @@ class _HavenAiChatSheetState extends ConsumerState<HavenAiChatSheet> {
       'food' => ['mealType', 'foodName'],
       'journal' => ['content', 'category'],
       'transaction' => ['type', 'amount', 'category'],
-      'shopping' => ['itemName', 'quantity'],
+      'shopping' => ['itemName'],
       _ => <String>[],
     };
     return required.where((field) => !_hasDraftField(draft, field)).toList();
@@ -1549,6 +1550,15 @@ class _HavenAiChatSheetState extends ConsumerState<HavenAiChatSheet> {
         normalized['content'] = structured.content;
         normalized['category'] ??= structured.category;
       }
+      final content = normalized['content']?.toString();
+      if ((normalized['category'] == null ||
+              normalized['category'].toString().trim().isEmpty) &&
+          content != null &&
+          content.trim().isNotEmpty) {
+        normalized['category'] = _journalCategoryFor(
+          '${normalized['title'] ?? ''} $content',
+        );
+      }
     }
     if (intent == 'shopping') {
       if (normalized['item'] != null && normalized['itemName'] == null) {
@@ -1763,7 +1773,7 @@ class _HavenAiChatSheetState extends ConsumerState<HavenAiChatSheet> {
   String? _labeledValue(String input, List<String> labels) {
     final labelPattern = labels.map(RegExp.escape).join('|');
     final match = RegExp(
-      '(?:^|\\s)($labelPattern)\\s*:\\s*(.+?)(?=\\s+(?:title|content|description|body|entry|note|category)\\s*:|\$)',
+      '(?:^|\\s)($labelPattern)\\s*:?\\s*(.+?)(?=\\s+(?:title|content|description|body|entry|note|category)\\s*:?\\s*|\$)',
       caseSensitive: false,
       dotAll: true,
     ).firstMatch(input);

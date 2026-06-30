@@ -36,6 +36,98 @@ class _AffirmationsScreenState extends State<AffirmationsScreen> {
       'category': 'Motivation',
       'isFavorite': false,
     },
+    {
+      'text': 'Small steps still move me forward',
+      'category': 'Motivation',
+      'isFavorite': false,
+    },
+    {
+      'text': 'I can begin again without starting over',
+      'category': 'Positivity',
+      'isFavorite': false,
+    },
+    {
+      'text': 'I am allowed to rest without guilt',
+      'category': 'Wellness',
+      'isFavorite': false,
+    },
+    {'text': 'My pace is valid', 'category': 'Self-Love', 'isFavorite': false},
+    {
+      'text': 'Today, my best is enough',
+      'category': 'Self-Love',
+      'isFavorite': true,
+    },
+    {
+      'text': 'I do not have to solve everything at once',
+      'category': 'Wellness',
+      'isFavorite': false,
+    },
+    {
+      'text': 'I am learning to trust myself',
+      'category': 'Self-Love',
+      'isFavorite': false,
+    },
+    {
+      'text': 'Progress can be quiet and still be real',
+      'category': 'Motivation',
+      'isFavorite': false,
+    },
+    {
+      'text': 'I am worthy before I achieve anything',
+      'category': 'Self-Love',
+      'isFavorite': true,
+    },
+    {
+      'text': 'A calm breath can be a fresh beginning',
+      'category': 'Wellness',
+      'isFavorite': false,
+    },
+    {
+      'text': 'I can choose one kind thing for myself today',
+      'category': 'Positivity',
+      'isFavorite': false,
+    },
+    {'text': 'My needs matter', 'category': 'Self-Love', 'isFavorite': false},
+    {
+      'text': 'I can make room for joy today',
+      'category': 'Positivity',
+      'isFavorite': false,
+    },
+    {
+      'text': 'I am allowed to celebrate tiny wins',
+      'category': 'Positivity',
+      'isFavorite': false,
+    },
+    {
+      'text': 'There is wisdom in slowing down',
+      'category': 'Wellness',
+      'isFavorite': false,
+    },
+    {
+      'text': 'I can be proud of showing up',
+      'category': 'Motivation',
+      'isFavorite': false,
+    },
+    {
+      'text': 'I am more than my hardest day',
+      'category': 'Self-Love',
+      'isFavorite': false,
+    },
+    {
+      'text': 'My story is still unfolding',
+      'category': 'Positivity',
+      'isFavorite': false,
+    },
+    {
+      'text': 'I can meet myself with compassion today',
+      'category': 'Wellness',
+      'isFavorite': true,
+    },
+    {
+      'text': 'I am growing in ways I may not see yet',
+      'category': 'Motivation',
+      'isFavorite': false,
+    },
   ];
 
   String _selectedCategory = 'All';

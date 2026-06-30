@@ -14,6 +14,12 @@ import 'package:personal_haven/services/notification_service.dart';
 import 'package:personal_haven/services/social_auth_service.dart';
 import 'firebase_options.dart';
 
+const _appCheckProvider = String.fromEnvironment(
+  'APP_CHECK_PROVIDER',
+  defaultValue: 'none',
+);
+const _appCheckDebugToken = String.fromEnvironment('APP_CHECK_DEBUG_TOKEN');
+
 void main() {
   var crashlyticsReady = false;
   runZonedGuarded(
@@ -22,13 +28,31 @@ void main() {
       await Firebase.initializeApp(
         options: DefaultFirebaseOptions.currentPlatform,
       );
-      if (kReleaseMode) {
+      if (_appCheckProvider == 'debug') {
+        await FirebaseAppCheck.instance.activate(
+          providerAndroid: AndroidDebugProvider(
+            debugToken: _appCheckDebugToken.isEmpty
+                ? null
+                : _appCheckDebugToken,
+          ),
+          providerApple: AppleDebugProvider(
+            debugToken: _appCheckDebugToken.isEmpty
+                ? null
+                : _appCheckDebugToken,
+          ),
+        );
+        debugPrint(
+          _appCheckDebugToken.isEmpty
+              ? 'Firebase App Check debug provider active. Check native logs for the debug token.'
+              : 'Firebase App Check debug provider active with token: $_appCheckDebugToken',
+        );
+      } else if (kReleaseMode && _appCheckProvider != 'none') {
         await FirebaseAppCheck.instance.activate(
           providerAndroid: const AndroidPlayIntegrityProvider(),
           providerApple: const AppleDeviceCheckProvider(),
         );
       } else {
-        debugPrint('Skipping Firebase App Check in debug builds.');
+        debugPrint('Skipping Firebase App Check.');
       }
 
       if (!kIsWeb) {

@@ -871,6 +871,15 @@ class _HomeScreenState extends ConsumerState<HomeScreen>
             "Today's Progress",
             DateFormat('MMM d').format(DateTime.now()),
           ),
+          const SizedBox(height: 6),
+          Text(
+            _todayProgressCaption(journalState, taskState, goalState),
+            style: TextStyle(
+              fontSize: 12,
+              height: 1.35,
+              color: context.colors.textSecondary,
+            ),
+          ),
           const SizedBox(height: 16),
           Row(
             children: [
@@ -878,6 +887,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen>
                 emoji: '🌱',
                 label: _unitLabel(taskState.completedCount, 'task'),
                 value: '${taskState.completedCount}',
+                navigationLabel: 'Plan tasks',
                 color: const Color(0xFFFF9A9E),
                 onTap: () => _navigateTo(3),
               ),
@@ -889,6 +899,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen>
                   'journal',
                 ),
                 value: '${journalState?.todayEntries.length ?? 0}',
+                navigationLabel: 'Reflect',
                 color: const Color(0xFFFFB347),
                 onTap: () => _navigateTo(1),
               ),
@@ -897,6 +908,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen>
                 emoji: '💪',
                 label: _unitLabel(goalState.activeCount, 'goal'),
                 value: '${goalState.activeCount}',
+                navigationLabel: 'Grow goals',
                 color: const Color(0xFF667eea),
                 onTap: () => _navigateTo(2),
               ),
@@ -939,6 +951,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen>
     required String emoji,
     required String label,
     required String value,
+    required String navigationLabel,
     required Color color,
     VoidCallback? onTap,
   }) {
@@ -969,6 +982,35 @@ class _HomeScreenState extends ConsumerState<HomeScreen>
                   fontSize: 10,
                   color: context.colors.textSecondary,
                   fontWeight: FontWeight.w500,
+                ),
+              ),
+              const SizedBox(height: 6),
+              ConstrainedBox(
+                constraints: const BoxConstraints(minHeight: 18),
+                child: Row(
+                  mainAxisSize: MainAxisSize.min,
+                  crossAxisAlignment: CrossAxisAlignment.center,
+                  children: [
+                    Flexible(
+                      child: Text(
+                        navigationLabel,
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        textAlign: TextAlign.center,
+                        style: TextStyle(
+                          fontSize: 10,
+                          color: color.withValues(alpha: 0.95),
+                          fontWeight: FontWeight.w700,
+                        ),
+                      ),
+                    ),
+                    const SizedBox(width: 2),
+                    Icon(
+                      Icons.chevron_right_rounded,
+                      size: 14,
+                      color: color.withValues(alpha: 0.95),
+                    ),
+                  ],
                 ),
               ),
             ],
@@ -1016,6 +1058,24 @@ class _HomeScreenState extends ConsumerState<HomeScreen>
 
   String _unitLabel(int count, String singular) {
     return count == 1 ? singular : '${singular}s';
+  }
+
+  String _todayProgressCaption(
+    JournalState? journalState,
+    TaskState taskState,
+    GoalState goalState,
+  ) {
+    final journals = journalState?.todayEntries.length ?? 0;
+    if (taskState.completedCount > 0) {
+      return 'Nice momentum. Tap a section below to keep shaping your day.';
+    }
+    if (journals > 0) {
+      return 'You have reflected today. Choose what to build on next.';
+    }
+    if (goalState.activeGoals.isNotEmpty) {
+      return 'Your goals are ready. Tap below to make one small move.';
+    }
+    return 'Start small today. Tasks, journals, and goals are one tap away.';
   }
 
   // ─── GOALS CARD ───────────────────────────────────────────────

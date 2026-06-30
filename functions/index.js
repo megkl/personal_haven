@@ -11,6 +11,7 @@ const {setGlobalOptions} = require("firebase-functions");
 const {onCall, HttpsError} = require("firebase-functions/v2/https");
 const {defineSecret} = require("firebase-functions/params");
 const admin = require("firebase-admin");
+const OpenAI = require("openai");
 
 admin.initializeApp();
 
@@ -66,13 +67,27 @@ const assistantSystemPrompt = [
   "carbs, fat.",
   "For journal fields include title, content, category.",
   "Respect labeled journal input such as title: X content: Y.",
+  "Also handle labels without colons, e.g. title Testing content I am testing.",
+  "If journal content is present but category is missing, infer a useful",
+  "category such as Notes, Gratitude, Work, Ideas, Health, or Reflection.",
   "For transaction fields include type, amount, category, description.",
+  "Infer transaction type from spent, paid, bought, salary, earned, received.",
   "For shopping fields include itemName, quantity, listTitle, category,",
   "and shoppingItems.",
   "shoppingItems is an array of objects with itemName and quantity.",
   "Use shoppingItems when the user gives multiple items in one message.",
   "Separate examples like eggs 5 of them, milk 1 litre, flour 2kg.",
+  "For shopping, quantity is optional. Do not ask for quantity if item names",
+  "are already clear.",
   "Use shopping for groceries, shopping lists, buy, pick up, or add to list.",
+  "Examples:",
+  "Input: title: Testing content: I am testing => intent journal, fields",
+  "{title: Testing, content: I am testing, category: Notes}.",
+  "Input: shopping list, eggs 5 of them, milk ltre, flour 2kg => intent",
+  "shopping, shoppingItems [{itemName: eggs, quantity: 5},",
+  "{itemName: milk, quantity: ltre}, {itemName: flour, quantity: 2kg}].",
+  "Input: I spent KES 500 on groceries => intent transaction, type expense,",
+  "amount 500, category Groceries.",
   "If key details are missing, reply with the next short question.",
   "If all fields are present, reply with a brief confirmation question.",
 ].join(" ");
@@ -88,6 +103,15 @@ const assistantPromptSuggestionSystemPrompt = [
   "Use local, everyday examples. If money is involved, KES is acceptable.",
   "For confirmation questions, use Save, Change something, and Cancel.",
   "For optional fields, include a Skip option.",
+].join(" ");
+
+const havenAiSystemPrompt = [
+  "You are Haven AI, a warm, supportive assistant inside Personal Haven.",
+  "You help users reflect, plan, journal, manage wellness, and stay motivated.",
+  "You are not a doctor, therapist, lawyer, or financial advisor.",
+  "If the user appears to be in crisis, encourage them to contact trusted",
+  "people or emergency support.",
+  "Keep responses gentle, practical, and concise.",
 ].join(" ");
 
 // For cost control, you can set the maximum number of containers that can be
@@ -260,6 +284,84 @@ exports.generateAssistantPrompts = onCall(
           message: error.message,
         });
         return {suggestedPrompts: fallbackPrompts.slice(0, 4)};
+      }
+    },
+);
+
+exports.chatWithHavenAI = onCall(
+    {secrets: [aiApiKey], region: "us-central1"},
+    async (request) => {
+      if (!request.auth) {
+        throw new HttpsError("unauthenticated", "Please sign in first.");
+      }
+
+      const userId = request.auth.uid;
+      const message = request.data && request.data.message;
+
+      if (!message || typeof message !== "string") {
+        throw new HttpsError("invalid-argument", "Message is required.");
+      }
+
+      const trimmedMessage = message.trim().slice(0, 2000);
+      const db = admin.firestore();
+      const chatsRef = db
+          .collection("users")
+          .doc(userId)
+          .collection("chats");
+
+      await chatsRef.add({
+        role: "user",
+        content: trimmedMessage,
+        createdAt: admin.firestore.FieldValue.serverTimestamp(),
+      });
+
+      const historySnap = await chatsRef
+          .orderBy("createdAt", "desc")
+          .limit(12)
+          .get();
+      const history = historySnap.docs
+          .map((doc) => doc.data())
+          .reverse()
+          .filter((entry) => {
+            return (entry.role === "user" || entry.role === "assistant") &&
+              typeof entry.content === "string" &&
+              entry.content.trim() !== "";
+          })
+          .map((entry) => ({
+            role: entry.role,
+            content: entry.content.slice(0, 1200),
+          }));
+
+      try {
+        const openai = new OpenAI({apiKey: aiApiKey.value()});
+        const response = await openai.responses.create({
+          model: "gpt-4.1-mini",
+          input: [
+            {role: "system", content: havenAiSystemPrompt},
+            ...history,
+          ],
+        });
+
+        const aiText = response.output_text ||
+          "I am here with you. Tell me a little more, and we can take it " +
+          "one step at a time.";
+
+        await chatsRef.add({
+          role: "assistant",
+          content: aiText,
+          createdAt: admin.firestore.FieldValue.serverTimestamp(),
+        });
+
+        return {reply: aiText};
+      } catch (error) {
+        console.error("Haven AI chat request failed", {
+          uid: userId,
+          message: error.message,
+        });
+        throw new HttpsError(
+            "internal",
+            "Haven AI could not reply just now. Please try again.",
+        );
       }
     },
 );
