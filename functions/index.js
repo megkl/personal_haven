@@ -11,16 +11,10 @@ const {setGlobalOptions} = require("firebase-functions");
 const {onCall, HttpsError} = require("firebase-functions/v2/https");
 const {defineSecret} = require("firebase-functions/params");
 const admin = require("firebase-admin");
-const crypto = require("crypto");
 
 admin.initializeApp();
 
 const aiApiKey = defineSecret("AI_API_KEY");
-const appleSharedSecret = defineSecret("APPLE_SHARED_SECRET");
-const googlePlayServiceAccountJson = defineSecret(
-    "GOOGLE_PLAY_SERVICE_ACCOUNT_JSON",
-);
-const androidPackageName = defineSecret("ANDROID_PACKAGE_NAME");
 const aiModel = "gpt-4o-mini";
 const aiEndpoint = "https://api.openai.com/v1/chat/completions";
 
@@ -71,11 +65,29 @@ const assistantSystemPrompt = [
   "For food fields include foodName, mealType, calories, protein,",
   "carbs, fat.",
   "For journal fields include title, content, category.",
+  "Respect labeled journal input such as title: X content: Y.",
   "For transaction fields include type, amount, category, description.",
-  "For shopping fields include itemName, quantity, listTitle, category.",
+  "For shopping fields include itemName, quantity, listTitle, category,",
+  "and shoppingItems.",
+  "shoppingItems is an array of objects with itemName and quantity.",
+  "Use shoppingItems when the user gives multiple items in one message.",
+  "Separate examples like eggs 5 of them, milk 1 litre, flour 2kg.",
   "Use shopping for groceries, shopping lists, buy, pick up, or add to list.",
   "If key details are missing, reply with the next short question.",
   "If all fields are present, reply with a brief confirmation question.",
+].join(" ");
+
+const assistantPromptSuggestionSystemPrompt = [
+  "You write smart Personal Haven reply chips.",
+  "Return JSON only with one key: suggestedPrompts.",
+  "suggestedPrompts must be an array of 2 to 4 short user reply chips.",
+  "Each chip should be natural, specific, and useful for the current question.",
+  "Use the user's known context to make chips fit the thing they are creating.",
+  "Keep chips under 28 characters when possible.",
+  "Do not include markdown, explanations, or duplicate chips.",
+  "Use local, everyday examples. If money is involved, KES is acceptable.",
+  "For confirmation questions, use Save, Change something, and Cancel.",
+  "For optional fields, include a Skip option.",
 ].join(" ");
 
 // For cost control, you can set the maximum number of containers that can be
@@ -101,58 +113,159 @@ exports.parseAssistantAction = onCall(
       if (!message || typeof message !== "string") {
         throw new HttpsError("invalid-argument", "Message is required.");
       }
-      const usage = await reserveAssistantUsage(request.auth.uid);
-
-      const response = await fetch(aiEndpoint, {
-        method: "POST",
-        headers: {
-          "Authorization": `Bearer ${aiApiKey.value()}`,
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({
-          model: aiModel,
-          temperature: 0.1,
-          response_format: {type: "json_object"},
-          messages: [
-            {role: "system", content: assistantSystemPrompt},
-            {role: "user", content: message.slice(0, 1200)},
-          ],
-        }),
-      });
-
-      if (!response.ok) {
-        throw new HttpsError("internal", "AI request failed.");
-      }
-
-      const payload = await response.json();
-      const content = payload &&
-          payload.choices &&
-          payload.choices[0] &&
-          payload.choices[0].message &&
-          payload.choices[0].message.content;
-
-      if (!content || typeof content !== "string") {
-        throw new HttpsError("internal", "AI response was empty.");
+      let usage;
+      try {
+        usage = await reserveAssistantUsage(request.auth.uid);
+      } catch (error) {
+        if (error instanceof HttpsError) throw error;
+        console.error("AI usage reservation failed", {
+          uid: request.auth.uid,
+          message: error.message,
+        });
+        throw new HttpsError("internal", "AI usage check failed.");
       }
 
       try {
+        const response = await fetch(aiEndpoint, {
+          method: "POST",
+          headers: {
+            "Authorization": `Bearer ${aiApiKey.value()}`,
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify({
+            model: aiModel,
+            temperature: 0.1,
+            response_format: {type: "json_object"},
+            messages: [
+              {role: "system", content: assistantSystemPrompt},
+              {role: "user", content: message.slice(0, 1200)},
+            ],
+          }),
+        });
+
+        if (!response.ok) {
+          await logAiResponseFailure("parseAssistantAction", response);
+          return unknownAssistantResult(usage);
+        }
+
+        const payload = await response.json();
+        const content = payload &&
+            payload.choices &&
+            payload.choices[0] &&
+            payload.choices[0].message &&
+            payload.choices[0].message.content;
+
+        if (!content || typeof content !== "string") {
+          console.error("AI response was empty", {
+            functionName: "parseAssistantAction",
+            payloadKeys: payload ? Object.keys(payload) : [],
+          });
+          return unknownAssistantResult(usage);
+        }
+
         return {
           ...normalizeAssistantResult(JSON.parse(content)),
           usage,
         };
       } catch (error) {
-        throw new HttpsError("internal", "AI response was not valid JSON.");
+        console.error("AI parse request failed", {
+          functionName: "parseAssistantAction",
+          message: error.message,
+        });
+        return unknownAssistantResult(usage);
+      }
+    },
+);
+
+exports.generateAssistantPrompts = onCall(
+    {secrets: [aiApiKey], region: "us-central1"},
+    async (request) => {
+      if (!request.auth) {
+        throw new HttpsError("unauthenticated", "Sign in required.");
+      }
+
+      const data = request.data || {};
+      const intent = typeof data.intent === "string" ? data.intent : "unknown";
+      const field = typeof data.field === "string" ? data.field : "";
+      const question = typeof data.question === "string" ? data.question : "";
+      const userInput = typeof data.userInput === "string" ?
+        data.userInput :
+        "";
+      const fallbackPrompts = Array.isArray(data.fallbackPrompts) ?
+        data.fallbackPrompts.filter((prompt) => typeof prompt === "string") :
+        [];
+      const fields = data.fields && typeof data.fields === "object" ?
+        data.fields :
+        {};
+
+      if (!question || !field) {
+        throw new HttpsError(
+            "invalid-argument",
+            "Question and field are required.",
+        );
+      }
+
+      const promptContext = JSON.stringify({
+        intent,
+        field,
+        question,
+        userInput: userInput.slice(0, 300),
+        fields,
+        fallbackPrompts,
+      });
+
+      try {
+        const response = await fetch(aiEndpoint, {
+          method: "POST",
+          headers: {
+            "Authorization": `Bearer ${aiApiKey.value()}`,
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify({
+            model: aiModel,
+            temperature: 0.4,
+            response_format: {type: "json_object"},
+            messages: [
+              {role: "system", content: assistantPromptSuggestionSystemPrompt},
+              {role: "user", content: promptContext.slice(0, 1600)},
+            ],
+          }),
+        });
+
+        if (!response.ok) {
+          await logAiResponseFailure("generateAssistantPrompts", response);
+          return {suggestedPrompts: fallbackPrompts.slice(0, 4)};
+        }
+
+        const payload = await response.json();
+        const content = payload &&
+            payload.choices &&
+            payload.choices[0] &&
+            payload.choices[0].message &&
+            payload.choices[0].message.content;
+
+        if (!content || typeof content !== "string") {
+          console.error("AI prompt response was empty", {
+            functionName: "generateAssistantPrompts",
+            payloadKeys: payload ? Object.keys(payload) : [],
+          });
+          return {suggestedPrompts: fallbackPrompts.slice(0, 4)};
+        }
+
+        const parsed = JSON.parse(content);
+        return normalizePromptSuggestionResult(parsed, fallbackPrompts);
+      } catch (error) {
+        console.error("AI prompt request failed", {
+          functionName: "generateAssistantPrompts",
+          message: error.message,
+        });
+        return {suggestedPrompts: fallbackPrompts.slice(0, 4)};
       }
     },
 );
 
 exports.verifyStorePurchase = onCall(
     {
-      secrets: [
-        appleSharedSecret,
-        googlePlayServiceAccountJson,
-        androidPackageName,
-      ],
       region: "us-central1",
     },
     async (request) => {
@@ -385,82 +498,10 @@ async function verifyByStore(options) {
  * @return {Promise<object>} Normalized verification result.
  */
 async function verifyAppleReceipt(options) {
-  const password = appleSharedSecret.value();
-  if (!password) {
-    throw new HttpsError(
-        "failed-precondition",
-        "APPLE_SHARED_SECRET is not configured.",
-    );
-  }
-
-  let payload = await postAppleReceipt(
-      "https://buy.itunes.apple.com/verifyReceipt",
-      options.receipt,
-      password,
+  throw new HttpsError(
+      "failed-precondition",
+      "Apple purchases are not configured for this app.",
   );
-  if (payload.status === 21007) {
-    payload = await postAppleReceipt(
-        "https://sandbox.itunes.apple.com/verifyReceipt",
-        options.receipt,
-        password,
-    );
-  }
-  if (payload.status !== 0) {
-    throw new HttpsError("permission-denied", "Apple receipt is invalid.");
-  }
-
-  const purchases = []
-      .concat(payload.latest_receipt_info || [])
-      .concat((payload.receipt && payload.receipt.in_app) || []);
-  const purchase = newestMatchingPurchase(purchases, options.productId);
-  if (!purchase) {
-    throw new HttpsError(
-        "permission-denied",
-        "Apple receipt does not include this product.",
-    );
-  }
-
-  return {
-    store: "apple",
-    transactionRef: purchase.original_transaction_id ||
-      purchase.transaction_id ||
-      options.transactionId,
-    expiryDate: millisToDate(purchase.expires_date_ms),
-  };
-}
-
-/**
- * @param {string} url Apple verifyReceipt endpoint.
- * @param {string} receipt Base64 receipt data.
- * @param {string} password App-specific shared secret.
- * @return {Promise<object>} Parsed response payload.
- */
-async function postAppleReceipt(url, receipt, password) {
-  const response = await fetch(url, {
-    method: "POST",
-    headers: {"Content-Type": "application/json"},
-    body: JSON.stringify({
-      "receipt-data": receipt,
-      password,
-      "exclude-old-transactions": true,
-    }),
-  });
-  if (!response.ok) {
-    throw new HttpsError("unavailable", "Apple receipt check failed.");
-  }
-  return response.json();
-}
-
-/**
- * @param {Array<object>} purchases Receipt line items.
- * @param {string} productId Store product id.
- * @return {?object} Newest matching purchase.
- */
-function newestMatchingPurchase(purchases, productId) {
-  return purchases
-      .filter((item) => item.product_id === productId)
-      .sort((a, b) => Number(b.expires_date_ms || 0) -
-        Number(a.expires_date_ms || 0))[0] || null;
 }
 
 /**
@@ -468,140 +509,10 @@ function newestMatchingPurchase(purchases, productId) {
  * @return {Promise<object>} Normalized verification result.
  */
 async function verifyGooglePlayPurchase(options) {
-  const packageName = androidPackageName.value();
-  if (!packageName) {
-    throw new HttpsError(
-        "failed-precondition",
-        "ANDROID_PACKAGE_NAME is not configured.",
-    );
-  }
-  const accessToken = await googleAccessToken();
-  const encodedPackage = encodeURIComponent(packageName);
-  const encodedProduct = encodeURIComponent(options.productId);
-  const encodedToken = encodeURIComponent(options.receipt);
-  const baseUrl = "https://androidpublisher.googleapis.com/androidpublisher";
-  const url = `${baseUrl}/v3/applications/${encodedPackage}/purchases/` +
-    `subscriptions/${encodedProduct}/tokens/${encodedToken}`;
-  const response = await fetch(url, {
-    headers: {Authorization: `Bearer ${accessToken}`},
-  });
-  if (!response.ok) {
-    throw new HttpsError(
-        "permission-denied",
-        "Google Play purchase is invalid.",
-    );
-  }
-
-  const payload = await response.json();
-  const expiryDate = millisToDate(payload.expiryTimeMillis);
-  if (!expiryDate || expiryDate <= new Date()) {
-    throw new HttpsError("failed-precondition", "Google purchase expired.");
-  }
-  await acknowledgeGooglePurchase({
-    accessToken,
-    packageName: encodedPackage,
-    productId: encodedProduct,
-    token: encodedToken,
-    acknowledgementState: payload.acknowledgementState,
-  });
-
-  return {
-    store: "google",
-    transactionRef: payload.orderId || options.transactionId,
-    expiryDate,
-  };
-}
-
-/**
- * @return {Promise<string>} OAuth access token for Android Publisher API.
- */
-async function googleAccessToken() {
-  const serviceAccountJson = googlePlayServiceAccountJson.value();
-  if (!serviceAccountJson) {
-    throw new HttpsError(
-        "failed-precondition",
-        "GOOGLE_PLAY_SERVICE_ACCOUNT_JSON is not configured.",
-    );
-  }
-  let credentials;
-  try {
-    credentials = JSON.parse(serviceAccountJson);
-  } catch (error) {
-    throw new HttpsError(
-        "failed-precondition",
-        "Google service account JSON is invalid.",
-    );
-  }
-
-  const now = Math.floor(Date.now() / 1000);
-  const assertion = signJwt({
-    iss: credentials.client_email,
-    scope: "https://www.googleapis.com/auth/androidpublisher",
-    aud: "https://oauth2.googleapis.com/token",
-    iat: now,
-    exp: now + 3600,
-  }, credentials.private_key);
-
-  const response = await fetch("https://oauth2.googleapis.com/token", {
-    method: "POST",
-    headers: {"Content-Type": "application/x-www-form-urlencoded"},
-    body: new URLSearchParams({
-      grant_type: "urn:ietf:params:oauth:grant-type:jwt-bearer",
-      assertion,
-    }).toString(),
-  });
-  if (!response.ok) {
-    throw new HttpsError(
-        "unavailable",
-        "Could not authorize Google Play validation.",
-    );
-  }
-  const payload = await response.json();
-  return payload.access_token;
-}
-
-/**
- * @param {object} claims JWT claims.
- * @param {string} privateKey PEM private key.
- * @return {string} Signed JWT.
- */
-function signJwt(claims, privateKey) {
-  const header = base64UrlJson({alg: "RS256", typ: "JWT"});
-  const body = base64UrlJson(claims);
-  const input = `${header}.${body}`;
-  const signature = crypto
-      .createSign("RSA-SHA256")
-      .update(input)
-      .sign(privateKey, "base64url");
-  return `${input}.${signature}`;
-}
-
-/**
- * @param {object} value JSON object.
- * @return {string} Base64url encoded JSON.
- */
-function base64UrlJson(value) {
-  return Buffer.from(JSON.stringify(value)).toString("base64url");
-}
-
-/**
- * @param {object} options Google acknowledge inputs.
- * @return {Promise<void>}
- */
-async function acknowledgeGooglePurchase(options) {
-  if (options.acknowledgementState !== 0) return;
-
-  const baseUrl = "https://androidpublisher.googleapis.com/androidpublisher";
-  const url = `${baseUrl}/v3/applications/${options.packageName}/purchases/` +
-    `subscriptions/${options.productId}/tokens/${options.token}:acknowledge`;
-  await fetch(url, {
-    method: "POST",
-    headers: {
-      "Authorization": `Bearer ${options.accessToken}`,
-      "Content-Type": "application/json",
-    },
-    body: JSON.stringify({}),
-  });
+  throw new HttpsError(
+      "failed-precondition",
+      "Google Play purchases are not configured for this app.",
+  );
 }
 
 /**
@@ -681,17 +592,6 @@ function addDays(date, days) {
 }
 
 /**
- * @param {string|number|undefined} value Milliseconds since epoch.
- * @return {?Date} Date if valid.
- */
-function millisToDate(value) {
-  if (value === undefined || value === null || value === "") return null;
-  const millis = Number(value);
-  if (!Number.isFinite(millis)) return null;
-  return new Date(millis);
-}
-
-/**
  * Keeps the callable response predictable for Flutter.
  * @param {object} result Parsed model output.
  * @return {object} Normalized assistant result.
@@ -727,6 +627,75 @@ function normalizeAssistantResult(result) {
     suggestedPrompts: Array.isArray(result.suggestedPrompts) ?
       result.suggestedPrompts.filter((prompt) => typeof prompt === "string") :
       [],
+  };
+}
+
+/**
+ * Builds a non-failing assistant result when upstream AI is unavailable.
+ * @param {object} usage Current usage metadata.
+ * @return {object} Unknown assistant result.
+ */
+function unknownAssistantResult(usage) {
+  return {
+    intent: "unknown",
+    confidence: 0,
+    action: "unknown",
+    reply: null,
+    fields: {},
+    missingFields: [],
+    suggestedPrompts: [],
+    usage,
+  };
+}
+
+/**
+ * Logs a sanitized upstream AI error response.
+ * @param {string} functionName Callable function name.
+ * @param {Response} response Fetch response.
+ * @return {Promise<void>}
+ */
+async function logAiResponseFailure(functionName, response) {
+  let body = "";
+  try {
+    body = await response.text();
+  } catch (error) {
+    body = `Could not read response body: ${error.message}`;
+  }
+  console.error("AI upstream request failed", {
+    functionName,
+    status: response.status,
+    statusText: response.statusText,
+    body: body.slice(0, 500),
+  });
+}
+
+/**
+ * Sanitizes model-generated reply chips for the assistant UI.
+ * @param {object} result AI JSON result.
+ * @param {string[]} fallbackPrompts Local fallback prompts.
+ * @return {{suggestedPrompts: string[]}} Clean prompt result.
+ */
+function normalizePromptSuggestionResult(result, fallbackPrompts) {
+  const seen = new Set();
+  const suggestedPrompts = Array.isArray(result.suggestedPrompts) ?
+    result.suggestedPrompts :
+    [];
+  const cleanPrompts = suggestedPrompts
+      .filter((prompt) => typeof prompt === "string")
+      .map((prompt) => prompt.trim())
+      .filter((prompt) => prompt.length > 0 && prompt.length <= 48)
+      .filter((prompt) => {
+        const key = prompt.toLowerCase();
+        if (seen.has(key)) return false;
+        seen.add(key);
+        return true;
+      })
+      .slice(0, 4);
+
+  return {
+    suggestedPrompts: cleanPrompts.length >= 2 ?
+      cleanPrompts :
+      fallbackPrompts.slice(0, 4),
   };
 }
 

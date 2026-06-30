@@ -23,21 +23,22 @@ class _SignUpScreenState extends ConsumerState<SignUpScreen> {
   ) async {
     setState(() => _isLoading = true);
     final result = await signIn();
-    print('SocialAuthResult: success=${result.success}, error=${result.error}');
     if (!mounted) return;
 
     if (result.success) {
       final ok = await ref.read(authProvider.notifier).socialLogin(result);
       if (!mounted) return;
       if (ok) {
-        Navigator.pushReplacement(
-          context,
-          MaterialPageRoute(
-            builder: (_) => const MainNavigationScreen(currentIndex: 0),
-          ),
-        );
+        _openHome();
         return;
       }
+    }
+
+    await ref.read(authProvider.notifier).checkAuthStatus();
+    if (!mounted) return;
+    if (ref.read(authProvider).isAuthenticated) {
+      _openHome();
+      return;
     }
 
     setState(() => _isLoading = false);
@@ -50,6 +51,15 @@ class _SignUpScreenState extends ConsumerState<SignUpScreen> {
         ),
       );
     }
+  }
+
+  void _openHome() {
+    Navigator.pushReplacement(
+      context,
+      MaterialPageRoute(
+        builder: (_) => const MainNavigationScreen(currentIndex: 0),
+      ),
+    );
   }
 
   @override

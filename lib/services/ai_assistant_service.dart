@@ -29,6 +29,36 @@ class AiAssistantService {
       return null;
     }
   }
+
+  Future<List<String>?> generatePrompts({
+    required String intent,
+    required String field,
+    required String question,
+    required String userInput,
+    required Map<String, dynamic> fields,
+    required List<String> fallbackPrompts,
+  }) async {
+    try {
+      final callable = _functions.httpsCallable(
+        'generateAssistantPrompts',
+        options: HttpsCallableOptions(timeout: const Duration(seconds: 12)),
+      );
+      final result = await callable.call<Map<Object?, Object?>>({
+        'intent': intent,
+        'field': field,
+        'question': question,
+        'userInput': userInput,
+        'fields': fields,
+        'fallbackPrompts': fallbackPrompts,
+      });
+
+      final data = Map<String, dynamic>.from(result.data);
+      if (data['suggestedPrompts'] is! List) return null;
+      return List<String>.from(data['suggestedPrompts'] as List);
+    } catch (_) {
+      return null;
+    }
+  }
 }
 
 class AiAssistantLimitException implements Exception {

@@ -101,7 +101,7 @@ class SocialAuthService {
       }
 
       // Get authentication details (idToken)
-      final auth = await account.authentication;
+      final auth = account.authentication;
       if (auth.idToken == null) {
         return SocialAuthResult(
           success: false,

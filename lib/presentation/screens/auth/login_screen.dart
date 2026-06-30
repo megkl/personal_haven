@@ -79,12 +79,16 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
       final ok = await ref.read(authProvider.notifier).socialLogin(result);
       if (!mounted) return;
       if (ok) {
-        Navigator.pushReplacement(
-          context,
-          MaterialPageRoute(builder: (_) => const MainNavigationScreen()),
-        );
+        _openHome();
         return;
       }
+    }
+
+    await ref.read(authProvider.notifier).checkAuthStatus();
+    if (!mounted) return;
+    if (ref.read(authProvider).isAuthenticated) {
+      _openHome();
+      return;
     }
 
     setState(() => _isLoading = false);
@@ -97,6 +101,13 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
         ),
       );
     }
+  }
+
+  void _openHome() {
+    Navigator.pushReplacement(
+      context,
+      MaterialPageRoute(builder: (_) => const MainNavigationScreen()),
+    );
   }
 
   @override

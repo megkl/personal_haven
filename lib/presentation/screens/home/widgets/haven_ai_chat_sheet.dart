@@ -16,6 +16,9 @@ import 'package:personal_haven/providers/journal_provider.dart';
 import 'package:personal_haven/providers/mood_provider.dart';
 import 'package:personal_haven/providers/shopping_list_provider.dart';
 import 'package:personal_haven/providers/task_provider.dart';
+import 'package:personal_haven/presentation/screens/home/widgets/haven_ai_message_widgets.dart';
+import 'package:personal_haven/presentation/screens/home/widgets/haven_ai_shopping_command.dart';
+import 'package:personal_haven/presentation/screens/home/widgets/haven_ai_suggestions.dart';
 import 'package:personal_haven/services/ai_assistant_service.dart';
 import 'package:speech_to_text/speech_to_text.dart' as stt;
 
@@ -31,8 +34,8 @@ class _HavenAiChatSheetState extends ConsumerState<HavenAiChatSheet> {
   final _scrollController = ScrollController();
   final _aiAssistantService = AiAssistantService();
   final stt.SpeechToText _speech = stt.SpeechToText();
-  final List<_ChatMessage> _messages = [
-    const _ChatMessage(
+  final List<HavenAiChatMessage> _messages = [
+    const HavenAiChatMessage(
       text:
           'Hi, I am Haven. Tell me what you want to plan and I will ask for the details I need.',
       isUser: false,
@@ -41,24 +44,12 @@ class _HavenAiChatSheetState extends ConsumerState<HavenAiChatSheet> {
   bool _isWorking = false;
   bool _isListening = false;
   bool _speechReady = false;
+  bool _voiceResultHandled = false;
   String _lastRecognizedAction = '';
   _AssistantDraft? _assistantDraft;
   _GuidedTaskDraft? _taskDraft;
   _GuidedActionDraft? _guidedDraft;
   List<String> _promptSuggestions = const [];
-
-  static const _suggestions = [
-    ('Add task', Icons.task_alt, 'I want to add a task'),
-    ('Track spend', Icons.payments_outlined, 'Spent KES 500 on groceries'),
-    ('Shopping', Icons.shopping_basket_outlined, 'Add milk to shopping list'),
-    ('Journal', Icons.edit_note_outlined, 'Journal: I feel proud of today'),
-    (
-      'Plan event',
-      Icons.calendar_month_outlined,
-      'Team catch-up Friday at 10 AM at the office',
-    ),
-    ('Log mood', Icons.mood_outlined, 'Log mood calm notes: slow morning')
-  ];
 
   @override
   void dispose() {
@@ -72,10 +63,7 @@ class _HavenAiChatSheetState extends ConsumerState<HavenAiChatSheet> {
     if (_isWorking) return;
 
     if (_isListening) {
-      await _speech.stop();
-      final text = _lastRecognizedAction.trim();
-      setState(() => _isListening = false);
-      if (text.isNotEmpty) await _send(text);
+      await _finishVoiceAction(sendIfPossible: true);
       return;
     }
 
@@ -85,13 +73,17 @@ class _HavenAiChatSheetState extends ConsumerState<HavenAiChatSheet> {
           onStatus: (status) {
             if (!mounted) return;
             if (status == 'done' || status == 'notListening') {
-              setState(() => _isListening = false);
+              Future.microtask(() => _finishVoiceAction(sendIfPossible: true));
             }
           },
-          onError: (_) {
+          onError: (error) {
             if (!mounted) return;
+            _voiceResultHandled = true;
             setState(() => _isListening = false);
-            _reply('I could not hear that clearly. Try the mic again.');
+            final message = error.errorMsg == 'error_permission'
+                ? 'Microphone permission is needed for voice actions.'
+                : 'I could not hear that clearly. Try the mic again.';
+            _reply(message);
           },
         );
 
@@ -101,6 +93,7 @@ class _HavenAiChatSheetState extends ConsumerState<HavenAiChatSheet> {
     }
 
     _lastRecognizedAction = '';
+    _voiceResultHandled = false;
     setState(() => _isListening = true);
     await _speech.listen(
       listenOptions: stt.SpeechListenOptions(
@@ -112,13 +105,25 @@ class _HavenAiChatSheetState extends ConsumerState<HavenAiChatSheet> {
           setState(() => _controller.text = _lastRecognizedAction);
         }
         if (result.finalResult && _lastRecognizedAction.trim().isNotEmpty) {
-          await _speech.stop();
-          if (!mounted) return;
-          setState(() => _isListening = false);
-          await _send(_lastRecognizedAction);
+          await _finishVoiceAction(sendIfPossible: true);
         }
       },
     );
+  }
+
+  Future<void> _finishVoiceAction({required bool sendIfPossible}) async {
+    if (_voiceResultHandled) return;
+    final text = _lastRecognizedAction.trim();
+    if (!sendIfPossible || text.isEmpty) {
+      if (mounted) setState(() => _isListening = false);
+      return;
+    }
+
+    _voiceResultHandled = true;
+    await _speech.stop();
+    if (!mounted) return;
+    setState(() => _isListening = false);
+    await _send(text);
   }
 
   Future<void> _send([String? preset]) async {
@@ -127,7 +132,7 @@ class _HavenAiChatSheetState extends ConsumerState<HavenAiChatSheet> {
 
     _controller.clear();
     setState(() {
-      _messages.add(_ChatMessage(text: text, isUser: true));
+      _messages.add(HavenAiChatMessage(text: text, isUser: true));
       _promptSuggestions = const [];
       _isWorking = true;
     });
@@ -149,6 +154,18 @@ class _HavenAiChatSheetState extends ConsumerState<HavenAiChatSheet> {
     final currencyCode =
         ref.read(currencyProvider).value ?? CurrencyFormatter.defaultCode;
 
+    final structuredJournal = _structuredJournalInput(text);
+    if (structuredJournal != null) {
+      await _saveStructuredJournal(structuredJournal);
+      return;
+    }
+
+    final structuredShoppingCommand = HavenAiShoppingCommand.parse(text);
+    if (structuredShoppingCommand?.hasMultipleItems == true) {
+      await _executeShoppingCommand(structuredShoppingCommand!);
+      return;
+    }
+
     AiAssistantResult? aiResult;
     try {
       aiResult = await _aiAssistantService.parseAction(text);
@@ -161,11 +178,11 @@ class _HavenAiChatSheetState extends ConsumerState<HavenAiChatSheet> {
       if (handled) return;
     }
 
-    if (_startAssistantDraftForRequest(text)) return;
+    if (await _startAssistantDraftForRequest(text)) return;
 
     if (_startGuidedFlowForRequest(text)) return;
 
-    final shoppingCommand = _ShoppingCommand.parse(text);
+    final shoppingCommand = HavenAiShoppingCommand.parse(text);
     if (shoppingCommand != null) {
       await _executeShoppingCommand(shoppingCommand);
       return;
@@ -314,7 +331,7 @@ class _HavenAiChatSheetState extends ConsumerState<HavenAiChatSheet> {
     return true;
   }
 
-  bool _startAssistantDraftForRequest(String input) {
+  Future<bool> _startAssistantDraftForRequest(String input) async {
     final lower = input.toLowerCase().trim();
     final intent = switch (lower) {
       final value
@@ -360,11 +377,18 @@ class _HavenAiChatSheetState extends ConsumerState<HavenAiChatSheet> {
       _ => null,
     };
     if (intent == null) return false;
-    _startAssistantDraft(_AssistantDraft(intent: intent, fields: const {}));
+    await _startAssistantDraft(
+      _AssistantDraft(intent: intent, fields: const {}),
+      userInput: input,
+    );
     return true;
   }
 
-  void _startAssistantDraft(_AssistantDraft draft, {String? reply}) {
+  Future<void> _startAssistantDraft(
+    _AssistantDraft draft, {
+    String? reply,
+    String userInput = '',
+  }) async {
     final normalized = draft.copyWith(
       missingFields: _missingFieldsForDraft(draft),
       suggestedPrompts: draft.suggestedPrompts.isEmpty
@@ -377,9 +401,13 @@ class _HavenAiChatSheetState extends ConsumerState<HavenAiChatSheet> {
       _askToConfirmDraft(normalized, reply: reply);
       return;
     }
-    _reply(
-      reply ?? _questionForField(normalized.intent, firstMissing),
-      prompts: normalized.suggestedPrompts,
+    await _replyForField(
+      intent: normalized.intent,
+      field: firstMissing,
+      question: reply ?? _questionForField(normalized.intent, firstMissing),
+      userInput: userInput,
+      fields: normalized.fields,
+      fallbackPrompts: normalized.suggestedPrompts,
     );
   }
 
@@ -412,9 +440,13 @@ class _HavenAiChatSheetState extends ConsumerState<HavenAiChatSheet> {
         awaitingConfirmation: false,
       );
       _assistantDraft = draft;
-      _reply(
-        _questionForField(draft.intent, changeField),
-        prompts: _suggestionsForField(draft.intent, changeField),
+      await _replyForField(
+        intent: draft.intent,
+        field: changeField,
+        question: _questionForField(draft.intent, changeField),
+        userInput: input,
+        fields: draft.fields,
+        fallbackPrompts: _suggestionsForField(draft.intent, changeField),
       );
       return;
     }
@@ -444,9 +476,13 @@ class _HavenAiChatSheetState extends ConsumerState<HavenAiChatSheet> {
       if (nextMissing == null) {
         _askToConfirmDraft(draft);
       } else {
-        _reply(
-          _questionForField(draft.intent, nextMissing),
-          prompts: _suggestionsForField(draft.intent, nextMissing),
+        await _replyForField(
+          intent: draft.intent,
+          field: nextMissing,
+          question: _questionForField(draft.intent, nextMissing),
+          userInput: input,
+          fields: draft.fields,
+          fallbackPrompts: _suggestionsForField(draft.intent, nextMissing),
         );
       }
       return;
@@ -694,10 +730,32 @@ class _HavenAiChatSheetState extends ConsumerState<HavenAiChatSheet> {
         'I’ll save this journal entry under ${fields['category']}. Save it?',
       'transaction' =>
         'I’ll log ${fields['amount']} as ${fields['type']} in ${fields['category']}. Save it?',
-      'shopping' =>
-        'I’ll add ${fields['itemName']}${fields['quantity'] == null || fields['quantity'].toString().isEmpty ? '' : ' (${fields['quantity']})'} to your shopping list. Save it?',
+      'shopping' => _shoppingConfirmationText(fields),
       _ => 'Should I save this?',
     };
+  }
+
+  String _shoppingConfirmationText(Map<String, dynamic> fields) {
+    final shoppingItems = _shoppingItemsFromFields(fields);
+    if (shoppingItems.length > 1) {
+      final preview = shoppingItems
+          .take(3)
+          .map((item) {
+            final quantity = item.quantity.isEmpty ? '' : ' (${item.quantity})';
+            return '${item.itemName}$quantity';
+          })
+          .join(', ');
+      final more = shoppingItems.length > 3
+          ? ', and ${shoppingItems.length - 3} more'
+          : '';
+      return 'I’ll add $preview$more to your shopping list. Save it?';
+    }
+
+    final quantity =
+        fields['quantity'] == null || fields['quantity'].toString().isEmpty
+        ? ''
+        : ' (${fields['quantity']})';
+    return 'I’ll add ${fields['itemName']}$quantity to your shopping list. Save it?';
   }
 
   String _dateSuffix(Object? value) {
@@ -816,10 +874,13 @@ class _HavenAiChatSheetState extends ConsumerState<HavenAiChatSheet> {
               JournalCategories.getByName(fields['category'].toString()) ??
               JournalCategories.getByName('Notes');
           final content = fields['content'].toString();
+          final title = fields['title']?.toString().trim();
           await ref
               .read(journalProvider.notifier)
               .addEntry(
-                title: _HavenAction._journalTitleFor(content),
+                title: title == null || title.isEmpty
+                    ? _HavenAction._journalTitleFor(content)
+                    : _HavenAction._capitalize(title),
                 content: content,
                 category: category?.name ?? 'Notes',
                 emoji: category?.emoji,
@@ -842,6 +903,19 @@ class _HavenAiChatSheetState extends ConsumerState<HavenAiChatSheet> {
               );
           break;
         case 'shopping':
+          final shoppingItems = _shoppingItemsFromFields(fields);
+          if (shoppingItems.length > 1) {
+            for (final item in shoppingItems) {
+              await ref
+                  .read(shoppingListProvider.notifier)
+                  .addItem(
+                    listTitle: fields['listTitle']?.toString(),
+                    name: item.itemName,
+                    quantity: item.quantity,
+                  );
+            }
+            break;
+          }
           await ref
               .read(shoppingListProvider.notifier)
               .addItem(
@@ -1392,8 +1466,56 @@ class _HavenAiChatSheetState extends ConsumerState<HavenAiChatSheet> {
       missingFields: result.missingFields,
       suggestedPrompts: result.suggestedPrompts,
     );
-    _startAssistantDraft(draft, reply: result.reply);
+    await _startAssistantDraft(draft, reply: result.reply);
     return true;
+  }
+
+  Future<void> _replyForField({
+    required String intent,
+    required String field,
+    required String question,
+    required String userInput,
+    required Map<String, dynamic> fields,
+    required List<String> fallbackPrompts,
+  }) async {
+    final prompts = await _smartPromptsForField(
+      intent: intent,
+      field: field,
+      question: question,
+      userInput: userInput,
+      fields: fields,
+      fallbackPrompts: fallbackPrompts,
+    );
+    _reply(question, prompts: prompts);
+  }
+
+  Future<List<String>> _smartPromptsForField({
+    required String intent,
+    required String field,
+    required String question,
+    required String userInput,
+    required Map<String, dynamic> fields,
+    required List<String> fallbackPrompts,
+  }) async {
+    final smartPrompts = await _aiAssistantService.generatePrompts(
+      intent: intent,
+      field: field,
+      question: question,
+      userInput: userInput,
+      fields: fields,
+      fallbackPrompts: fallbackPrompts,
+    );
+    if (smartPrompts == null || smartPrompts.isEmpty) return fallbackPrompts;
+
+    final seen = <String>{};
+    final prompts = smartPrompts
+        .map((prompt) => prompt.trim())
+        .where((prompt) => prompt.isNotEmpty && prompt.length <= 48)
+        .where((prompt) => seen.add(prompt.toLowerCase()))
+        .take(4)
+        .toList(growable: false);
+
+    return prompts.length >= 2 ? prompts : fallbackPrompts;
   }
 
   Map<String, dynamic> _normalizedAiFields(
@@ -1416,13 +1538,80 @@ class _HavenAiChatSheetState extends ConsumerState<HavenAiChatSheet> {
           (normalized['amount'] as num?)?.toDouble() ??
           double.tryParse(normalized['amount'].toString());
     }
+    if (intent == 'journal') {
+      final combined = [
+        normalized['title']?.toString(),
+        normalized['content']?.toString(),
+      ].whereType<String>().join(' ');
+      final structured = _structuredJournalInput(combined);
+      if (structured != null) {
+        normalized['title'] = structured.title;
+        normalized['content'] = structured.content;
+        normalized['category'] ??= structured.category;
+      }
+    }
     if (intent == 'shopping') {
       if (normalized['item'] != null && normalized['itemName'] == null) {
         normalized['itemName'] = normalized['item'];
       }
+      if (normalized['items'] != null && normalized['shoppingItems'] == null) {
+        normalized['shoppingItems'] = normalized['items'];
+      }
+      final shoppingItems = _shoppingItemsFromFields(normalized);
+      if (shoppingItems.isNotEmpty) {
+        normalized['shoppingItems'] = shoppingItems
+            .map(
+              (item) => {'itemName': item.itemName, 'quantity': item.quantity},
+            )
+            .toList(growable: false);
+        normalized['itemName'] = shoppingItems.first.itemName;
+        normalized['quantity'] = shoppingItems.first.quantity;
+      }
       normalized['quantity'] = normalized['quantity']?.toString() ?? '';
     }
     return normalized;
+  }
+
+  List<HavenAiShoppingItem> _shoppingItemsFromFields(
+    Map<String, dynamic> fields,
+  ) {
+    final rawItems = fields['shoppingItems'];
+    if (rawItems is List) {
+      return rawItems
+          .map((raw) {
+            if (raw is Map) {
+              final itemName =
+                  raw['itemName']?.toString() ?? raw['name']?.toString();
+              if (itemName == null || itemName.trim().isEmpty) return null;
+              return HavenAiShoppingItem(
+                itemName: _HavenAction._capitalize(itemName.trim()),
+                quantity:
+                    raw['quantity']?.toString() ??
+                    raw['amount']?.toString() ??
+                    '',
+              );
+            }
+            if (raw is String) {
+              final parsedItems = HavenAiShoppingCommand.parseItems(raw);
+              return parsedItems.isEmpty ? null : parsedItems.first;
+            }
+            return null;
+          })
+          .whereType<HavenAiShoppingItem>()
+          .toList(growable: false);
+    }
+
+    final itemText =
+        fields['itemName']?.toString() ?? fields['item']?.toString();
+    if (itemText == null || itemText.trim().isEmpty) return const [];
+    final parsedItems = HavenAiShoppingCommand.parseItems(itemText);
+    if (parsedItems.length > 1) return parsedItems;
+    return [
+      HavenAiShoppingItem(
+        itemName: _HavenAction._capitalize(itemText.trim()),
+        quantity: fields['quantity']?.toString() ?? '',
+      ),
+    ];
   }
 
   String _labelForField(String field) {
@@ -1512,7 +1701,23 @@ class _HavenAiChatSheetState extends ConsumerState<HavenAiChatSheet> {
     }
   }
 
-  Future<void> _executeShoppingCommand(_ShoppingCommand command) async {
+  Future<void> _executeShoppingCommand(HavenAiShoppingCommand command) async {
+    if (command.hasMultipleItems) {
+      for (final item in command.items) {
+        await ref
+            .read(shoppingListProvider.notifier)
+            .addItem(
+              listTitle: command.listTitle,
+              name: item.itemName,
+              quantity: item.quantity,
+            );
+      }
+      _reply(
+        'Done. I added ${command.items.length} items to your shopping list.',
+      );
+      return;
+    }
+
     await ref
         .read(shoppingListProvider.notifier)
         .addItem(
@@ -1522,6 +1727,66 @@ class _HavenAiChatSheetState extends ConsumerState<HavenAiChatSheet> {
         );
     final quantity = command.quantity.isEmpty ? '' : ' (${command.quantity})';
     _reply('Done. I added ${command.itemName}$quantity to your shopping list.');
+  }
+
+  _StructuredJournalInput? _structuredJournalInput(String input) {
+    final lower = input.toLowerCase();
+    if (!lower.contains('journal') &&
+        !lower.contains('title:') &&
+        !lower.contains('content:') &&
+        !lower.contains('description:')) {
+      return null;
+    }
+
+    final title = _labeledValue(input, ['title']);
+    final content = _labeledValue(input, [
+      'content',
+      'description',
+      'body',
+      'entry',
+      'note',
+    ]);
+    final category = _labeledValue(input, ['category']);
+    if ((title == null || title.isEmpty) &&
+        (content == null || content.isEmpty)) {
+      return null;
+    }
+
+    final resolvedContent = content ?? title!;
+    return _StructuredJournalInput(
+      title: title ?? _HavenAction._journalTitleFor(resolvedContent),
+      content: resolvedContent,
+      category: category,
+    );
+  }
+
+  String? _labeledValue(String input, List<String> labels) {
+    final labelPattern = labels.map(RegExp.escape).join('|');
+    final match = RegExp(
+      '(?:^|\\s)($labelPattern)\\s*:\\s*(.+?)(?=\\s+(?:title|content|description|body|entry|note|category)\\s*:|\$)',
+      caseSensitive: false,
+      dotAll: true,
+    ).firstMatch(input);
+    return match?.group(2)?.trim();
+  }
+
+  Future<void> _saveStructuredJournal(_StructuredJournalInput journal) async {
+    final categoryName = journal.category?.trim().isNotEmpty == true
+        ? journal.category!.trim()
+        : _journalCategoryFor('${journal.title} ${journal.content}');
+    final category =
+        JournalCategories.getByName(categoryName) ??
+        JournalCategories.getByName('Notes');
+    await ref
+        .read(journalProvider.notifier)
+        .addEntry(
+          title: _HavenAction._capitalize(journal.title),
+          content: journal.content,
+          category: category?.name ?? categoryName,
+          emoji: category?.emoji,
+          tags: _HavenAction._tagsFor(journal.content),
+        );
+    _reply('Saved “${journal.title}” as a journal entry.');
   }
 
   Future<String> _executeHavenAction(
@@ -1589,7 +1854,7 @@ class _HavenAiChatSheetState extends ConsumerState<HavenAiChatSheet> {
   void _reply(String text, {List<String> prompts = const []}) {
     if (!mounted) return;
     setState(() {
-      _messages.add(_ChatMessage(text: text, isUser: false));
+      _messages.add(HavenAiChatMessage(text: text, isUser: false));
       _promptSuggestions = prompts;
       _isWorking = false;
     });
@@ -1660,7 +1925,6 @@ class _HavenAiChatSheetState extends ConsumerState<HavenAiChatSheet> {
             children: [
               _buildHeader(),
               _buildHero(),
-              _buildSuggestions(),
               Expanded(
                 child: ListView.builder(
                   controller: _scrollController,
@@ -1668,9 +1932,9 @@ class _HavenAiChatSheetState extends ConsumerState<HavenAiChatSheet> {
                   itemCount: _messages.length + (_isWorking ? 1 : 0),
                   itemBuilder: (context, index) {
                     if (index == _messages.length) {
-                      return const _TypingBubble();
+                      return const HavenAiTypingBubble();
                     }
-                    return _MessageBubble(message: _messages[index]);
+                    return HavenAiMessageBubble(message: _messages[index]);
                   },
                 ),
               ),
@@ -1766,270 +2030,88 @@ class _HavenAiChatSheetState extends ConsumerState<HavenAiChatSheet> {
     );
   }
 
-  Widget _buildSuggestions() {
-    final activePrompts = _promptSuggestions;
-    if (activePrompts.isNotEmpty) {
-      return SizedBox(
-        height: 46,
-        child: ListView.separated(
-          scrollDirection: Axis.horizontal,
-          padding: const EdgeInsets.symmetric(horizontal: 16),
-          itemCount: activePrompts.length,
-          separatorBuilder: (_, _) => const SizedBox(width: 8),
-          itemBuilder: (context, index) {
-            final prompt = activePrompts[index];
-            return ActionChip(
-              onPressed: () => _send(prompt),
-              label: Text(prompt),
-              backgroundColor: AppColors.primary.withValues(alpha: 0.12),
-              side: BorderSide(
-                color: AppColors.primary.withValues(alpha: 0.28),
-              ),
-              labelStyle: const TextStyle(
-                color: AppColors.primaryDark,
-                fontSize: 12,
-                fontWeight: FontWeight.w700,
-              ),
-            );
-          },
-        ),
-      );
-    }
-
-    return SizedBox(
-      height: 46,
-      child: ListView.separated(
-        scrollDirection: Axis.horizontal,
-        padding: const EdgeInsets.symmetric(horizontal: 16),
-        itemCount: _suggestions.length,
-        separatorBuilder: (_, _) => const SizedBox(width: 8),
-        itemBuilder: (context, index) {
-          final (label, icon, prompt) = _suggestions[index];
-          return ActionChip(
-            onPressed: () => _send(prompt),
-            avatar: Icon(icon, size: 17, color: AppColors.primaryDark),
-            label: Text(label),
-            backgroundColor: AppColors.primary.withValues(alpha: 0.1),
-            side: BorderSide(color: AppColors.primary.withValues(alpha: 0.25)),
-            labelStyle: const TextStyle(
-              color: AppColors.primaryDark,
-              fontSize: 12,
-              fontWeight: FontWeight.w600,
-            ),
-          );
-        },
-      ),
-    );
-  }
-
   Widget _buildComposer() {
     return SafeArea(
       top: false,
       child: Container(
-        padding: const EdgeInsets.fromLTRB(16, 10, 16, 12),
+        padding: const EdgeInsets.fromLTRB(0, 8, 0, 12),
         decoration: BoxDecoration(
           color: context.colors.cardColor,
           border: Border(top: BorderSide(color: context.colors.divider)),
         ),
-        child: Row(
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
           children: [
-            Expanded(
-              child: TextField(
-                controller: _controller,
-                minLines: 1,
-                maxLines: 3,
-                textInputAction: TextInputAction.send,
-                onSubmitted: (_) => _send(),
-                decoration: InputDecoration(
-                  hintText: 'Ask Haven to add something...',
-                  filled: true,
-                  fillColor: context.colors.cardColor2,
-                  contentPadding: const EdgeInsets.symmetric(
-                    horizontal: 16,
-                    vertical: 12,
-                  ),
-                  border: OutlineInputBorder(
-                    borderRadius: BorderRadius.circular(16),
-                    borderSide: BorderSide.none,
-                  ),
-                ),
-              ),
+            HavenAiSuggestionRail(
+              prompts: _promptSuggestions,
+              onPromptSelected: _send,
             ),
-            const SizedBox(width: 8),
-            IconButton.filledTonal(
-              tooltip: _isListening ? 'Stop recording action' : 'Record action',
-              onPressed: _isWorking ? null : _toggleVoiceAction,
-              style: IconButton.styleFrom(
-                backgroundColor: _isListening
-                    ? AppColors.primary.withValues(alpha: 0.16)
-                    : context.colors.cardColor2,
-                foregroundColor: _isListening
-                    ? AppColors.primaryDark
-                    : context.colors.textSecondary,
+            const SizedBox(height: 8),
+            Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 16),
+              child: Row(
+                children: [
+                  Expanded(
+                    child: TextField(
+                      controller: _controller,
+                      minLines: 1,
+                      maxLines: 3,
+                      textInputAction: TextInputAction.send,
+                      onSubmitted: (_) => _send(),
+                      decoration: InputDecoration(
+                        hintText: 'Ask Haven to add something...',
+                        filled: true,
+                        fillColor: context.colors.cardColor2,
+                        contentPadding: const EdgeInsets.symmetric(
+                          horizontal: 16,
+                          vertical: 12,
+                        ),
+                        border: OutlineInputBorder(
+                          borderRadius: BorderRadius.circular(16),
+                          borderSide: BorderSide.none,
+                        ),
+                      ),
+                    ),
+                  ),
+                  const SizedBox(width: 8),
+                  IconButton.filledTonal(
+                    tooltip: _isListening
+                        ? 'Stop recording action'
+                        : 'Record action',
+                    onPressed: _isWorking ? null : _toggleVoiceAction,
+                    style: IconButton.styleFrom(
+                      backgroundColor: _isListening
+                          ? AppColors.primary.withValues(alpha: 0.16)
+                          : context.colors.cardColor2,
+                      foregroundColor: _isListening
+                          ? AppColors.primaryDark
+                          : context.colors.textSecondary,
+                    ),
+                    icon: Icon(
+                      _isListening
+                          ? Icons.graphic_eq_rounded
+                          : Icons.mic_none_rounded,
+                    ),
+                  ),
+                  const SizedBox(width: 8),
+                  IconButton.filled(
+                    tooltip: 'Send',
+                    onPressed: _isWorking ? null : _send,
+                    style: IconButton.styleFrom(
+                      backgroundColor: AppColors.primary,
+                      foregroundColor: Colors.white,
+                      disabledBackgroundColor: AppColors.primary.withValues(
+                        alpha: 0.45,
+                      ),
+                    ),
+                    icon: const Icon(Icons.arrow_upward_rounded),
+                  ),
+                ],
               ),
-              icon: Icon(
-                _isListening
-                    ? Icons.graphic_eq_rounded
-                    : Icons.mic_none_rounded,
-              ),
-            ),
-            const SizedBox(width: 8),
-            IconButton.filled(
-              tooltip: 'Send',
-              onPressed: _isWorking ? null : _send,
-              style: IconButton.styleFrom(
-                backgroundColor: AppColors.primary,
-                foregroundColor: Colors.white,
-                disabledBackgroundColor: AppColors.primary.withValues(
-                  alpha: 0.45,
-                ),
-              ),
-              icon: const Icon(Icons.arrow_upward_rounded),
             ),
           ],
         ),
       ),
-    );
-  }
-}
-
-class _MessageBubble extends StatelessWidget {
-  final _ChatMessage message;
-
-  const _MessageBubble({required this.message});
-
-  @override
-  Widget build(BuildContext context) {
-    return Align(
-      alignment: message.isUser ? Alignment.centerRight : Alignment.centerLeft,
-      child: Container(
-        constraints: BoxConstraints(
-          maxWidth: MediaQuery.sizeOf(context).width * 0.78,
-        ),
-        margin: const EdgeInsets.only(bottom: 10),
-        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 11),
-        decoration: BoxDecoration(
-          color: message.isUser ? AppColors.primary : context.colors.cardColor2,
-          borderRadius: BorderRadius.only(
-            topLeft: const Radius.circular(16),
-            topRight: const Radius.circular(16),
-            bottomLeft: Radius.circular(message.isUser ? 16 : 4),
-            bottomRight: Radius.circular(message.isUser ? 4 : 16),
-          ),
-        ),
-        child: Text(
-          message.text,
-          style: TextStyle(
-            color: message.isUser ? Colors.white : context.colors.textPrimary,
-            fontSize: 13,
-            height: 1.35,
-          ),
-        ),
-      ),
-    );
-  }
-}
-
-class _TypingBubble extends StatelessWidget {
-  const _TypingBubble();
-
-  @override
-  Widget build(BuildContext context) {
-    return Align(
-      alignment: Alignment.centerLeft,
-      child: Container(
-        margin: const EdgeInsets.only(bottom: 10),
-        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
-        decoration: BoxDecoration(
-          color: context.colors.cardColor2,
-          borderRadius: BorderRadius.circular(16),
-        ),
-        child: const SizedBox(
-          width: 18,
-          height: 18,
-          child: CircularProgressIndicator(strokeWidth: 2),
-        ),
-      ),
-    );
-  }
-}
-
-class _ChatMessage {
-  final String text;
-  final bool isUser;
-
-  const _ChatMessage({required this.text, required this.isUser});
-}
-
-class _ShoppingCommand {
-  const _ShoppingCommand({
-    required this.itemName,
-    this.quantity = '',
-    this.listTitle,
-  });
-
-  final String itemName;
-  final String quantity;
-  final String? listTitle;
-
-  static _ShoppingCommand? parse(String input) {
-    final text = input.trim();
-    final lower = text.toLowerCase();
-    final mentionsShopping =
-        lower.contains('shopping') ||
-        lower.contains('grocery') ||
-        lower.contains('list');
-    if (!lower.contains('shopping') &&
-        !lower.contains('grocery') &&
-        !lower.startsWith('buy ') &&
-        !lower.startsWith('get ') &&
-        !lower.startsWith('add ') &&
-        !lower.startsWith('put ')) {
-      return null;
-    }
-    if ((lower.startsWith('add ') || lower.startsWith('put ')) &&
-        !mentionsShopping) {
-      return null;
-    }
-
-    final match = RegExp(
-      r'^(?:please\s+)?(?:add|put|buy|get)\s+(.+?)(?:\s+(?:to|on|in)\s+(?:my\s+)?(.+?))?$',
-      caseSensitive: false,
-    ).firstMatch(text);
-    if (match == null) return null;
-
-    var itemText = match.group(1)!.trim();
-    final destination = match.group(2)?.trim();
-    if (destination != null &&
-        !destination.toLowerCase().contains('shopping') &&
-        !destination.toLowerCase().contains('grocery') &&
-        !destination.toLowerCase().contains('list')) {
-      return null;
-    }
-
-    itemText = itemText
-        .replaceAll(
-          RegExp(r'\b(shopping|grocery|list)\b', caseSensitive: false),
-          '',
-        )
-        .trim();
-    if (itemText.isEmpty) return null;
-
-    final quantityMatch = RegExp(
-      r'\b(\d+(?:[./]\d+)?\s*(?:ct|gal|g|kg|ml|l|lbs?|packs?|bottles?|loaves?)?)$',
-      caseSensitive: false,
-    ).firstMatch(itemText);
-    final quantity = quantityMatch?.group(1)?.trim() ?? '';
-    if (quantity.isNotEmpty) {
-      itemText = itemText.substring(0, quantityMatch!.start).trim();
-    }
-
-    return _ShoppingCommand(
-      itemName: _HavenAction._capitalize(itemText),
-      quantity: quantity,
-      listTitle: destination?.toLowerCase().contains('breakfast') == true
-          ? 'Morning breakfast'
-          : null,
     );
   }
 }
@@ -2175,6 +2257,18 @@ class _AssistantDraft {
     final text = value.toString().trim();
     return text.isEmpty || text.toLowerCase() == 'null' ? null : text;
   }
+}
+
+class _StructuredJournalInput {
+  const _StructuredJournalInput({
+    required this.title,
+    required this.content,
+    this.category,
+  });
+
+  final String title;
+  final String content;
+  final String? category;
 }
 
 class _PlannerCommand {
@@ -2875,11 +2969,23 @@ class _HavenAction {
         )
         .trim();
     content = _PlannerCommand._removePlanningDetails(content).trim();
+    final labeledTitle = _labeledText(content, ['title']);
+    final labeledContent = _labeledText(content, [
+      'content',
+      'description',
+      'body',
+      'entry',
+      'note',
+    ]);
+    final labeledCategory = _labeledText(content, ['category']);
+    if (labeledTitle != null || labeledContent != null) {
+      content = labeledContent ?? labeledTitle ?? content;
+    }
     if (content.isEmpty) content = 'Journal entry';
 
-    final category = _journalCategoryFor(content);
+    final category = labeledCategory ?? _journalCategoryFor(content);
     final tags = _tagsFor(content);
-    final title = _journalTitleFor(content);
+    final title = labeledTitle ?? _journalTitleFor(content);
 
     return _HavenAction(
       type: _HavenActionType.journal,
@@ -2889,6 +2995,16 @@ class _HavenAction {
       category: category,
       tags: tags,
     );
+  }
+
+  static String? _labeledText(String input, List<String> labels) {
+    final labelPattern = labels.map(RegExp.escape).join('|');
+    final match = RegExp(
+      '(?:^|\\s)($labelPattern)\\s*:\\s*(.+?)(?=\\s+(?:title|content|description|body|entry|note|category)\\s*:|\$)',
+      caseSensitive: false,
+      dotAll: true,
+    ).firstMatch(input);
+    return match?.group(2)?.trim();
   }
 
   static _HavenAction? _parseTransaction(String input) {
