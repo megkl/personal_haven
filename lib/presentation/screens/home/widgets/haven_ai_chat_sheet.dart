@@ -871,21 +871,22 @@ class _HavenAiChatSheetState extends ConsumerState<HavenAiChatSheet> {
               );
           break;
         case 'journal':
+          final journal = _cleanJournalFields(
+            title: fields['title']?.toString(),
+            content: fields['content'].toString(),
+            category: fields['category']?.toString(),
+          );
           final category =
-              JournalCategories.getByName(fields['category'].toString()) ??
+              JournalCategories.getByName(journal.category ?? '') ??
               JournalCategories.getByName('Notes');
-          final content = fields['content'].toString();
-          final title = fields['title']?.toString().trim();
           await ref
               .read(journalProvider.notifier)
               .addEntry(
-                title: title == null || title.isEmpty
-                    ? _HavenAction._journalTitleFor(content)
-                    : _HavenAction._capitalize(title),
-                content: content,
+                title: _HavenAction._capitalize(journal.title),
+                content: journal.content,
                 category: category?.name ?? 'Notes',
                 emoji: category?.emoji,
-                tags: _HavenAction._tagsFor(content),
+                tags: _HavenAction._tagsFor(journal.content),
               );
           break;
         case 'transaction':
@@ -1741,10 +1742,8 @@ class _HavenAiChatSheetState extends ConsumerState<HavenAiChatSheet> {
 
   _StructuredJournalInput? _structuredJournalInput(String input) {
     final lower = input.toLowerCase();
-    if (!lower.contains('journal') &&
-        !lower.contains('title:') &&
-        !lower.contains('content:') &&
-        !lower.contains('description:')) {
+    final hasJournalLabels = _hasJournalLabels(input);
+    if (!lower.contains('journal') && !hasJournalLabels) {
       return null;
     }
 
@@ -1762,41 +1761,112 @@ class _HavenAiChatSheetState extends ConsumerState<HavenAiChatSheet> {
       return null;
     }
 
-    final resolvedContent = content ?? title!;
-    return _StructuredJournalInput(
-      title: title ?? _HavenAction._journalTitleFor(resolvedContent),
-      content: resolvedContent,
+    return _cleanJournalFields(
+      title: title,
+      content: content ?? title!,
       category: category,
     );
+  }
+
+  bool _hasJournalLabels(String input) {
+    return RegExp(
+      r'(?:^|\s)(title|content|description|body|entry|note|category)\s*(?::|\s+)',
+      caseSensitive: false,
+    ).hasMatch(input);
   }
 
   String? _labeledValue(String input, List<String> labels) {
     final labelPattern = labels.map(RegExp.escape).join('|');
     final match = RegExp(
-      '(?:^|\\s)($labelPattern)\\s*:?\\s*(.+?)(?=\\s+(?:title|content|description|body|entry|note|category)\\s*:?\\s*|\$)',
+      '(?:^|\\s)($labelPattern)\\s*(?::\\s*|\\s+)(.+?)(?=\\s+(?:title|content|description|body|entry|note|category)\\s*(?::|\\s+)|\$)',
       caseSensitive: false,
       dotAll: true,
     ).firstMatch(input);
     return match?.group(2)?.trim();
   }
 
+  _StructuredJournalInput _cleanJournalFields({
+    String? title,
+    required String content,
+    String? category,
+  }) {
+    final combined = [
+      title,
+      content,
+      category == null || category.trim().isEmpty
+          ? null
+          : 'category: $category',
+    ].whereType<String>().where((value) => value.trim().isNotEmpty).join(' ');
+
+    final labeledTitle = _labeledValue(combined, ['title']);
+    final labeledContent = _labeledValue(combined, [
+      'content',
+      'description',
+      'body',
+      'entry',
+      'note',
+    ]);
+    final labeledCategory = _labeledValue(combined, ['category']);
+
+    final cleanContent = _stripJournalLabelPrefix(labeledContent ?? content, [
+      'content',
+      'description',
+      'body',
+      'entry',
+      'note',
+    ]);
+    final fallbackTitle = title?.trim().isNotEmpty == true
+        ? title!.trim()
+        : _HavenAction._journalTitleFor(cleanContent);
+    final cleanTitle = _stripJournalLabelPrefix(labeledTitle ?? fallbackTitle, [
+      'title',
+    ]);
+    final resolvedCategory =
+        (labeledCategory ?? category)?.trim().isNotEmpty == true
+        ? _stripJournalLabelPrefix(labeledCategory ?? category!, ['category'])
+        : _journalCategoryFor('$cleanTitle $cleanContent');
+
+    return _StructuredJournalInput(
+      title: cleanTitle.isEmpty
+          ? _HavenAction._journalTitleFor(cleanContent)
+          : cleanTitle,
+      content: cleanContent,
+      category: resolvedCategory,
+    );
+  }
+
+  String _stripJournalLabelPrefix(String value, List<String> labels) {
+    final labelPattern = labels.map(RegExp.escape).join('|');
+    return value
+        .replaceFirst(
+          RegExp('^\\s*(?:$labelPattern)\\s*:?\\s*', caseSensitive: false),
+          '',
+        )
+        .trim();
+  }
+
   Future<void> _saveStructuredJournal(_StructuredJournalInput journal) async {
-    final categoryName = journal.category?.trim().isNotEmpty == true
-        ? journal.category!.trim()
-        : _journalCategoryFor('${journal.title} ${journal.content}');
+    final cleaned = _cleanJournalFields(
+      title: journal.title,
+      content: journal.content,
+      category: journal.category,
+    );
+    final categoryName = cleaned.category?.trim().isNotEmpty == true
+        ? cleaned.category!.trim()
+        : _journalCategoryFor('${cleaned.title} ${cleaned.content}');
     final category =
         JournalCategories.getByName(categoryName) ??
         JournalCategories.getByName('Notes');
     await ref
         .read(journalProvider.notifier)
         .addEntry(
-          title: _HavenAction._capitalize(journal.title),
-          content: journal.content,
+          title: _HavenAction._capitalize(cleaned.title),
+          content: cleaned.content,
           category: category?.name ?? categoryName,
           emoji: category?.emoji,
-          tags: _HavenAction._tagsFor(journal.content),
+          tags: _HavenAction._tagsFor(cleaned.content),
         );
-    _reply('Saved “${journal.title}” as a journal entry.');
+    _reply('Saved “${cleaned.title}” as a journal entry.');
   }
 
   Future<String> _executeHavenAction(
@@ -1829,16 +1899,22 @@ class _HavenAiChatSheetState extends ConsumerState<HavenAiChatSheet> {
             );
         return 'Done. I logged ${action.title} for ${action.mealType ?? 'snack'}.';
       case _HavenActionType.journal:
-        final category = action.category ?? _journalCategoryFor(action.title);
+        final journal = _cleanJournalFields(
+          title: action.title,
+          content: action.description ?? action.title,
+          category: action.category,
+        );
+        final category =
+            journal.category ?? _journalCategoryFor(journal.content);
         final journalCategory = JournalCategories.getByName(category);
         await ref
             .read(journalProvider.notifier)
             .addEntry(
-              title: action.title,
-              content: action.description ?? action.title,
+              title: _HavenAction._capitalize(journal.title),
+              content: journal.content,
               category: journalCategory?.name ?? category,
               emoji: journalCategory?.emoji,
-              tags: action.tags,
+              tags: _HavenAction._tagsFor(journal.content),
               entryDate: action.dateTime,
             );
         return 'Saved that journal entry under ${journalCategory?.name ?? category}.';
@@ -3010,7 +3086,7 @@ class _HavenAction {
   static String? _labeledText(String input, List<String> labels) {
     final labelPattern = labels.map(RegExp.escape).join('|');
     final match = RegExp(
-      '(?:^|\\s)($labelPattern)\\s*:\\s*(.+?)(?=\\s+(?:title|content|description|body|entry|note|category)\\s*:|\$)',
+      '(?:^|\\s)($labelPattern)\\s*(?::\\s*|\\s+)(.+?)(?=\\s+(?:title|content|description|body|entry|note|category)\\s*(?::|\\s+)|\$)',
       caseSensitive: false,
       dotAll: true,
     ).firstMatch(input);

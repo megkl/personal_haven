@@ -687,41 +687,41 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
         .setReminderMinute(key, picked.hour * 60 + picked.minute);
   }
 
-  // Future<void> _sendTestNotification(BuildContext context) async {
-  //   final granted = await ref
-  //       .read(notificationProvider.notifier)
-  //       .sendTestNotification();
-  //   if (!context.mounted) return;
-  //   ScaffoldMessenger.of(context).showSnackBar(
-  //     SnackBar(
-  //       content: Text(
-  //         granted
-  //             ? 'Test notification sent'
-  //             : 'Notification permission was not granted',
-  //       ),
-  //       backgroundColor: granted ? AppColors.primary : Colors.red,
-  //       behavior: SnackBarBehavior.floating,
-  //     ),
-  //   );
-  // }
+  Future<void> _sendTestNotification(BuildContext context) async {
+    final granted = await ref
+        .read(notificationProvider.notifier)
+        .sendTestNotification();
+    if (!context.mounted) return;
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text(
+          granted
+              ? 'Test notification sent'
+              : 'Notification permission was not granted',
+        ),
+        backgroundColor: granted ? AppColors.primary : Colors.red,
+        behavior: SnackBarBehavior.floating,
+      ),
+    );
+  }
 
-  // Future<void> _scheduleTestNotification(BuildContext context) async {
-  //   final granted = await ref
-  //       .read(notificationProvider.notifier)
-  //       .scheduleTestNotification();
-  //   if (!context.mounted) return;
-  //   ScaffoldMessenger.of(context).showSnackBar(
-  //     SnackBar(
-  //       content: Text(
-  //         granted
-  //             ? 'Scheduled test notification for 5 seconds from now'
-  //             : 'Notification or exact alarm permission was not granted',
-  //       ),
-  //       backgroundColor: granted ? AppColors.primary : Colors.red,
-  //       behavior: SnackBarBehavior.floating,
-  //     ),
-  //   );
-  // }
+  Future<void> _scheduleTestNotification(BuildContext context) async {
+    final granted = await ref
+        .read(notificationProvider.notifier)
+        .scheduleTestNotification();
+    if (!context.mounted) return;
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text(
+          granted
+              ? 'Scheduled test notification for 5 seconds from now'
+              : 'Notification or exact alarm permission was not granted',
+        ),
+        backgroundColor: granted ? AppColors.primary : Colors.red,
+        behavior: SnackBarBehavior.floating,
+      ),
+    );
+  }
 
   String _formatMinuteOfDay(BuildContext context, int minuteOfDay) {
     return TimeOfDay(

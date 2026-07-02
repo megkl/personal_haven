@@ -69,6 +69,9 @@ void main() {
       }
 
       await NotificationService.instance.initialize();
+      await NotificationService.instance.requestPermission(
+        includeExactAlarms: false,
+      );
       await SocialAuthService.instance.initializeGoogle();
       runApp(const ProviderScope(child: PersonalHavenApp()));
     },

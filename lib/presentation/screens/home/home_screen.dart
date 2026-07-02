@@ -1475,6 +1475,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen>
 
   Widget _buildJournalEntryItem(JournalEntry entry) {
     final categoryData = JournalCategories.getByName(entry.category);
+    final preview = _cleanJournalPreview(entry);
     return Padding(
       padding: const EdgeInsets.only(bottom: 10),
       child: Row(
@@ -1489,13 +1490,13 @@ class _HomeScreenState extends ConsumerState<HomeScreen>
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Text(
-                  entry.title,
+                  preview.title,
                   style: TextStyle(fontSize: 14, fontWeight: FontWeight.bold),
                   maxLines: 1,
                   overflow: TextOverflow.ellipsis,
                 ),
                 Text(
-                  entry.content,
+                  preview.content,
                   style: TextStyle(
                     fontSize: 12,
                     color: context.colors.textSecondary,
@@ -1513,6 +1514,52 @@ class _HomeScreenState extends ConsumerState<HomeScreen>
         ],
       ),
     );
+  }
+
+  ({String title, String content}) _cleanJournalPreview(JournalEntry entry) {
+    final combined = '${entry.title} ${entry.content}';
+    final labeledTitle = _journalLabelValue(combined, ['title']);
+    final labeledContent = _journalLabelValue(combined, [
+      'content',
+      'description',
+      'body',
+      'entry',
+      'note',
+    ]);
+    final title = _stripJournalLabelPrefix(labeledTitle ?? entry.title, [
+      'title',
+    ]);
+    final content = _stripJournalLabelPrefix(labeledContent ?? entry.content, [
+      'content',
+      'description',
+      'body',
+      'entry',
+      'note',
+    ]);
+    return (
+      title: title.isEmpty ? entry.title : title,
+      content: content.isEmpty ? entry.content : content,
+    );
+  }
+
+  String? _journalLabelValue(String input, List<String> labels) {
+    final labelPattern = labels.map(RegExp.escape).join('|');
+    final match = RegExp(
+      '(?:^|\\s)($labelPattern)\\s*(?::\\s*|\\s+)(.+?)(?=\\s+(?:title|content|description|body|entry|note|category)\\s*(?::|\\s+)|\$)',
+      caseSensitive: false,
+      dotAll: true,
+    ).firstMatch(input);
+    return match?.group(2)?.trim();
+  }
+
+  String _stripJournalLabelPrefix(String value, List<String> labels) {
+    final labelPattern = labels.map(RegExp.escape).join('|');
+    return value
+        .replaceFirst(
+          RegExp('^\\s*(?:$labelPattern)\\s*:?\\s*', caseSensitive: false),
+          '',
+        )
+        .trim();
   }
 
   // ─── FOOD CARD ────────────────────────────────────────────────

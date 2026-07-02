@@ -50,9 +50,9 @@ class NotificationService {
 
     const android = AndroidInitializationSettings('@mipmap/ic_launcher');
     const ios = DarwinInitializationSettings(
-      requestAlertPermission: true,
-      requestBadgePermission: true,
-      requestSoundPermission: true,
+      requestAlertPermission: false,
+      requestBadgePermission: false,
+      requestSoundPermission: false,
     );
     await _plugin.initialize(
       settings: InitializationSettings(android: android, iOS: ios),
@@ -150,6 +150,9 @@ class NotificationService {
     int journalMinuteOfDay = 21 * 60,
     int mealMinuteOfDay = 13 * 60,
   }) async {
+    final granted = await requestPermission();
+    if (!granted) return;
+
     await _scheduleDailyAt(
       id: NotificationIds.morningCheckin,
       hour: morningMinuteOfDay ~/ 60,
@@ -235,6 +238,9 @@ class NotificationService {
   // ── Weekly ────────────────────────────────────────────────────────────────
 
   Future<void> scheduleWeeklyMoodSummary({int minuteOfDay = 18 * 60}) async {
+    final granted = await requestPermission();
+    if (!granted) return;
+
     final now = tz.TZDateTime.now(tz.local);
     var daysUntilSunday = DateTime.sunday - now.weekday;
     if (daysUntilSunday <= 0) daysUntilSunday += 7;
@@ -334,6 +340,9 @@ class NotificationService {
     String eventTitle,
     DateTime eventTime,
   ) async {
+    final granted = await requestPermission();
+    if (!granted) return;
+
     final reminderTime = eventTime.subtract(const Duration(hours: 1));
     if (reminderTime.isBefore(DateTime.now())) return;
 
@@ -369,6 +378,9 @@ class NotificationService {
   // ── Subscription ─────────────────────────────────────────────────────────
 
   Future<void> scheduleSubscriptionReminders(DateTime expiryDate) async {
+    final granted = await requestPermission();
+    if (!granted) return;
+
     final now = DateTime.now();
     final threeDays = expiryDate.subtract(const Duration(days: 3));
     final oneDay = expiryDate.subtract(const Duration(days: 1));
