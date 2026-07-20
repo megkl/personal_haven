@@ -58,7 +58,7 @@ class DefaultFirebaseOptions {
 
   static const FirebaseOptions android = FirebaseOptions(
     apiKey: 'AIzaSyBG0qNFrT1MrahBqwNP0Z2g-bHArrNOg9w',
-    appId: '1:748102487039:android:4099c0c52f33170471f5ca',
+    appId: '1:748102487039:android:5b177571ce89415c71f5ca',
     messagingSenderId: '748102487039',
     projectId: 'personal-haven-405b9',
     storageBucket: 'personal-haven-405b9.firebasestorage.app',
@@ -66,11 +66,11 @@ class DefaultFirebaseOptions {
 
   static const FirebaseOptions ios = FirebaseOptions(
     apiKey: 'AIzaSyBc-cxPbzhcsaGz1WSecxG2Qa_lCenCjdY',
-    appId: '1:748102487039:ios:956d6655f17a65f071f5ca',
+    appId: '1:748102487039:ios:ca34174d52c2c41371f5ca',
     messagingSenderId: '748102487039',
     projectId: 'personal-haven-405b9',
     storageBucket: 'personal-haven-405b9.firebasestorage.app',
-    iosClientId: '748102487039-0jikab6pn1sglbq01t9ntn0sorblqmlu.apps.googleusercontent.com',
-    iosBundleId: 'com.example.personalHaven',
+    iosClientId: '748102487039-c66o5orsqpl2udlnb5vposugq917djik.apps.googleusercontent.com',
+    iosBundleId: 'com.megnifylabs.personalhaven',
   );
 }

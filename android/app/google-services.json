@@ -7,17 +7,17 @@
   "client": [
     {
       "client_info": {
-        "mobilesdk_app_id": "1:748102487039:android:4099c0c52f33170471f5ca",
+        "mobilesdk_app_id": "1:748102487039:android:5b177571ce89415c71f5ca",
         "android_client_info": {
-          "package_name": "com.example.personal_haven"
+          "package_name": "com.megnifylabs.personal_haven"
         }
       },
       "oauth_client": [
         {
-          "client_id": "748102487039-sgm8chbvglgmh8h2vj7t44ifpi4tgu7g.apps.googleusercontent.com",
+          "client_id": "748102487039-963iitq33vgjq7s91ccuptdfj9qho27j.apps.googleusercontent.com",
           "client_type": 1,
           "android_info": {
-            "package_name": "com.example.personal_haven",
+            "package_name": "com.megnifylabs.personal_haven",
             "certificate_hash": "aa520c078532f6cbf243d7566e33bd927c4bcbfb"
           }
         },

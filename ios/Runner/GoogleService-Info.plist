@@ -3,11 +3,11 @@
 <plist version="1.0">
 <dict>
 	<key>CLIENT_ID</key>
-	<string>748102487039-0jikab6pn1sglbq01t9ntn0sorblqmlu.apps.googleusercontent.com</string>
+	<string>748102487039-c66o5orsqpl2udlnb5vposugq917djik.apps.googleusercontent.com</string>
 	<key>REVERSED_CLIENT_ID</key>
-	<string>com.googleusercontent.apps.748102487039-0jikab6pn1sglbq01t9ntn0sorblqmlu</string>
+	<string>com.googleusercontent.apps.748102487039-c66o5orsqpl2udlnb5vposugq917djik</string>
 	<key>ANDROID_CLIENT_ID</key>
-	<string>748102487039-sgm8chbvglgmh8h2vj7t44ifpi4tgu7g.apps.googleusercontent.com</string>
+	<string>748102487039-963iitq33vgjq7s91ccuptdfj9qho27j.apps.googleusercontent.com</string>
 	<key>API_KEY</key>
 	<string>AIzaSyBc-cxPbzhcsaGz1WSecxG2Qa_lCenCjdY</string>
 	<key>GCM_SENDER_ID</key>
@@ -15,7 +15,7 @@
 	<key>PLIST_VERSION</key>
 	<string>1</string>
 	<key>BUNDLE_ID</key>
-	<string>com.example.personalHaven</string>
+	<string>com.megnifylabs.personalhaven</string>
 	<key>PROJECT_ID</key>
 	<string>personal-haven-405b9</string>
 	<key>STORAGE_BUCKET</key>
@@ -31,6 +31,6 @@
 	<key>IS_SIGNIN_ENABLED</key>
 	<true></true>
 	<key>GOOGLE_APP_ID</key>
-	<string>1:748102487039:ios:956d6655f17a65f071f5ca</string>
+	<string>1:748102487039:ios:ca34174d52c2c41371f5ca</string>
 </dict>
 </plist>

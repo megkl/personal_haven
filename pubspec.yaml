@@ -1,5 +1,5 @@
 name: personal_haven
-description: "A new Flutter project."
+description: "Personal Haven — private tools for wellbeing, planning, journaling, and personal growth."
 # The following line prevents the package from being accidentally published to
 # pub.dev using `flutter pub publish`. This is preferred for private packages.
 publish_to: 'none' # Remove this line if you wish to publish to pub.dev
@@ -44,6 +44,7 @@ dependencies:
   in_app_purchase: ^3.3.0
   # HTTP
   http: ^1.2.0
+  crypto: ^3.0.7
 
   # Notifications
   flutter_local_notifications: ^22.0.0

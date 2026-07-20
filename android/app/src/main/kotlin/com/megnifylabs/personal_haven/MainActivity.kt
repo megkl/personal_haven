@@ -1,4 +1,4 @@
-package com.example.personal_haven
+package com.megnifylabs.personal_haven
 
 import io.flutter.embedding.android.FlutterActivity
 

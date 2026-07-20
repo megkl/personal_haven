@@ -4,14 +4,14 @@
       "android": {
         "default": {
           "projectId": "personal-haven-405b9",
-          "appId": "1:748102487039:android:4099c0c52f33170471f5ca",
+          "appId": "1:748102487039:android:5b177571ce89415c71f5ca",
           "fileOutput": "android/app/google-services.json"
         }
       },
       "ios": {
         "default": {
           "projectId": "personal-haven-405b9",
-          "appId": "1:748102487039:ios:956d6655f17a65f071f5ca",
+          "appId": "1:748102487039:ios:ca34174d52c2c41371f5ca",
           "uploadDebugSymbols": false,
           "fileOutput": "ios/Runner/GoogleService-Info.plist"
         }
@@ -20,8 +20,8 @@
         "lib/firebase_options.dart": {
           "projectId": "personal-haven-405b9",
           "configurations": {
-            "android": "1:748102487039:android:4099c0c52f33170471f5ca",
-            "ios": "1:748102487039:ios:956d6655f17a65f071f5ca",
+            "android": "1:748102487039:android:5b177571ce89415c71f5ca",
+            "ios": "1:748102487039:ios:ca34174d52c2c41371f5ca",
             "web": "1:748102487039:web:5d811ca1f21af3a571f5ca"
           }
         }

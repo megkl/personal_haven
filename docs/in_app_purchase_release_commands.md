@@ -15,7 +15,7 @@ personal_haven_yearly
 The Android package name currently used by the app is:
 
 ```text
-com.example.personal_haven
+com.megnifylabs.personal_haven
 ```
 
 ## 1. Set Firebase Function Secrets
@@ -31,7 +31,7 @@ firebase functions:secrets:set GOOGLE_PLAY_SERVICE_ACCOUNT_JSON
 When prompted:
 
 - `APPLE_SHARED_SECRET`: paste the app-specific shared secret from App Store Connect.
-- `ANDROID_PACKAGE_NAME`: paste `com.example.personal_haven`.
+- `ANDROID_PACKAGE_NAME`: paste `com.megnifylabs.personal_haven`.
 - `GOOGLE_PLAY_SERVICE_ACCOUNT_JSON`: paste the full downloaded JSON key for the Google Play service account.
 
 ## 2. Deploy Backend Validation
