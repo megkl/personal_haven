@@ -89,6 +89,7 @@ class IAPService {
   final InAppPurchase _iap = InAppPurchase.instance;
   StreamSubscription<List<PurchaseDetails>>? _purchaseSub;
   Completer<IAPResult>? _pendingPurchase;
+  PurchaseDetails? _pendingCompletion;
   bool _initialized = false;
 
   static bool get isStorePlatform => Platform.isIOS || Platform.isAndroid;
@@ -214,6 +215,15 @@ class IAPService {
     _initialized = false;
   }
 
+  Future<void> completeVerifiedPurchase() async {
+    final purchase = _pendingCompletion;
+    if (purchase == null) return;
+    if (purchase.pendingCompletePurchase) {
+      await _iap.completePurchase(purchase);
+    }
+    _pendingCompletion = null;
+  }
+
   Future<void> _onPurchaseUpdates(List<PurchaseDetails> purchases) async {
     for (final purchase in purchases) {
       final completer = _pendingPurchase;
@@ -222,9 +232,7 @@ class IAPService {
       switch (purchase.status) {
         case PurchaseStatus.purchased:
         case PurchaseStatus.restored:
-          if (purchase.pendingCompletePurchase) {
-            await _iap.completePurchase(purchase);
-          }
+          _pendingCompletion = purchase;
           _pendingPurchase = null;
           completer.complete(
             IAPResult(

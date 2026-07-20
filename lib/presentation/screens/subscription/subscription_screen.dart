@@ -76,7 +76,7 @@ class _SubscriptionScreenState extends ConsumerState<SubscriptionScreen> {
     if (!mounted) return;
 
     if (result.success) {
-      await ref
+      final activated = await ref
           .read(subscriptionProvider.notifier)
           .activatePaid(
             plan: _selectedPlan,
@@ -87,6 +87,14 @@ class _SubscriptionScreenState extends ConsumerState<SubscriptionScreen> {
             localVerificationData: result.localVerificationData,
             verificationSource: result.verificationSource ?? '',
           );
+      if (!activated) {
+        _showError(
+          ref.read(subscriptionProvider).error ??
+              'The store purchase could not be verified.',
+        );
+        return;
+      }
+      await IAPService.instance.completeVerifiedPurchase();
       if (mounted) {
         Navigator.pop(context);
         _showSuccess();
@@ -113,7 +121,7 @@ class _SubscriptionScreenState extends ConsumerState<SubscriptionScreen> {
         return;
       }
 
-      await ref
+      final activated = await ref
           .read(subscriptionProvider.notifier)
           .activatePaid(
             plan: plan,
@@ -123,6 +131,14 @@ class _SubscriptionScreenState extends ConsumerState<SubscriptionScreen> {
             localVerificationData: result.localVerificationData,
             verificationSource: result.verificationSource ?? '',
           );
+      if (!activated) {
+        _showError(
+          ref.read(subscriptionProvider).error ??
+              'The restored purchase could not be verified.',
+        );
+        return;
+      }
+      await IAPService.instance.completeVerifiedPurchase();
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(
@@ -610,7 +626,7 @@ class _FeaturesList extends StatelessWidget {
     ('💰', 'Budget & Expense Tracker'),
     ('🥗', 'Food & Nutrition Diary'),
     ('📅', 'Calendar & Events'),
-    ('✅', 'Tasks, Shopping List Creation')
+    ('✅', 'Tasks, Shopping List Creation'),
   ];
 
   @override

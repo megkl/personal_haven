@@ -109,7 +109,7 @@ class SubscriptionNotifier extends _$SubscriptionNotifier {
   }
 
   /// Called after a successful payment to activate the subscription.
-  Future<void> activatePaid({
+  Future<bool> activatePaid({
     required SubscriptionPlan plan,
     required String transactionRef,
     required String productId,
@@ -137,8 +137,10 @@ class SubscriptionNotifier extends _$SubscriptionNotifier {
           sub.expiryDate,
         );
       }
+      return true;
     } catch (e) {
       state = state.copyWith(isLoading: false, error: e.toString());
+      return false;
     }
   }
 

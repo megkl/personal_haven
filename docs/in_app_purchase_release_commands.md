@@ -23,9 +23,9 @@ com.megnifylabs.personal_haven
 Run these from the project root:
 
 ```bash
-firebase functions:secrets:set APPLE_SHARED_SECRET
-firebase functions:secrets:set ANDROID_PACKAGE_NAME
-firebase functions:secrets:set GOOGLE_PLAY_SERVICE_ACCOUNT_JSON
+npx -y firebase-tools@latest functions:secrets:set APPLE_SHARED_SECRET
+npx -y firebase-tools@latest functions:secrets:set ANDROID_PACKAGE_NAME
+npx -y firebase-tools@latest functions:secrets:set GOOGLE_PLAY_SERVICE_ACCOUNT_JSON
 ```
 
 When prompted:
@@ -39,7 +39,7 @@ When prompted:
 Deploy the Cloud Functions after the secrets are set:
 
 ```bash
-firebase deploy --only functions
+npx -y firebase-tools@latest deploy --only functions
 ```
 
 Confirm these functions exist in Firebase Console:
@@ -54,7 +54,7 @@ verifyStorePurchase
 Run:
 
 ```bash
-firebase deploy --only firestore
+npx -y firebase-tools@latest deploy --only firestore
 ```
 
 This deploys:
@@ -147,19 +147,19 @@ Expected result:
 View function logs:
 
 ```bash
-firebase functions:log
+npx -y firebase-tools@latest functions:log
 ```
 
 Deploy only functions:
 
 ```bash
-firebase deploy --only functions
+npx -y firebase-tools@latest deploy --only functions
 ```
 
 Deploy only Firestore:
 
 ```bash
-firebase deploy --only firestore
+npx -y firebase-tools@latest deploy --only firestore
 ```
 
 Run local lint before deploy:

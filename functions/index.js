@@ -10,12 +10,17 @@
 const {setGlobalOptions} = require("firebase-functions");
 const {onCall, HttpsError} = require("firebase-functions/v2/https");
 const {defineSecret} = require("firebase-functions/params");
+const {GoogleAuth} = require("google-auth-library");
 const admin = require("firebase-admin");
 const OpenAI = require("openai");
 
 admin.initializeApp();
 
 const aiApiKey = defineSecret("AI_API_KEY");
+const androidPackageName = defineSecret("ANDROID_PACKAGE_NAME");
+const googlePlayServiceAccountJson = defineSecret(
+    "GOOGLE_PLAY_SERVICE_ACCOUNT_JSON",
+);
 const aiModel = "gpt-4o-mini";
 const aiEndpoint = "https://api.openai.com/v1/chat/completions";
 
@@ -369,6 +374,7 @@ exports.chatWithHavenAI = onCall(
 exports.verifyStorePurchase = onCall(
     {
       region: "us-central1",
+      secrets: [androidPackageName, googlePlayServiceAccountJson],
     },
     async (request) => {
       if (!request.auth) {
@@ -419,6 +425,9 @@ exports.verifyStorePurchase = onCall(
         expiryDate,
         store: verification.store,
       });
+      if (verification.acknowledge) {
+        await verification.acknowledge();
+      }
 
       return {
         ok: true,
@@ -611,10 +620,90 @@ async function verifyAppleReceipt(options) {
  * @return {Promise<object>} Normalized verification result.
  */
 async function verifyGooglePlayPurchase(options) {
-  throw new HttpsError(
-      "failed-precondition",
-      "Google Play purchases are not configured for this app.",
+  let credentials;
+  try {
+    credentials = JSON.parse(googlePlayServiceAccountJson.value());
+  } catch (error) {
+    throw new HttpsError(
+        "failed-precondition",
+        "Google Play service credentials are invalid.",
+    );
+  }
+
+  const packageName = androidPackageName.value();
+  if (packageName !== "com.megnifylabs.personal_haven") {
+    throw new HttpsError(
+        "failed-precondition",
+        "Google Play package configuration does not match this app.",
+    );
+  }
+
+  const auth = new GoogleAuth({
+    credentials,
+    scopes: ["https://www.googleapis.com/auth/androidpublisher"],
+  });
+  const client = await auth.getClient();
+  const encodedPackage = encodeURIComponent(packageName);
+  const encodedToken = encodeURIComponent(options.receipt);
+  let purchase;
+  try {
+    const response = await client.request({
+      url: "https://androidpublisher.googleapis.com/androidpublisher/v3/" +
+        `applications/${encodedPackage}/purchases/subscriptionsv2/` +
+        `tokens/${encodedToken}`,
+    });
+    purchase = response.data;
+  } catch (error) {
+    console.error("Google Play subscription verification failed", {
+      status: error.response ? error.response.status : null,
+      message: error.message,
+    });
+    throw new HttpsError(
+        "failed-precondition",
+        "Google Play could not verify this subscription.",
+    );
+  }
+
+  const allowedStates = new Set([
+    "SUBSCRIPTION_STATE_ACTIVE",
+    "SUBSCRIPTION_STATE_IN_GRACE_PERIOD",
+    "SUBSCRIPTION_STATE_CANCELED",
+  ]);
+  if (!allowedStates.has(purchase.subscriptionState)) {
+    throw new HttpsError(
+        "failed-precondition",
+        "Google Play reports that this subscription is not active.",
+    );
+  }
+
+  const lineItem = (purchase.lineItems || []).find(
+      (item) => item.productId === options.productId,
   );
+  const expiryDate = parseDateValue(lineItem && lineItem.expiryTime);
+  if (!lineItem || !expiryDate) {
+    throw new HttpsError(
+        "failed-precondition",
+        "Google Play subscription product details do not match.",
+    );
+  }
+
+  const needsAcknowledgement = purchase.acknowledgementState ===
+    "ACKNOWLEDGEMENT_STATE_PENDING";
+  return {
+    store: "google_play",
+    expiryDate,
+    transactionRef: options.receipt,
+    acknowledge: needsAcknowledgement ? async () => {
+      const encodedProduct = encodeURIComponent(options.productId);
+      await client.request({
+        method: "POST",
+        url: "https://androidpublisher.googleapis.com/androidpublisher/v3/" +
+          `applications/${encodedPackage}/purchases/subscriptions/` +
+          `${encodedProduct}/tokens/${encodedToken}:acknowledge`,
+        data: {},
+      });
+    } : null,
+  };
 }
 
 /**
