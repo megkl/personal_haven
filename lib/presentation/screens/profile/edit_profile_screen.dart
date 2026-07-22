@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:personal_haven/core/theme/app_theme.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:personal_haven/core/constants/app_colors.dart';
+import 'package:personal_haven/providers/auth_provider.dart';
 import 'package:personal_haven/providers/user_provider.dart';
 
 /// Edit Profile Screen - Update user profile information
@@ -16,6 +17,7 @@ class _EditProfileScreenState extends ConsumerState<EditProfileScreen> {
   late TextEditingController _nameController;
   late TextEditingController _emailController;
   late TextEditingController _bioController;
+  bool _isDeletingAccount = false;
 
   @override
   void initState() {
@@ -55,33 +57,77 @@ class _EditProfileScreenState extends ConsumerState<EditProfileScreen> {
     }
   }
 
-  void _showDeleteAccountDialog() {
-    showDialog(
+  Future<void> _showDeleteAccountDialog() async {
+    final confirmationController = TextEditingController();
+    var confirmation = '';
+    final confirmed = await showDialog<bool>(
       context: context,
-      builder: (context) => AlertDialog(
-        title: Text('Delete Account'),
-        content: Text(
-          'Are you sure you want to delete your account? This action cannot be undone and all your data will be permanently deleted.',
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(context),
-            child: Text('Cancel'),
-          ),
-          TextButton(
-            onPressed: () {
-              // TODO: Implement account deletion
-              Navigator.pop(context);
-              ScaffoldMessenger.of(context).showSnackBar(
-                const SnackBar(
-                  content: Text('Account deletion not yet implemented'),
+      builder: (dialogContext) => StatefulBuilder(
+        builder: (context, setDialogState) => AlertDialog(
+          title: const Text('Permanently delete account?'),
+          content: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              const Text(
+                'This permanently deletes your profile and all Personal Haven '
+                'data, including journals, moods, goals, tasks, wellness, and '
+                'budget records. This cannot be undone.',
+              ),
+              const SizedBox(height: 16),
+              const Text('Type DELETE to confirm.'),
+              const SizedBox(height: 8),
+              TextField(
+                controller: confirmationController,
+                autofocus: true,
+                textCapitalization: TextCapitalization.characters,
+                decoration: const InputDecoration(
+                  labelText: 'Confirmation',
+                  border: OutlineInputBorder(),
                 ),
-              );
-            },
-            child: Text('Delete', style: TextStyle(color: Colors.red)),
+                onChanged: (value) => setDialogState(() {
+                  confirmation = value.trim();
+                }),
+              ),
+            ],
           ),
-        ],
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(dialogContext, false),
+              child: const Text('Cancel'),
+            ),
+            TextButton(
+              onPressed: confirmation == 'DELETE'
+                  ? () => Navigator.pop(dialogContext, true)
+                  : null,
+              child: const Text(
+                'Delete permanently',
+                style: TextStyle(color: Colors.red),
+              ),
+            ),
+          ],
+        ),
       ),
+    );
+    confirmationController.dispose();
+
+    if (confirmed != true || !mounted) return;
+
+    setState(() => _isDeletingAccount = true);
+    final deleted = await ref.read(authProvider.notifier).deleteAccount();
+    if (!mounted) return;
+
+    if (deleted) {
+      Navigator.of(context).popUntil((route) => route.isFirst);
+      return;
+    }
+
+    setState(() => _isDeletingAccount = false);
+    final message =
+        ref.read(authProvider).error ??
+        'Account deletion failed. Please try again.';
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(content: Text(message), backgroundColor: Colors.red),
     );
   }
 
@@ -231,15 +277,21 @@ class _EditProfileScreenState extends ConsumerState<EditProfileScreen> {
             const SizedBox(height: 24),
             // Delete Account Button
             TextButton(
-              onPressed: _showDeleteAccountDialog,
-              child: Text(
-                'Delete Account',
-                style: TextStyle(
-                  color: Colors.red,
-                  fontSize: 16,
-                  decoration: TextDecoration.underline,
-                ),
-              ),
+              onPressed: _isDeletingAccount ? null : _showDeleteAccountDialog,
+              child: _isDeletingAccount
+                  ? const SizedBox(
+                      width: 22,
+                      height: 22,
+                      child: CircularProgressIndicator(strokeWidth: 2),
+                    )
+                  : const Text(
+                      'Delete Account',
+                      style: TextStyle(
+                        color: Colors.red,
+                        fontSize: 16,
+                        decoration: TextDecoration.underline,
+                      ),
+                    ),
             ),
           ],
         ),

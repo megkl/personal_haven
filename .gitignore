@@ -70,6 +70,7 @@ ios/Runner/GeneratedPluginRegistrant.*
 
 # Firebase local/generated scaffolding
 .firebaserc
+.firebase/
 firebase-debug.log
 firebase-debug.*.log
 ui-debug.log
@@ -79,6 +80,7 @@ database-debug.log
 # Firebase Functions dependencies and generated deploy bundles
 functions/node_modules/
 functions/lib/
+account-functions/node_modules/
 
 # Firebase Data Connect generated/local files
 dataconnect/

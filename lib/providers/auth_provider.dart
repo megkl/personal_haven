@@ -1,4 +1,5 @@
 import 'package:firebase_auth/firebase_auth.dart' as fb;
+import 'package:cloud_functions/cloud_functions.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:personal_haven/data/models/user.dart';
 import 'package:personal_haven/data/repositories/subscription_repository.dart';
@@ -255,6 +256,47 @@ class AuthNotifier extends _$AuthNotifier {
     if (!ref.mounted) return;
 
     state = AuthState(isAuthenticated: false, isLoading: false);
+  }
+
+  Future<bool> deleteAccount() async {
+    state = state.copyWith(isLoading: true, error: null);
+
+    try {
+      final callable = FirebaseFunctions.instanceFor(
+        region: 'us-central1',
+      ).httpsCallable('deleteAccount');
+      await callable.call<void>();
+    } on FirebaseFunctionsException catch (error) {
+      if (!ref.mounted) return false;
+      state = state.copyWith(
+        isLoading: false,
+        error: error.message ?? 'Account deletion failed. Please try again.',
+      );
+      return false;
+    } catch (_) {
+      if (!ref.mounted) return false;
+      state = state.copyWith(
+        isLoading: false,
+        error: 'Account deletion failed. Check your connection and try again.',
+      );
+      return false;
+    }
+
+    // The server has permanently removed the account. Local cleanup is best
+    // effort so a device storage issue cannot misreport the deletion as failed.
+    try {
+      await SocialAuthService.instance.signOutGoogle();
+      await fb.FirebaseAuth.instance.signOut();
+    } catch (_) {}
+
+    try {
+      final helper = await SharedPrefsHelper.getInstance();
+      await helper.clearAll();
+    } catch (_) {}
+
+    if (!ref.mounted) return true;
+    state = AuthState(isAuthenticated: false, isLoading: false);
+    return true;
   }
 
   void clearError() => state = state.copyWith(error: null);
