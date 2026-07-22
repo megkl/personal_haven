@@ -75,7 +75,7 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
                       _ProfileAction(
                         icon: Icons.insights_outlined,
                         title: 'Insights',
-                        subtitle: 'See patterns in how you have been feeling',
+                        subtitle: 'See patterns in how you have been feeling and what you have achieved.',
                         onTap: () => _open(context, const MoodInsightsScreen()),
                       ),
                       _ProfileAction(
@@ -495,11 +495,6 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
     if (!mounted) return;
 
     if (deleted) {
-      // Let Riverpod finish rebuilding auth-dependent providers before the
-      // route tree is removed. Navigating in the same build scope can trigger
-      // Flutter's `_dependents.isEmpty` framework assertion.
-      await WidgetsBinding.instance.endOfFrame;
-      if (!mounted) return;
       Navigator.pushAndRemoveUntil(
         context,
         MaterialPageRoute(builder: (_) => const LoginScreen()),
@@ -537,8 +532,6 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
             onPressed: () async {
               Navigator.pop(dialogContext);
               await ref.read(authProvider.notifier).logout();
-              if (!mounted) return;
-              await WidgetsBinding.instance.endOfFrame;
               if (!mounted) return;
               Navigator.pushAndRemoveUntil(
                 context,

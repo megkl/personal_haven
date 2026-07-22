@@ -134,7 +134,11 @@ const havenAiSystemPrompt = [
 setGlobalOptions({maxInstances: 10});
 
 exports.parseAssistantAction = onCall(
-    {secrets: [aiApiKey], region: "us-central1"},
+    {
+      secrets: [aiApiKey],
+      region: "us-central1",
+      enforceAppCheck: true,
+    },
     async (request) => {
       if (!request.auth) {
         throw new HttpsError("unauthenticated", "Sign in required.");
@@ -209,7 +213,11 @@ exports.parseAssistantAction = onCall(
 );
 
 exports.generateAssistantPrompts = onCall(
-    {secrets: [aiApiKey], region: "us-central1"},
+    {
+      secrets: [aiApiKey],
+      region: "us-central1",
+      enforceAppCheck: true,
+    },
     async (request) => {
       if (!request.auth) {
         throw new HttpsError("unauthenticated", "Sign in required.");
@@ -296,7 +304,11 @@ exports.generateAssistantPrompts = onCall(
 );
 
 exports.chatWithHavenAI = onCall(
-    {secrets: [aiApiKey], region: "us-central1"},
+    {
+      secrets: [aiApiKey],
+      region: "us-central1",
+      enforceAppCheck: true,
+    },
     async (request) => {
       if (!request.auth) {
         throw new HttpsError("unauthenticated", "Please sign in first.");
@@ -377,6 +389,7 @@ exports.verifyStorePurchase = onCall(
     {
       region: "us-central1",
       secrets: [androidPackageName, googlePlayServiceAccountJson],
+      enforceAppCheck: true,
     },
     async (request) => {
       if (!request.auth) {

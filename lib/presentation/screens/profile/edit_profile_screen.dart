@@ -71,50 +71,20 @@ class _EditProfileScreenState extends ConsumerState<EditProfileScreen> {
         padding: const EdgeInsets.all(24.0),
         child: Column(
           children: [
-            // Profile Avatar with Edit Button
-            Stack(
-              children: [
-                CircleAvatar(
-                  radius: 60,
-                  backgroundColor: context.colors.cardColor,
-                  backgroundImage: user?.avatarUrl != null
-                      ? NetworkImage(user!.avatarUrl!)
-                      : null,
-                  child: user?.avatarUrl == null
-                      ? Icon(
-                          Icons.person,
-                          size: 60,
-                          color: AppColors.primaryLight,
-                        )
-                      : null,
-                ),
-                Positioned(
-                  bottom: 0,
-                  right: 0,
-                  child: GestureDetector(
-                    onTap: () {
-                      // TODO: Implement image picker
-                      ScaffoldMessenger.of(context).showSnackBar(
-                        const SnackBar(
-                          content: Text('Image picker not yet implemented'),
-                        ),
-                      );
-                    },
-                    child: Container(
-                      padding: const EdgeInsets.all(8),
-                      decoration: BoxDecoration(
-                        color: AppColors.primary,
-                        shape: BoxShape.circle,
-                      ),
-                      child: Icon(
-                        Icons.camera_alt,
-                        size: 20,
-                        color: Colors.white,
-                      ),
-                    ),
-                  ),
-                ),
-              ],
+            // The avatar comes from the authenticated sign-in provider.
+            CircleAvatar(
+              radius: 60,
+              backgroundColor: context.colors.cardColor,
+              backgroundImage: user?.avatarUrl != null
+                  ? NetworkImage(user!.avatarUrl!)
+                  : null,
+              child: user?.avatarUrl == null
+                  ? Icon(
+                      Icons.person,
+                      size: 60,
+                      color: AppColors.primaryLight,
+                    )
+                  : null,
             ),
             const SizedBox(height: 16),
             Text(

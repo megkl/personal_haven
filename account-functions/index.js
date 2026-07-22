@@ -19,7 +19,7 @@ function addDays(date, days) {
 }
 
 exports.syncPremiumEntitlement = onCall(
-    {region: "us-central1"},
+    {region: "us-central1", enforceAppCheck: true},
     async (request) => {
       if (!request.auth) {
         throw new HttpsError("unauthenticated", "Sign in required.");
@@ -36,7 +36,7 @@ exports.syncPremiumEntitlement = onCall(
 );
 
 exports.startTrial = onCall(
-    {region: "us-central1"},
+    {region: "us-central1", enforceAppCheck: true},
     async (request) => {
       if (!request.auth) {
         throw new HttpsError("unauthenticated", "Sign in required.");
@@ -91,7 +91,7 @@ exports.startTrial = onCall(
 );
 
 exports.deleteAccount = onCall(
-    {region: "us-central1"},
+    {region: "us-central1", enforceAppCheck: true},
     async (request) => {
       if (!request.auth) {
         throw new HttpsError("unauthenticated", "Sign in required.");

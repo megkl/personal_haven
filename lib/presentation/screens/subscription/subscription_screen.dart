@@ -770,7 +770,7 @@ class _FeaturesList extends StatelessWidget {
   const _FeaturesList();
 
   final _features = const [
-    ('📓', 'AI Chat Assistant'),
+    ('📓', 'Ask Haven Chat Assistant'),
     ('📓', 'Unlimited Journal Entries'),
     ('😊', 'Mood Tracking & Insights'),
     ('🎯', 'Goal Setting & Progress'),
