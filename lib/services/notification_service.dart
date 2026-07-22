@@ -48,7 +48,7 @@ class NotificationService {
     tz.initializeTimeZones();
     tz.setLocalLocation(tz.getLocation('Africa/Nairobi'));
 
-    const android = AndroidInitializationSettings('@mipmap/ic_launcher');
+    const android = AndroidInitializationSettings('ic_notification');
     const ios = DarwinInitializationSettings(
       requestAlertPermission: false,
       requestBadgePermission: false,
@@ -96,7 +96,7 @@ class NotificationService {
         channelName,
         importance: importance,
         priority: priority,
-        icon: '@mipmap/ic_launcher',
+        icon: 'ic_notification',
       ),
       iOS: const DarwinNotificationDetails(
         presentAlert: true,
