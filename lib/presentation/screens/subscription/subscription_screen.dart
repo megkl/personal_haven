@@ -168,10 +168,8 @@ class _SubscriptionScreenState extends ConsumerState<SubscriptionScreen> {
   }
 
   String _storeButtonLabel(SubscriptionPlan plan) {
-    final storeName = Platform.isIOS ? 'App Store' : 'Google Play';
     final product = _catalog?.productForPlan(plan);
-    final label = product?.price ?? Subscription.labelFor(plan);
-    return 'Subscribe with $storeName — $label';
+    return product == null ? 'Subscribe' : 'Subscribe — ${product.price}';
   }
 
   @override
@@ -289,11 +287,15 @@ class _SubscriptionScreenState extends ConsumerState<SubscriptionScreen> {
                             strokeWidth: 2,
                           ),
                         )
-                      : Text(
-                          _storeButtonLabel(_selectedPlan),
-                          style: TextStyle(
-                            fontSize: 16,
-                            fontWeight: FontWeight.w600,
+                      : FittedBox(
+                          fit: BoxFit.scaleDown,
+                          child: Text(
+                            _storeButtonLabel(_selectedPlan),
+                            maxLines: 1,
+                            style: const TextStyle(
+                              fontSize: 16,
+                              fontWeight: FontWeight.w600,
+                            ),
                           ),
                         ),
                 ),
@@ -420,12 +422,16 @@ class _PlanCard extends StatelessWidget {
               : [],
         ),
         child: Row(
+          crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Icon(
-              selected
-                  ? Icons.radio_button_checked
-                  : Icons.radio_button_unchecked,
-              color: selected ? AppColors.primary : context.colors.divider,
+            Padding(
+              padding: const EdgeInsets.only(top: 2),
+              child: Icon(
+                selected
+                    ? Icons.radio_button_checked
+                    : Icons.radio_button_unchecked,
+                color: selected ? AppColors.primary : context.colors.divider,
+              ),
             ),
             const SizedBox(width: 12),
             Expanded(
@@ -434,12 +440,16 @@ class _PlanCard extends StatelessWidget {
                 children: [
                   Row(
                     children: [
-                      Text(
-                        product?.title ?? _planName(plan),
-                        style: TextStyle(
-                          fontSize: 16,
-                          fontWeight: FontWeight.bold,
-                          color: textColor,
+                      Expanded(
+                        child: Text(
+                          product?.title ?? _planName(plan),
+                          maxLines: 2,
+                          overflow: TextOverflow.ellipsis,
+                          style: TextStyle(
+                            fontSize: 16,
+                            fontWeight: FontWeight.bold,
+                            color: textColor,
+                          ),
                         ),
                       ),
                       if (badge != null) ...[
@@ -465,26 +475,30 @@ class _PlanCard extends StatelessWidget {
                       ],
                     ],
                   ),
+                  const SizedBox(height: 5),
                   Text(
                     available
-                        ? (product?.description.isNotEmpty == true
-                              ? product!.description
-                              : _planSubtitle(plan))
+                        ? product?.price ?? 'Store price unavailable'
                         : 'Not available in store yet',
                     style: TextStyle(
+                      fontSize: 18,
+                      fontWeight: FontWeight.bold,
+                      color: available
+                          ? AppColors.primary
+                          : context.colors.divider,
+                    ),
+                  ),
+                  const SizedBox(height: 2),
+                  Text(
+                    _planSubtitle(plan),
+                    maxLines: 2,
+                    overflow: TextOverflow.ellipsis,
+                    style: TextStyle(
                       color: context.colors.textSecondary,
-                      fontSize: 13,
+                      fontSize: 12,
                     ),
                   ),
                 ],
-              ),
-            ),
-            Text(
-              product?.price ?? 'KES ${Subscription.priceFor(plan).toInt()}',
-              style: TextStyle(
-                fontSize: 18,
-                fontWeight: FontWeight.bold,
-                color: available ? AppColors.primary : context.colors.divider,
               ),
             ),
           ],
@@ -509,11 +523,11 @@ class _PlanCard extends StatelessWidget {
   String _planSubtitle(SubscriptionPlan plan) {
     switch (plan) {
       case SubscriptionPlan.weekly:
-        return 'KES 30 / week';
+        return 'Billed every week. Cancel anytime.';
       case SubscriptionPlan.monthly:
-        return 'KES 100 / month';
+        return 'Billed every month. Cancel anytime.';
       case SubscriptionPlan.yearly:
-        return 'KES 800 / year';
+        return 'Billed every year. Cancel anytime.';
       case SubscriptionPlan.free:
         return '7 days free';
     }
@@ -707,7 +721,7 @@ class _ActiveBanner extends StatelessWidget {
           ),
           const SizedBox(height: 8),
           Text(
-            '${Subscription.labelFor(sub.plan)} · ${sub.daysRemaining} days remaining',
+            '${_planName(sub.plan)} · ${sub.daysRemaining} days remaining',
             style: TextStyle(color: Colors.white70),
           ),
           if (sub.plan == SubscriptionPlan.free)
@@ -721,5 +735,18 @@ class _ActiveBanner extends StatelessWidget {
         ],
       ),
     );
+  }
+
+  String _planName(SubscriptionPlan plan) {
+    switch (plan) {
+      case SubscriptionPlan.weekly:
+        return 'Weekly subscription';
+      case SubscriptionPlan.monthly:
+        return 'Monthly subscription';
+      case SubscriptionPlan.yearly:
+        return 'Yearly subscription';
+      case SubscriptionPlan.free:
+        return 'Free trial';
+    }
   }
 }
