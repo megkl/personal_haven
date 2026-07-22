@@ -16,7 +16,7 @@ import 'firebase_options.dart';
 
 const _appCheckProvider = String.fromEnvironment(
   'APP_CHECK_PROVIDER',
-  defaultValue: 'none',
+  defaultValue: 'auto',
 );
 const _appCheckDebugToken = String.fromEnvironment('APP_CHECK_DEBUG_TOKEN');
 
@@ -28,31 +28,12 @@ void main() {
       await Firebase.initializeApp(
         options: DefaultFirebaseOptions.currentPlatform,
       );
-      if (_appCheckProvider == 'debug') {
-        await FirebaseAppCheck.instance.activate(
-          providerAndroid: AndroidDebugProvider(
-            debugToken: _appCheckDebugToken.isEmpty
-                ? null
-                : _appCheckDebugToken,
-          ),
-          providerApple: AppleDebugProvider(
-            debugToken: _appCheckDebugToken.isEmpty
-                ? null
-                : _appCheckDebugToken,
-          ),
-        );
-        debugPrint(
-          _appCheckDebugToken.isEmpty
-              ? 'Firebase App Check debug provider active. Check native logs for the debug token.'
-              : 'Firebase App Check debug provider active with token: $_appCheckDebugToken',
-        );
-      } else if (kReleaseMode && _appCheckProvider != 'none') {
-        await FirebaseAppCheck.instance.activate(
-          providerAndroid: const AndroidPlayIntegrityProvider(),
-          providerApple: const AppleDeviceCheckProvider(),
-        );
-      } else {
-        debugPrint('Skipping Firebase App Check.');
+
+      try {
+        await _activateAppCheck();
+      } catch (error, stack) {
+        debugPrint('Firebase App Check initialization failed: $error');
+        debugPrintStack(stackTrace: stack);
       }
 
       if (!kIsWeb) {
@@ -62,25 +43,78 @@ void main() {
           FirebaseCrashlytics.instance.recordError(error, stack, fatal: true);
           return true;
         };
-        await FirebaseCrashlytics.instance.setCrashlyticsCollectionEnabled(
-          !kDebugMode,
-        );
-        crashlyticsReady = true;
+        try {
+          await FirebaseCrashlytics.instance.setCrashlyticsCollectionEnabled(
+            !kDebugMode,
+          );
+          crashlyticsReady = true;
+        } catch (error, stack) {
+          debugPrint('Crashlytics initialization failed: $error');
+          debugPrintStack(stackTrace: stack);
+        }
       }
 
-      await NotificationService.instance.initialize();
-      await NotificationService.instance.requestPermission(
-        includeExactAlarms: false,
-      );
-      await SocialAuthService.instance.initializeGoogle();
       runApp(const ProviderScope(child: PersonalHavenApp()));
+
+      // Optional services must never delay or prevent the first app frame.
+      unawaited(_initializeOptionalServices());
     },
     (error, stack) {
+      debugPrint('Uncaught startup error: $error');
+      debugPrintStack(stackTrace: stack);
       if (!kIsWeb && crashlyticsReady) {
         FirebaseCrashlytics.instance.recordError(error, stack, fatal: true);
       }
     },
   );
+}
+
+Future<void> _activateAppCheck() async {
+  final useDebugAppCheck =
+      _appCheckProvider == 'debug' ||
+      (_appCheckProvider == 'auto' && !kReleaseMode);
+
+  if (useDebugAppCheck) {
+    await FirebaseAppCheck.instance.activate(
+      providerAndroid: AndroidDebugProvider(
+        debugToken: _appCheckDebugToken.isEmpty ? null : _appCheckDebugToken,
+      ),
+      providerApple: AppleDebugProvider(
+        debugToken: _appCheckDebugToken.isEmpty ? null : _appCheckDebugToken,
+      ),
+    );
+    debugPrint(
+      _appCheckDebugToken.isEmpty
+          ? 'Firebase App Check debug provider active. Check native logs for the debug token.'
+          : 'Firebase App Check debug provider active with token: $_appCheckDebugToken',
+    );
+  } else if (kReleaseMode && _appCheckProvider != 'none') {
+    await FirebaseAppCheck.instance.activate(
+      providerAndroid: const AndroidPlayIntegrityProvider(),
+      providerApple: const AppleDeviceCheckProvider(),
+    );
+  } else {
+    debugPrint('Skipping Firebase App Check.');
+  }
+}
+
+Future<void> _initializeOptionalServices() async {
+  try {
+    await NotificationService.instance.initialize();
+    await NotificationService.instance.requestPermission(
+      includeExactAlarms: false,
+    );
+  } catch (error, stack) {
+    debugPrint('Notification initialization failed: $error');
+    debugPrintStack(stackTrace: stack);
+  }
+
+  try {
+    await SocialAuthService.instance.initializeGoogle();
+  } catch (error, stack) {
+    debugPrint('Google Sign-In initialization failed: $error');
+    debugPrintStack(stackTrace: stack);
+  }
 }
 
 class PersonalHavenApp extends ConsumerWidget {
