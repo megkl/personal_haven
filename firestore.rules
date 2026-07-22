@@ -1,0 +1,245 @@
+rules_version = '2';
+
+service cloud.firestore {
+  match /databases/{database}/documents {
+    // Data model: every private app document is under users/{uid}. The mobile
+    // client owns its planning/wellness records, while premium entitlements,
+    // subscriptions, AI usage, and chat history are written only by trusted
+    // Cloud Functions using the Admin SDK.
+    function isOwner(userId) {
+      return request.auth != null && request.auth.uid == userId;
+    }
+
+    function validString(value, maxLength) {
+      return value is string && value.size() > 0 && value.size() <= maxLength;
+    }
+
+    function optionalString(data, field, maxLength) {
+      return !(field in data) || data[field] == null ||
+        (data[field] is string && data[field].size() <= maxLength);
+    }
+
+    function optionalNumber(data, field, minimum, maximum) {
+      return !(field in data) || data[field] == null ||
+        ((data[field] is int || data[field] is float) &&
+          data[field] >= minimum && data[field] <= maximum);
+    }
+
+    function requiredNumber(value, minimum, maximum) {
+      return (value is int || value is float) &&
+        value >= minimum && value <= maximum;
+    }
+
+    function validOwnedRecord(data, documentId, userId, allowedKeys) {
+      return data.keys().hasOnly(allowedKeys) &&
+        data.id == documentId && data.userId == userId;
+    }
+
+    function validProfile(data, userId) {
+      return data.keys().hasOnly([
+          'user_id', 'email', 'username', 'firstName', 'lastName',
+          'avatarUrl', 'bio', 'createdAt', 'lastLoginAt', 'isPremium',
+          'preferences', 'trialUsed'
+        ]) &&
+        data.user_id == userId &&
+        data.email is string && data.email.size() <= 254 &&
+        optionalString(data, 'username', 60) &&
+        optionalString(data, 'firstName', 80) &&
+        optionalString(data, 'lastName', 80) &&
+        optionalString(data, 'avatarUrl', 2048) &&
+        optionalString(data, 'bio', 1000) &&
+        validString(data.createdAt, 40) &&
+        optionalString(data, 'lastLoginAt', 40) &&
+        data.isPremium is bool &&
+        (data.preferences == null ||
+          (data.preferences is map && data.preferences.size() <= 30)) &&
+        (!('trialUsed' in data) || data.trialUsed is bool);
+    }
+
+    function validTask(data, documentId, userId) {
+      return validOwnedRecord(data, documentId, userId, [
+          'id', 'userId', 'title', 'description', 'isCompleted', 'dueDate',
+          'priority', 'category', 'createdAt', 'completedAt'
+        ]) &&
+        validString(data.title, 300) &&
+        optionalString(data, 'description', 5000) &&
+        data.isCompleted is bool &&
+        optionalString(data, 'dueDate', 40) &&
+        data.priority in ['urgent', 'high', 'medium', 'low'] &&
+        validString(data.category, 100) &&
+        validString(data.createdAt, 40) &&
+        optionalString(data, 'completedAt', 40);
+    }
+
+    function validJournal(data, documentId, userId) {
+      return validOwnedRecord(data, documentId, userId, [
+          'id', 'userId', 'title', 'content', 'entryDate', 'createdAt',
+          'updatedAt', 'category', 'emoji', 'tags', 'isPrivate',
+          'locationData'
+        ]) &&
+        validString(data.title, 300) && validString(data.content, 50000) &&
+        validString(data.entryDate, 40) && validString(data.createdAt, 40) &&
+        validString(data.updatedAt, 40) && validString(data.category, 100) &&
+        optionalString(data, 'emoji', 16) &&
+        data.tags is list && data.tags.size() <= 30 &&
+        data.isPrivate is bool && optionalString(data, 'locationData', 1000);
+    }
+
+    function validGoal(data, documentId, userId) {
+      return validOwnedRecord(data, documentId, userId, [
+          'id', 'userId', 'title', 'description', 'targetValue',
+          'currentValue', 'unit', 'startDate', 'targetDate', 'status',
+          'category', 'createdAt', 'updatedAt'
+        ]) &&
+        validString(data.title, 300) && optionalString(data, 'description', 5000) &&
+        requiredNumber(data.targetValue, 0, 1000000000) &&
+        requiredNumber(data.currentValue, 0, 1000000000) &&
+        validString(data.unit, 50) && validString(data.startDate, 40) &&
+        optionalString(data, 'targetDate', 40) &&
+        data.status in ['active', 'completed', 'paused', 'archived'] &&
+        validString(data.category, 100) && validString(data.createdAt, 40) &&
+        validString(data.updatedAt, 40);
+    }
+
+    function validEvent(data, documentId, userId) {
+      return validOwnedRecord(data, documentId, userId, [
+          'id', 'userId', 'title', 'description', 'eventDate', 'startTime',
+          'endTime', 'isAllDay', 'location', 'category', 'color',
+          'isRecurring', 'recurrenceRule', 'reminder', 'createdAt', 'updatedAt'
+        ]) &&
+        validString(data.title, 300) && optionalString(data, 'description', 5000) &&
+        validString(data.eventDate, 40) && optionalString(data, 'startTime', 40) &&
+        optionalString(data, 'endTime', 40) && data.isAllDay is bool &&
+        optionalString(data, 'location', 500) && validString(data.category, 100) &&
+        optionalString(data, 'color', 32) && data.isRecurring is bool &&
+        optionalString(data, 'recurrenceRule', 500) &&
+        optionalString(data, 'reminder', 100) && validString(data.createdAt, 40) &&
+        validString(data.updatedAt, 40);
+    }
+
+    function validTransaction(data, documentId, userId) {
+      return validOwnedRecord(data, documentId, userId, [
+          'id', 'userId', 'type', 'amount', 'category', 'description',
+          'transactionDate'
+        ]) &&
+        data.type in ['income', 'expense'] &&
+        requiredNumber(data.amount, 0, 1000000000000) &&
+        validString(data.category, 100) && optionalString(data, 'description', 2000) &&
+        validString(data.transactionDate, 40);
+    }
+
+    function validMood(data, documentId, userId) {
+      return validOwnedRecord(data, documentId, userId, [
+          'id', 'userId', 'moodLevel', 'moodLabel', 'moodEmoji',
+          'timestamp', 'notes'
+        ]) &&
+        data.moodLevel is int && data.moodLevel >= 1 && data.moodLevel <= 5 &&
+        optionalString(data, 'moodLabel', 100) && validString(data.moodEmoji, 16) &&
+        validString(data.timestamp, 40) && optionalString(data, 'notes', 5000);
+    }
+
+    function validFood(data, documentId, userId) {
+      return validOwnedRecord(data, documentId, userId, [
+          'id', 'userId', 'mealType', 'foodName', 'description', 'calories',
+          'protein', 'carbs', 'fat', 'consumedAt'
+        ]) &&
+        validString(data.mealType, 50) && validString(data.foodName, 300) &&
+        optionalString(data, 'description', 2000) &&
+        optionalNumber(data, 'calories', 0, 100000) &&
+        optionalNumber(data, 'protein', 0, 10000) &&
+        optionalNumber(data, 'carbs', 0, 10000) &&
+        optionalNumber(data, 'fat', 0, 10000) && validString(data.consumedAt, 40);
+    }
+
+    function validShoppingList(data, documentId, userId) {
+      return validOwnedRecord(data, documentId, userId, [
+          'id', 'userId', 'title', 'items', 'createdAt', 'updatedAt'
+        ]) &&
+        validString(data.title, 300) && data.items is list &&
+        data.items.size() <= 100 && validString(data.createdAt, 40) &&
+        validString(data.updatedAt, 40);
+    }
+
+    match /users/{userId} {
+      allow read: if isOwner(userId);
+      allow create: if isOwner(userId) && validProfile(request.resource.data, userId) &&
+        request.resource.data.isPremium == false &&
+        (!('trialUsed' in request.resource.data) ||
+          request.resource.data.trialUsed == false);
+      allow update: if isOwner(userId) && validProfile(request.resource.data, userId) &&
+        request.resource.data.diff(resource.data).affectedKeys().hasOnly([
+          'username', 'firstName', 'lastName', 'avatarUrl', 'bio',
+          'lastLoginAt', 'preferences'
+        ]);
+      allow delete: if false;
+
+      match /tasks/{documentId} {
+        allow read, delete: if isOwner(userId);
+        allow create, update: if isOwner(userId) &&
+          validTask(request.resource.data, documentId, userId);
+      }
+
+      match /journal_entries/{documentId} {
+        allow read, delete: if isOwner(userId);
+        allow create, update: if isOwner(userId) &&
+          validJournal(request.resource.data, documentId, userId);
+      }
+
+      match /goals/{documentId} {
+        allow read, delete: if isOwner(userId);
+        allow create, update: if isOwner(userId) &&
+          validGoal(request.resource.data, documentId, userId);
+      }
+
+      match /events/{documentId} {
+        allow read, delete: if isOwner(userId);
+        allow create, update: if isOwner(userId) &&
+          validEvent(request.resource.data, documentId, userId);
+      }
+
+      match /transactions/{documentId} {
+        allow read, delete: if isOwner(userId);
+        allow create, update: if isOwner(userId) &&
+          validTransaction(request.resource.data, documentId, userId);
+      }
+
+      match /mood_logs/{documentId} {
+        allow read, delete: if isOwner(userId);
+        allow create, update: if isOwner(userId) &&
+          validMood(request.resource.data, documentId, userId);
+      }
+
+      match /food_entries/{documentId} {
+        allow read, delete: if isOwner(userId);
+        allow create, update: if isOwner(userId) &&
+          validFood(request.resource.data, documentId, userId);
+      }
+
+      match /shopping_lists/{documentId} {
+        allow read, delete: if isOwner(userId);
+        allow create, update: if isOwner(userId) &&
+          validShoppingList(request.resource.data, documentId, userId);
+      }
+
+      // Server-authoritative collections. Admin SDK writes bypass these rules.
+      match /subscriptions/{documentId} {
+        allow read: if isOwner(userId);
+        allow write: if false;
+      }
+
+      match /chats/{documentId} {
+        allow read: if isOwner(userId);
+        allow write: if false;
+      }
+
+      match /ai_usage/{documentId} {
+        allow read: if isOwner(userId);
+        allow write: if false;
+      }
+    }
+
+    match /{document=**} {
+      allow read, write: if false;
+    }
+  }
+}

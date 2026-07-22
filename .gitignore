@@ -85,7 +85,6 @@ account-functions/node_modules/
 # Firebase Data Connect generated/local files
 dataconnect/
 lib/dataconnect_generated/
-firestore.rules
 firestore.indexes.json
 
 # Local agent tooling

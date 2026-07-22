@@ -1,12 +1,9 @@
-import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:cloud_functions/cloud_functions.dart';
 import 'package:personal_haven/data/models/subscription.dart';
 import 'package:personal_haven/services/firestore_service.dart';
-import 'package:uuid/uuid.dart';
 
 class SubscriptionRepository {
   final _fs = FirestoreService.instance;
-  final _uuid = const Uuid();
   static const _col = 'subscriptions';
 
   /// Get the current active subscription for a user.
@@ -21,12 +18,7 @@ class SubscriptionRepository {
         snap.docs.map((d) => Subscription.fromFirestore(d)).toList()
           ..sort((a, b) => b.expiryDate.compareTo(a.expiryDate));
     final sub = subscriptions.first;
-    // Auto-expire if past expiry
-    if (!sub.isActive) {
-      await _expire(userId, sub.id);
-      return null;
-    }
-    return sub;
+    return sub.isActive ? sub : null;
   }
 
   /// Get full subscription history.
@@ -39,13 +31,13 @@ class SubscriptionRepository {
     return snap.docs.map((d) => Subscription.fromFirestore(d)).toList();
   }
 
-  /// Manual override used for admin/test access on users/{uid}.isPremium.
-  Future<bool> hasPremiumOverride(String userId) async {
-    final doc = await FirebaseFirestore.instance
-        .collection('users')
-        .doc(userId)
-        .get();
-    return doc.data()?['isPremium'] as bool? ?? false;
+  /// Synchronize the single lifetime entitlement from Firebase Auth.
+  Future<bool> hasLifetimePremium() async {
+    final callable = FirebaseFunctions.instanceFor(
+      region: 'us-central1',
+    ).httpsCallable('syncPremiumEntitlement');
+    final result = await callable.call<Map<String, dynamic>>();
+    return result.data['isLifetimePremium'] as bool? ?? false;
   }
 
   /// Check if the user has ever used their free trial.
@@ -60,44 +52,13 @@ class SubscriptionRepository {
 
   /// Create a free 7-day trial subscription (once per user).
   Future<Subscription> createTrial(String userId) async {
-    final now = DateTime.now();
-    final sub = Subscription(
-      id: _uuid.v4(),
-      userId: userId,
-      plan: SubscriptionPlan.free,
-      status: SubscriptionStatus.active,
-      startDate: now,
-      expiryDate: now.add(Subscription.durationFor(SubscriptionPlan.free)),
-      amountPaid: 0,
-      isTrialUsed: true,
-    );
-    await _fs.set(userId, _col, sub.id, sub.toFirestore());
-    await _updateUserPremium(userId, true);
-    return sub;
-  }
-
-  /// Create a paid subscription after successful payment.
-  Future<Subscription> createPaid({
-    required String userId,
-    required SubscriptionPlan plan,
-    required PaymentMethod paymentMethod,
-    required String transactionRef,
-  }) async {
-    final now = DateTime.now();
-    final sub = Subscription(
-      id: _uuid.v4(),
-      userId: userId,
-      plan: plan,
-      status: SubscriptionStatus.active,
-      startDate: now,
-      expiryDate: now.add(Subscription.durationFor(plan)),
-      paymentMethod: paymentMethod,
-      transactionRef: transactionRef,
-      amountPaid: Subscription.priceFor(plan),
-    );
-    await _fs.set(userId, _col, sub.id, sub.toFirestore());
-    await _updateUserPremium(userId, true);
-    return sub;
+    final callable = FirebaseFunctions.instanceFor(
+      region: 'us-central1',
+    ).httpsCallable('startTrial');
+    final result = await callable.call<Map<String, dynamic>>();
+    final data = Map<String, dynamic>.from(result.data);
+    final subscription = Map<String, dynamic>.from(data['subscription'] as Map);
+    return Subscription.fromMap(subscription);
   }
 
   /// Verify an App Store or Google Play purchase on the backend, then return
@@ -125,24 +86,5 @@ class SubscriptionRepository {
     final data = Map<String, dynamic>.from(result.data);
     final subscription = Map<String, dynamic>.from(data['subscription'] as Map);
     return Subscription.fromMap(subscription);
-  }
-
-  /// Mark a subscription as expired.
-  Future<void> _expire(String userId, String subId) async {
-    await _fs.update(userId, _col, subId, {'status': 'expired'});
-    await _updateUserPremium(userId, false);
-  }
-
-  /// Cancel a subscription.
-  Future<void> cancel(String userId, String subId) async {
-    await _fs.update(userId, _col, subId, {'status': 'cancelled'});
-    await _updateUserPremium(userId, false);
-  }
-
-  /// Sync isPremium on the user profile document.
-  Future<void> _updateUserPremium(String userId, bool isPremium) async {
-    await FirebaseFirestore.instance.collection('users').doc(userId).update({
-      'isPremium': isPremium,
-    });
   }
 }

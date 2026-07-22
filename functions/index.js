@@ -13,6 +13,7 @@ const {defineSecret} = require("firebase-functions/params");
 const {GoogleAuth} = require("google-auth-library");
 const admin = require("firebase-admin");
 const OpenAI = require("openai");
+const {isLifetimePremiumAccount} = require("./entitlements");
 
 admin.initializeApp();
 
@@ -144,7 +145,7 @@ exports.parseAssistantAction = onCall(
       }
       let usage;
       try {
-        usage = await reserveAssistantUsage(request.auth.uid);
+        usage = await reserveAssistantUsage(request.auth);
       } catch (error) {
         if (error instanceof HttpsError) throw error;
         console.error("AI usage reservation failed", {
@@ -438,12 +439,13 @@ exports.verifyStorePurchase = onCall(
 
 /**
  * Reserves one AI assistant action before any paid model request is made.
- * @param {string} uid Firebase Auth uid.
+ * @param {object} auth Callable Firebase Auth context.
  * @return {Promise<object>} Usage metadata for the client.
  */
-async function reserveAssistantUsage(uid) {
+async function reserveAssistantUsage(auth) {
   const db = admin.firestore();
-  const plan = await activeSubscriptionPlan(uid);
+  const uid = auth.uid;
+  const plan = await activeSubscriptionPlan(auth);
   const limit = aiPlanLimits[plan] || aiPlanLimits.free;
   const period = usagePeriod(limit.window);
   const usageRef = db
@@ -498,14 +500,13 @@ async function reserveAssistantUsage(uid) {
 }
 
 /**
- * @param {string} uid Firebase Auth uid.
+ * @param {object} auth Callable Firebase Auth context.
  * @return {Promise<string>} Active plan used for AI limits.
  */
-async function activeSubscriptionPlan(uid) {
+async function activeSubscriptionPlan(auth) {
   const db = admin.firestore();
+  const uid = auth.uid;
   const userRef = db.collection("users").doc(uid);
-  const userSnap = await userRef.get();
-  const premiumOverride = userSnap.exists && userSnap.data().isPremium === true;
   const now = new Date();
   const snap = await userRef
       .collection("subscriptions")
@@ -521,8 +522,8 @@ async function activeSubscriptionPlan(uid) {
         return parseDateValue(b.expiryDate) - parseDateValue(a.expiryDate);
       })[0];
 
+  if (isLifetimePremiumAccount(auth)) return "override";
   if (active && aiPlanLimits[active.plan]) return active.plan;
-  if (premiumOverride) return "override";
   return "free";
 }
 
@@ -724,7 +725,6 @@ async function writeVerifiedSubscription(options) {
   if (!duplicate.empty) {
     const doc = duplicate.docs[0];
     const data = doc.data();
-    await userRef.set({isPremium: true}, {merge: true});
     return {...data, id: doc.id};
   }
 
@@ -755,7 +755,6 @@ async function writeVerifiedSubscription(options) {
     verifiedAt: now.toISOString(),
   };
   batch.set(subRef, subscription);
-  batch.set(userRef, {isPremium: true}, {merge: true});
   await batch.commit();
   return subscription;
 }

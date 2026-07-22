@@ -59,7 +59,7 @@ class SubscriptionNotifier extends _$SubscriptionNotifier {
     }
     try {
       final previousActive = state.active;
-      final premiumOverride = await _repo.hasPremiumOverride(targetUserId);
+      final premiumOverride = await _repo.hasLifetimePremium();
       Subscription? active;
       try {
         active = await _repo.getActive(targetUserId);
