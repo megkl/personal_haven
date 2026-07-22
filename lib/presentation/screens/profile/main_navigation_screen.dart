@@ -9,6 +9,7 @@ import 'package:personal_haven/presentation/screens/rituals/rituals_screen.dart'
 import 'package:personal_haven/presentation/screens/subscription/subscription_screen.dart';
 import 'package:personal_haven/presentation/screens/wellness/wellness_screen.dart';
 import 'package:personal_haven/providers/subscription_provider.dart';
+import 'package:personal_haven/providers/notification_provider.dart';
 
 class MainNavigationScreen extends ConsumerStatefulWidget {
   const MainNavigationScreen({super.key, this.currentIndex = 0});
@@ -20,13 +21,34 @@ class MainNavigationScreen extends ConsumerStatefulWidget {
       _MainNavigationScreenState();
 }
 
-class _MainNavigationScreenState extends ConsumerState<MainNavigationScreen> {
+class _MainNavigationScreenState extends ConsumerState<MainNavigationScreen>
+    with WidgetsBindingObserver {
   late int _selectedIndex;
 
   @override
   void initState() {
     super.initState();
     _selectedIndex = widget.currentIndex;
+    WidgetsBinding.instance.addObserver(this);
+    WidgetsBinding.instance.addPostFrameCallback((_) => _recordAppOpened());
+  }
+
+  @override
+  void dispose() {
+    WidgetsBinding.instance.removeObserver(this);
+    super.dispose();
+  }
+
+  @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    if (state == AppLifecycleState.resumed) {
+      _recordAppOpened();
+    }
+  }
+
+  Future<void> _recordAppOpened() async {
+    if (!mounted) return;
+    await ref.read(notificationProvider.notifier).handleAppOpened();
   }
 
   @override

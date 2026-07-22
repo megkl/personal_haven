@@ -11,6 +11,7 @@ const {setGlobalOptions} = require("firebase-functions");
 const {onCall, HttpsError} = require("firebase-functions/v2/https");
 const {defineSecret} = require("firebase-functions/params");
 const {GoogleAuth} = require("google-auth-library");
+const crypto = require("node:crypto");
 const admin = require("firebase-admin");
 const OpenAI = require("openai");
 const {isLifetimePremiumAccount} = require("./entitlements");
@@ -406,6 +407,7 @@ exports.verifyStorePurchase = onCall(
 
       const verification = await verifyByStore({
         source,
+        uid,
         productId,
         receipt,
         transactionId,
@@ -425,6 +427,7 @@ exports.verifyStorePurchase = onCall(
         transactionRef: verification.transactionRef || transactionId,
         expiryDate,
         store: verification.store,
+        hasStoreAccountId: verification.hasStoreAccountId,
       });
       if (verification.acknowledge) {
         await verification.acknowledge();
@@ -688,12 +691,26 @@ async function verifyGooglePlayPurchase(options) {
     );
   }
 
+  const expectedAccountId = crypto
+      .createHash("sha256")
+      .update(options.uid)
+      .digest("hex");
+  const accountId = purchase.externalAccountIdentifiers &&
+    purchase.externalAccountIdentifiers.obfuscatedExternalAccountId;
+  if (accountId && accountId !== expectedAccountId) {
+    throw new HttpsError(
+        "permission-denied",
+        "This Google Play subscription belongs to another account.",
+    );
+  }
+
   const needsAcknowledgement = purchase.acknowledgementState ===
     "ACKNOWLEDGEMENT_STATE_PENDING";
   return {
     store: "google_play",
     expiryDate,
     transactionRef: options.receipt,
+    hasStoreAccountId: Boolean(accountId),
     acknowledge: needsAcknowledgement ? async () => {
       const encodedProduct = encodeURIComponent(options.productId);
       await client.request({
@@ -713,50 +730,83 @@ async function verifyGooglePlayPurchase(options) {
  */
 async function writeVerifiedSubscription(options) {
   const db = admin.firestore();
-  const userRef = db.collection("users").doc(options.uid);
-  const subscriptionsRef = userRef.collection("subscriptions");
+  const subscriptionsRef = db.collection("users")
+      .doc(options.uid)
+      .collection("subscriptions");
   const transactionRef = options.transactionRef ||
     `${options.store}:${options.productId}`;
-  const duplicate = await subscriptionsRef
+  const claimId = crypto
+      .createHash("sha256")
+      .update(`${options.store}:${transactionRef}`)
+      .digest("hex");
+  const claimRef = db.collection("store_purchase_claims").doc(claimId);
+  const duplicateQuery = subscriptionsRef
       .where("transactionRef", "==", transactionRef)
-      .limit(1)
-      .get();
+      .limit(1);
+  const activeQuery = subscriptionsRef
+      .where("status", "==", "active");
 
-  if (!duplicate.empty) {
-    const doc = duplicate.docs[0];
-    const data = doc.data();
-    return {...data, id: doc.id};
-  }
+  return db.runTransaction(async (transaction) => {
+    const claim = await transaction.get(claimRef);
+    const duplicate = await transaction.get(duplicateQuery);
+    const active = await transaction.get(activeQuery);
 
-  const now = new Date();
-  const subRef = subscriptionsRef.doc();
-  const active = await subscriptionsRef
-      .where("status", "==", "active")
-      .get();
-  const batch = db.batch();
-  active.docs.forEach((doc) => {
-    batch.update(doc.ref, {status: "expired"});
+    if (claim.exists && claim.data().uid !== options.uid) {
+      throw new HttpsError(
+          "permission-denied",
+          "This store purchase is already linked to another account.",
+      );
+    }
+
+    if (!options.hasStoreAccountId && duplicate.empty) {
+      throw new HttpsError(
+          "failed-precondition",
+          "Restore this subscription from the account that purchased it.",
+      );
+    }
+
+    if (!duplicate.empty) {
+      const doc = duplicate.docs[0];
+      transaction.set(claimRef, {
+        uid: options.uid,
+        store: options.store,
+        productId: options.productId,
+        claimedAt: admin.firestore.FieldValue.serverTimestamp(),
+      }, {merge: true});
+      return {...doc.data(), id: doc.id};
+    }
+
+    const now = new Date();
+    const subRef = subscriptionsRef.doc();
+    active.docs.forEach((doc) => {
+      transaction.update(doc.ref, {status: "expired"});
+    });
+
+    const subscription = {
+      id: subRef.id,
+      userId: options.uid,
+      plan: options.product.plan,
+      status: "active",
+      startDate: now.toISOString(),
+      expiryDate: options.expiryDate.toISOString(),
+      paymentMethod: "store",
+      transactionRef,
+      amountPaid: options.product.amountPaid,
+      currency: "KES",
+      isTrialUsed: true,
+      store: options.store,
+      productId: options.productId,
+      verifiedAt: now.toISOString(),
+    };
+    transaction.set(subRef, subscription);
+    transaction.set(claimRef, {
+      uid: options.uid,
+      store: options.store,
+      productId: options.productId,
+      claimedAt: admin.firestore.FieldValue.serverTimestamp(),
+    });
+    return subscription;
   });
-
-  const subscription = {
-    id: subRef.id,
-    userId: options.uid,
-    plan: options.product.plan,
-    status: "active",
-    startDate: now.toISOString(),
-    expiryDate: options.expiryDate.toISOString(),
-    paymentMethod: "store",
-    transactionRef,
-    amountPaid: options.product.amountPaid,
-    currency: "KES",
-    isTrialUsed: true,
-    store: options.store,
-    productId: options.productId,
-    verifiedAt: now.toISOString(),
-  };
-  batch.set(subRef, subscription);
-  await batch.commit();
-  return subscription;
 }
 
 /**

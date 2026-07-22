@@ -1,255 +1,336 @@
 import 'package:flutter/material.dart';
-import 'package:personal_haven/core/theme/app_theme.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:personal_haven/core/constants/app_colors.dart';
-import 'package:personal_haven/presentation/screens/legal/terms_screen.dart';
-import 'package:personal_haven/presentation/screens/subscription/subscription_screen.dart';
+import 'package:personal_haven/core/theme/app_theme.dart';
 import 'package:personal_haven/data/models/subscription.dart';
-import 'package:personal_haven/providers/subscription_provider.dart';
-import 'package:personal_haven/providers/user_provider.dart';
-import 'package:personal_haven/providers/auth_provider.dart';
+import 'package:personal_haven/presentation/screens/auth/login_screen.dart';
+import 'package:personal_haven/presentation/screens/legal/terms_screen.dart';
 import 'package:personal_haven/presentation/screens/profile/edit_profile_screen.dart';
 import 'package:personal_haven/presentation/screens/profile/mood_insights_screen.dart';
-import 'package:personal_haven/presentation/screens/profile/settings_screen.dart';
 import 'package:personal_haven/presentation/screens/profile/privacy_security_screen.dart';
-import 'package:personal_haven/presentation/screens/auth/login_screen.dart';
+import 'package:personal_haven/presentation/screens/profile/settings_screen.dart';
+import 'package:personal_haven/presentation/screens/subscription/subscription_screen.dart';
+import 'package:personal_haven/providers/auth_provider.dart';
+import 'package:personal_haven/providers/subscription_provider.dart';
+import 'package:personal_haven/providers/user_provider.dart';
 
-/// Profile Screen - Main user profile view
-class ProfileScreen extends ConsumerWidget {
+/// The account hub for personal details, preferences, and account actions.
+class ProfileScreen extends ConsumerStatefulWidget {
   const ProfileScreen({super.key});
 
   @override
-  Widget build(BuildContext context, WidgetRef ref) {
+  ConsumerState<ProfileScreen> createState() => _ProfileScreenState();
+}
+
+class _ProfileScreenState extends ConsumerState<ProfileScreen> {
+  bool _isDeletingAccount = false;
+
+  @override
+  Widget build(BuildContext context) {
     final userState = ref.watch(userProvider);
     final user = userState.user;
-    final subState = ref.watch(subscriptionProvider);
+    final subscription = ref.watch(subscriptionProvider);
 
     if (userState.isLoading) {
       return const Scaffold(
         body: Center(
-          child: CircularProgressIndicator(
-            valueColor: AlwaysStoppedAnimation<Color>(AppColors.primary),
-          ),
+          child: CircularProgressIndicator(color: AppColors.primary),
         ),
       );
     }
 
+    final displayName = user?.fullName ?? 'Personal Haven member';
+    final email = user?.email ?? 'No email available';
+    final bio = user?.bio?.trim();
+
     return Scaffold(
-      backgroundColor: AppColors.primaryLight,
+      backgroundColor: Theme.of(context).scaffoldBackgroundColor,
       body: SafeArea(
         child: SingleChildScrollView(
-          child: Column(
-            children: [
-              const SizedBox(height: 40),
-              // Profile Avatar
-              GestureDetector(
-                onTap: () {
-                  Navigator.push(
+          padding: const EdgeInsets.fromLTRB(20, 18, 20, 40),
+          child: Center(
+            child: ConstrainedBox(
+              constraints: const BoxConstraints(maxWidth: 720),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.stretch,
+                children: [
+                  _buildPageHeading(context),
+                  const SizedBox(height: 18),
+                  _buildProfileHeader(
                     context,
-                    MaterialPageRoute(
-                      builder: (_) => const EditProfileScreen(),
-                    ),
-                  );
-                },
-                child: Stack(
-                  children: [
-                    CircleAvatar(
-                      radius: 60,
-                      backgroundColor: context.colors.cardColor,
-                      backgroundImage: user?.avatarUrl != null
-                          ? NetworkImage(user!.avatarUrl!)
-                          : null,
-                      child: user?.avatarUrl == null
-                          ? Icon(
-                              Icons.person,
-                              size: 60,
-                              color: AppColors.primaryLight,
-                            )
-                          : null,
-                    ),
-                    Positioned(
-                      bottom: 0,
-                      right: 0,
-                      child: Container(
-                        padding: const EdgeInsets.all(8),
-                        decoration: BoxDecoration(
-                          color: AppColors.primary,
-                          shape: BoxShape.circle,
-                        ),
-                        child: Icon(
-                          Icons.camera_alt,
-                          size: 16,
-                          color: Colors.white,
-                        ),
-                      ),
-                    ),
+                    displayName: displayName,
+                    email: email,
+                    bio: bio,
+                    avatarUrl: user?.avatarUrl,
+                    membershipLabel: _membershipLabel(subscription),
+                  ),
+                  if (!subscription.hasFullAccess) ...[
+                    const SizedBox(height: 14),
+                    _buildPremiumBanner(context),
                   ],
-                ),
+                  const SizedBox(height: 18),
+                  _ProfileSection(
+                    title: 'Your haven',
+                    children: [
+                      _ProfileAction(
+                        icon: Icons.insights_outlined,
+                        title: 'Insights',
+                        subtitle: 'See patterns in how you have been feeling',
+                        onTap: () => _open(context, const MoodInsightsScreen()),
+                      ),
+                      _ProfileAction(
+                        icon: Icons.tune_rounded,
+                        title: 'App settings',
+                        subtitle: 'Notifications, currency, and preferences',
+                        onTap: () => _open(context, const SettingsScreen()),
+                      ),
+                      _ProfileAction(
+                        icon: Icons.shield_outlined,
+                        title: 'Privacy & security',
+                        subtitle: 'Manage protection for your account',
+                        onTap: () =>
+                            _open(context, const PrivacySecurityScreen()),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 18),
+                  _ProfileSection(
+                    title: 'Legal & support',
+                    children: [
+                      _ProfileAction(
+                        icon: Icons.description_outlined,
+                        title: 'Terms & conditions',
+                        onTap: () => openTermsAndConditions(context),
+                      ),
+                      _ProfileAction(
+                        icon: Icons.privacy_tip_outlined,
+                        title: 'Privacy policy',
+                        onTap: () => openPrivacyPolicy(context),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 18),
+                  _buildAccountActions(context),
+                ],
               ),
-              const SizedBox(height: 16),
-              // User Name
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildPageHeading(BuildContext context) {
+    return Row(
+      children: [
+        Expanded(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
               Text(
-                user?.fullName ?? 'User',
+                'Profile',
                 style: TextStyle(
-                  fontSize: 28,
-                  fontWeight: FontWeight.bold,
                   color: context.colors.textPrimary,
+                  fontSize: 30,
+                  fontWeight: FontWeight.w700,
+                  height: 1.05,
                 ),
               ),
-              // Premium badge
-              if (subState.isPremium)
+              const SizedBox(height: 5),
+              Text(
+                'Your account and personal preferences',
+                style: TextStyle(
+                  color: context.colors.textSecondary,
+                  fontSize: 14,
+                ),
+              ),
+            ],
+          ),
+        ),
+        IconButton.filledTonal(
+          tooltip: 'Edit personal details',
+          onPressed: () => _open(context, const EditProfileScreen()),
+          icon: const Icon(Icons.edit_outlined),
+          style: IconButton.styleFrom(
+            foregroundColor: AppColors.primaryDark,
+            backgroundColor: AppColors.primary.withValues(alpha: 0.14),
+          ),
+        ),
+      ],
+    );
+  }
+
+  Widget _buildProfileHeader(
+    BuildContext context, {
+    required String displayName,
+    required String email,
+    required String? bio,
+    required String? avatarUrl,
+    required String membershipLabel,
+  }) {
+    return Container(
+      padding: const EdgeInsets.all(22),
+      decoration: BoxDecoration(
+        gradient: const LinearGradient(
+          colors: [Color(0xFF319E96), AppColors.primary],
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
+        ),
+        borderRadius: BorderRadius.circular(28),
+        boxShadow: [
+          BoxShadow(
+            color: AppColors.primaryDark.withValues(alpha: 0.22),
+            blurRadius: 24,
+            offset: const Offset(0, 12),
+          ),
+        ],
+      ),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          _ProfileAvatar(avatarUrl: avatarUrl, displayName: displayName),
+          const SizedBox(width: 18),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  displayName,
+                  maxLines: 2,
+                  overflow: TextOverflow.ellipsis,
+                  style: const TextStyle(
+                    color: Colors.white,
+                    fontSize: 24,
+                    height: 1.1,
+                    fontWeight: FontWeight.w700,
+                  ),
+                ),
+                const SizedBox(height: 5),
+                Text(
+                  email,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: TextStyle(
+                    color: Colors.white.withValues(alpha: 0.84),
+                    fontSize: 13,
+                  ),
+                ),
+                const SizedBox(height: 12),
                 Container(
-                  margin: const EdgeInsets.only(top: 6),
                   padding: const EdgeInsets.symmetric(
-                    horizontal: 12,
-                    vertical: 4,
+                    horizontal: 10,
+                    vertical: 6,
                   ),
                   decoration: BoxDecoration(
-                    color: AppColors.primary,
-                    borderRadius: BorderRadius.circular(12),
-                  ),
-                  child: Text(
-                    subState.active?.plan == SubscriptionPlan.free
-                        ? '✨ Free Trial — ${subState.active!.daysRemaining}d left'
-                        : subState.active != null
-                        ? '✨ Premium — ${subState.active!.daysRemaining}d left'
-                        : '✨ Premium',
-                    style: TextStyle(
-                      color: Colors.white,
-                      fontSize: 12,
-                      fontWeight: FontWeight.w600,
+                    color: Colors.white.withValues(alpha: 0.18),
+                    borderRadius: BorderRadius.circular(999),
+                    border: Border.all(
+                      color: Colors.white.withValues(alpha: 0.28),
                     ),
                   ),
-                ),
-              if (user?.bio != null) ...[
-                const SizedBox(height: 8),
-                Padding(
-                  padding: const EdgeInsets.symmetric(horizontal: 40),
-                  child: Text(
-                    user!.bio!,
-                    style: TextStyle(
-                      fontSize: 14,
-                      color: context.colors.textSecondary,
-                    ),
-                    textAlign: TextAlign.center,
-                  ),
-                ),
-              ],
-              const SizedBox(height: 40),
-              // Menu Options
-              Container(
-                margin: const EdgeInsets.symmetric(horizontal: 20),
-                padding: const EdgeInsets.all(20),
-                decoration: BoxDecoration(
-                  color: context.colors.cardColor,
-                  borderRadius: BorderRadius.circular(16),
-                ),
-                child: Column(
-                  children: [
-                    _buildProfileOption(
-                      context,
-                      Icons.settings,
-                      'App Settings',
-                      AppColors.primary,
-                      () {
-                        Navigator.push(
-                          context,
-                          MaterialPageRoute(
-                            builder: (_) => const SettingsScreen(),
-                          ),
-                        );
-                      },
-                    ),
-                    const Divider(),
-                    _buildProfileOption(
-                      context,
-                      Icons.lock,
-                      'Privacy & Security',
-                      AppColors.primary,
-                      () {
-                        Navigator.push(
-                          context,
-                          MaterialPageRoute(
-                            builder: (_) => const PrivacySecurityScreen(),
-                          ),
-                        );
-                      },
-                    ),
-                    const Divider(),
-                    if (!subState.hasFullAccess) ...[
-                      _buildProfileOption(
-                        context,
-                        Icons.workspace_premium,
-                        'Go Premium',
-                        Colors.amber.shade700,
-                        () {
-                          Navigator.push(
-                            context,
-                            MaterialPageRoute(
-                              builder: (_) => const SubscriptionScreen(),
-                            ),
-                          );
-                        },
+                  child: Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      const Icon(
+                        Icons.auto_awesome_rounded,
+                        size: 14,
+                        color: Colors.white,
                       ),
-                      const Divider(),
-                    ],
-                    _buildProfileOption(
-                      context,
-                      Icons.description_outlined,
-                      'Terms & Conditions',
-                      AppColors.primary,
-                      () => openTermsAndConditions(context),
-                    ),
-                    const Divider(),
-                    _buildProfileOption(
-                      context,
-                      Icons.privacy_tip_outlined,
-                      'Privacy Policy',
-                      AppColors.primary,
-                      () => openPrivacyPolicy(context),
-                    ),
-                    const Divider(),
-                    _buildProfileOption(
-                      context,
-                      Icons.show_chart,
-                      'Insights',
-                      AppColors.primary,
-                      () {
-                        Navigator.push(
-                          context,
-                          MaterialPageRoute(
-                            builder: (_) => const MoodInsightsScreen(),
+                      const SizedBox(width: 6),
+                      Flexible(
+                        child: Text(
+                          membershipLabel,
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                          style: const TextStyle(
+                            color: Colors.white,
+                            fontSize: 12,
+                            fontWeight: FontWeight.w600,
                           ),
-                        );
-                      },
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+                if (bio != null && bio.isNotEmpty) ...[
+                  const SizedBox(height: 12),
+                  Text(
+                    bio,
+                    maxLines: 2,
+                    overflow: TextOverflow.ellipsis,
+                    style: TextStyle(
+                      color: Colors.white.withValues(alpha: 0.9),
+                      fontSize: 13,
+                      height: 1.35,
+                    ),
+                  ),
+                ],
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildPremiumBanner(BuildContext context) {
+    return Material(
+      color: Colors.transparent,
+      child: InkWell(
+        onTap: () => _open(context, const SubscriptionScreen()),
+        borderRadius: BorderRadius.circular(20),
+        child: Ink(
+          padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 16),
+          decoration: BoxDecoration(
+            gradient: const LinearGradient(
+              colors: [Color(0xFFFFF2D6), Color(0xFFFFE3AA)],
+              begin: Alignment.topLeft,
+              end: Alignment.bottomRight,
+            ),
+            borderRadius: BorderRadius.circular(20),
+            border: Border.all(color: const Color(0xFFE8B95C)),
+          ),
+          child: Row(
+            children: [
+              Container(
+                width: 46,
+                height: 46,
+                decoration: BoxDecoration(
+                  color: Colors.white.withValues(alpha: 0.72),
+                  borderRadius: BorderRadius.circular(14),
+                ),
+                child: const Icon(
+                  Icons.workspace_premium_rounded,
+                  color: Color(0xFF9A6500),
+                ),
+              ),
+              const SizedBox(width: 13),
+              const Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      'Unlock your full haven',
+                      style: TextStyle(
+                        color: Color(0xFF5F4108),
+                        fontSize: 16,
+                        fontWeight: FontWeight.w700,
+                      ),
+                    ),
+                    SizedBox(height: 3),
+                    Text(
+                      'Explore every journal and wellness feature',
+                      style: TextStyle(
+                        color: Color(0xFF80601E),
+                        fontSize: 12,
+                        height: 1.25,
+                      ),
                     ),
                   ],
                 ),
               ),
-              const SizedBox(height: 20),
-              // Log Out Button
-              Padding(
-                padding: const EdgeInsets.symmetric(horizontal: 20),
-                child: ElevatedButton(
-                  onPressed: () => _showLogoutDialog(context, ref),
-                  style: ElevatedButton.styleFrom(
-                    backgroundColor: Colors.red,
-                    minimumSize: const Size(double.infinity, 56),
-                    shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(28),
-                    ),
-                  ),
-                  child: Text(
-                    'Log Out',
-                    style: TextStyle(
-                      fontSize: 18,
-                      fontWeight: FontWeight.w600,
-                      color: Colors.white,
-                    ),
-                  ),
-                ),
-              ),
-              const SizedBox(height: 40),
+              const SizedBox(width: 8),
+              const Icon(Icons.arrow_forward_rounded, color: Color(0xFF9A6500)),
             ],
           ),
         ),
@@ -257,63 +338,375 @@ class ProfileScreen extends ConsumerWidget {
     );
   }
 
-  Widget _buildProfileOption(
-    BuildContext context,
-    IconData icon,
-    String title,
-    Color iconColor,
-    VoidCallback onTap,
-  ) {
-    return InkWell(
-      onTap: onTap,
-      child: Padding(
-        padding: const EdgeInsets.symmetric(vertical: 12),
-        child: Row(
-          children: [
-            Icon(icon, color: iconColor),
-            const SizedBox(width: 16),
-            Expanded(
-              child: Text(
-                title,
-                style: TextStyle(
-                  fontSize: 16,
-                  color: context.colors.textPrimary,
-                ),
+  Widget _buildAccountActions(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.all(18),
+      decoration: BoxDecoration(
+        color: context.colors.cardColor,
+        borderRadius: BorderRadius.circular(22),
+        border: Border.all(color: AppColors.error.withValues(alpha: 0.2)),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(
+            'Account actions',
+            style: TextStyle(
+              color: context.colors.textPrimary,
+              fontSize: 17,
+              fontWeight: FontWeight.w700,
+            ),
+          ),
+          const SizedBox(height: 6),
+          Text(
+            'Sign out safely, or permanently remove your account and data.',
+            style: TextStyle(
+              color: context.colors.textSecondary,
+              fontSize: 13,
+              height: 1.35,
+            ),
+          ),
+          const SizedBox(height: 16),
+          OutlinedButton.icon(
+            onPressed: _showLogoutDialog,
+            icon: const Icon(Icons.logout_rounded),
+            label: const Text('Log out'),
+            style: OutlinedButton.styleFrom(
+              foregroundColor: context.colors.textPrimary,
+              minimumSize: const Size(double.infinity, 50),
+              side: BorderSide(color: context.colors.divider),
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(15),
               ),
             ),
-            Icon(Icons.chevron_right, color: context.colors.textSecondary),
-          ],
-        ),
+          ),
+          const SizedBox(height: 10),
+          OutlinedButton.icon(
+            onPressed: _isDeletingAccount ? null : _showDeleteAccountDialog,
+            icon: _isDeletingAccount
+                ? const SizedBox(
+                    width: 18,
+                    height: 18,
+                    child: CircularProgressIndicator(strokeWidth: 2),
+                  )
+                : const Icon(Icons.delete_outline_rounded),
+            label: Text(
+              _isDeletingAccount ? 'Deleting account…' : 'Delete account',
+            ),
+            style: OutlinedButton.styleFrom(
+              foregroundColor: AppColors.error,
+              minimumSize: const Size(double.infinity, 50),
+              side: BorderSide(color: AppColors.error.withValues(alpha: 0.55)),
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(15),
+              ),
+            ),
+          ),
+        ],
       ),
     );
   }
 
-  void _showLogoutDialog(BuildContext context, WidgetRef ref) {
-    showDialog(
+  String _membershipLabel(SubscriptionState subscription) {
+    final active = subscription.active;
+    if (active?.plan == SubscriptionPlan.free) {
+      return 'Free trial · ${active!.daysRemaining} days left';
+    }
+    if (subscription.hasFullAccess) return 'Premium member';
+    return 'Free account';
+  }
+
+  void _open(BuildContext context, Widget screen) {
+    Navigator.push(context, MaterialPageRoute(builder: (_) => screen));
+  }
+
+  Future<void> _showDeleteAccountDialog() async {
+    final confirmationController = TextEditingController();
+    var confirmation = '';
+    final confirmed = await showDialog<bool>(
       context: context,
-      builder: (context) => AlertDialog(
-        title: Text('Log Out'),
-        content: Text('Are you sure you want to log out?'),
+      builder: (dialogContext) => StatefulBuilder(
+        builder: (context, setDialogState) => AlertDialog(
+          icon: const Icon(
+            Icons.warning_amber_rounded,
+            color: AppColors.error,
+            size: 34,
+          ),
+          title: const Text(
+            'Delete your account?',
+            textAlign: TextAlign.center,
+          ),
+          content: SingleChildScrollView(
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                const Text(
+                  'Your profile and all Personal Haven data will be permanently '
+                  'deleted, including journals, moods, goals, tasks, wellness, '
+                  'and budget records. This cannot be undone.',
+                ),
+                const SizedBox(height: 18),
+                Text(
+                  'Type DELETE to confirm',
+                  style: TextStyle(
+                    color: context.colors.textPrimary,
+                    fontWeight: FontWeight.w600,
+                  ),
+                ),
+                const SizedBox(height: 8),
+                TextField(
+                  controller: confirmationController,
+                  autofocus: true,
+                  textCapitalization: TextCapitalization.characters,
+                  decoration: const InputDecoration(
+                    hintText: 'DELETE',
+                    prefixIcon: Icon(Icons.delete_outline),
+                  ),
+                  onChanged: (value) => setDialogState(() {
+                    confirmation = value.trim();
+                  }),
+                ),
+              ],
+            ),
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(dialogContext, false),
+              child: const Text('Keep my account'),
+            ),
+            FilledButton(
+              onPressed: confirmation == 'DELETE'
+                  ? () => Navigator.pop(dialogContext, true)
+                  : null,
+              style: FilledButton.styleFrom(backgroundColor: AppColors.error),
+              child: const Text('Delete permanently'),
+            ),
+          ],
+        ),
+      ),
+    );
+    confirmationController.dispose();
+
+    if (confirmed != true || !mounted) return;
+
+    setState(() => _isDeletingAccount = true);
+    final deleted = await ref.read(authProvider.notifier).deleteAccount();
+    if (!mounted) return;
+
+    if (deleted) {
+      // Let Riverpod finish rebuilding auth-dependent providers before the
+      // route tree is removed. Navigating in the same build scope can trigger
+      // Flutter's `_dependents.isEmpty` framework assertion.
+      await WidgetsBinding.instance.endOfFrame;
+      if (!mounted) return;
+      Navigator.pushAndRemoveUntil(
+        context,
+        MaterialPageRoute(builder: (_) => const LoginScreen()),
+        (_) => false,
+      );
+      return;
+    }
+
+    setState(() => _isDeletingAccount = false);
+    final message =
+        ref.read(authProvider).error ??
+        'Account deletion failed. Please try again.';
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(content: Text(message), backgroundColor: AppColors.error),
+    );
+  }
+
+  void _showLogoutDialog() {
+    showDialog<void>(
+      context: context,
+      builder: (dialogContext) => AlertDialog(
+        icon: const Icon(Icons.logout_rounded, color: AppColors.primary),
+        title: const Text('Log out?'),
+        content: const Text(
+          'You can sign back in at any time. Your saved data will remain in '
+          'your Personal Haven account.',
+          textAlign: TextAlign.center,
+        ),
         actions: [
           TextButton(
-            onPressed: () => Navigator.pop(context),
-            child: Text('Cancel'),
+            onPressed: () => Navigator.pop(dialogContext),
+            child: const Text('Cancel'),
           ),
-          TextButton(
+          FilledButton(
             onPressed: () async {
-              Navigator.pop(context);
+              Navigator.pop(dialogContext);
               await ref.read(authProvider.notifier).logout();
-              if (context.mounted) {
-                Navigator.pushAndRemoveUntil(
-                  context,
-                  MaterialPageRoute(builder: (_) => const LoginScreen()),
-                  (route) => false,
-                );
-              }
+              if (!mounted) return;
+              await WidgetsBinding.instance.endOfFrame;
+              if (!mounted) return;
+              Navigator.pushAndRemoveUntil(
+                context,
+                MaterialPageRoute(builder: (_) => const LoginScreen()),
+                (_) => false,
+              );
             },
-            child: Text('Log Out', style: TextStyle(color: Colors.red)),
+            child: const Text('Log out'),
           ),
         ],
+      ),
+    );
+  }
+}
+
+class _ProfileAvatar extends StatelessWidget {
+  const _ProfileAvatar({required this.avatarUrl, required this.displayName});
+
+  final String? avatarUrl;
+  final String displayName;
+
+  @override
+  Widget build(BuildContext context) {
+    final initial = displayName.trim().isEmpty
+        ? 'P'
+        : displayName.trim().characters.first.toUpperCase();
+    return Container(
+      width: 76,
+      height: 76,
+      decoration: BoxDecoration(
+        shape: BoxShape.circle,
+        color: Colors.white,
+        border: Border.all(
+          color: Colors.white.withValues(alpha: 0.72),
+          width: 3,
+        ),
+        image: avatarUrl != null && avatarUrl!.isNotEmpty
+            ? DecorationImage(
+                image: NetworkImage(avatarUrl!),
+                fit: BoxFit.cover,
+              )
+            : null,
+      ),
+      alignment: Alignment.center,
+      child: avatarUrl == null || avatarUrl!.isEmpty
+          ? Text(
+              initial,
+              style: const TextStyle(
+                color: AppColors.primaryDark,
+                fontSize: 28,
+                fontWeight: FontWeight.w700,
+              ),
+            )
+          : null,
+    );
+  }
+}
+
+class _ProfileSection extends StatelessWidget {
+  const _ProfileSection({required this.title, required this.children});
+
+  final String title;
+  final List<Widget> children;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.fromLTRB(10, 18, 10, 8),
+      decoration: BoxDecoration(
+        color: context.colors.cardColor,
+        borderRadius: BorderRadius.circular(22),
+        border: Border.all(color: context.colors.divider),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 8),
+            child: Text(
+              title,
+              style: TextStyle(
+                color: context.colors.textPrimary,
+                fontSize: 17,
+                fontWeight: FontWeight.w700,
+              ),
+            ),
+          ),
+          const SizedBox(height: 8),
+          for (var index = 0; index < children.length; index++) ...[
+            children[index],
+            if (index != children.length - 1)
+              Divider(height: 1, indent: 62, color: context.colors.divider),
+          ],
+        ],
+      ),
+    );
+  }
+}
+
+class _ProfileAction extends StatelessWidget {
+  const _ProfileAction({
+    required this.icon,
+    required this.title,
+    required this.onTap,
+    this.subtitle,
+  });
+
+  final IconData icon;
+  final String title;
+  final String? subtitle;
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    return Material(
+      color: Colors.transparent,
+      child: InkWell(
+        onTap: onTap,
+        borderRadius: BorderRadius.circular(14),
+        child: Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 12),
+          child: Row(
+            children: [
+              Container(
+                width: 42,
+                height: 42,
+                decoration: BoxDecoration(
+                  color: AppColors.primaryDark.withValues(alpha: 0.11),
+                  borderRadius: BorderRadius.circular(13),
+                ),
+                child: Icon(icon, color: AppColors.primaryDark, size: 21),
+              ),
+              const SizedBox(width: 12),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      title,
+                      style: TextStyle(
+                        color: context.colors.textPrimary,
+                        fontSize: 15,
+                        fontWeight: FontWeight.w600,
+                      ),
+                    ),
+                    if (subtitle != null) ...[
+                      const SizedBox(height: 2),
+                      Text(
+                        subtitle!,
+                        maxLines: 2,
+                        overflow: TextOverflow.ellipsis,
+                        style: TextStyle(
+                          color: context.colors.textSecondary,
+                          fontSize: 12,
+                          height: 1.25,
+                        ),
+                      ),
+                    ],
+                  ],
+                ),
+              ),
+              Icon(
+                Icons.chevron_right_rounded,
+                color: context.colors.textSecondary,
+              ),
+            ],
+          ),
+        ),
       ),
     );
   }

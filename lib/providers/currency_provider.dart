@@ -1,3 +1,5 @@
+import 'dart:ui';
+
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:personal_haven/core/utils/currency_formatter.dart';
 import 'package:shared_preferences/shared_preferences.dart';
@@ -8,7 +10,10 @@ class CurrencyNotifier extends AsyncNotifier<String> {
   @override
   Future<String> build() async {
     final prefs = await SharedPreferences.getInstance();
-    return prefs.getString(_kCurrencyCodeKey) ?? CurrencyFormatter.defaultCode;
+    return prefs.getString(_kCurrencyCodeKey) ??
+        CurrencyFormatter.defaultCodeForCountry(
+          PlatformDispatcher.instance.locale.countryCode,
+        );
   }
 
   Future<void> setCurrency(String code) async {

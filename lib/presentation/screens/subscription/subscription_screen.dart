@@ -177,6 +177,9 @@ class _SubscriptionScreenState extends ConsumerState<SubscriptionScreen> {
     final subState = ref.watch(subscriptionProvider);
     final catalog = _catalog;
     final selectedProduct = catalog?.productForPlan(_selectedPlan);
+    final active = subState.active;
+    final isTrial = active?.plan == SubscriptionPlan.free && subState.isPremium;
+    final showPlanOptions = !subState.hasFullAccess || isTrial;
     final canSubscribe =
         !_isProcessing &&
         !_isLoadingCatalog &&
@@ -185,149 +188,231 @@ class _SubscriptionScreenState extends ConsumerState<SubscriptionScreen> {
 
     return Scaffold(
       backgroundColor: Theme.of(context).scaffoldBackgroundColor,
-      appBar: AppBar(
-        title: Text('Personal Haven Premium'),
-        backgroundColor: AppColors.primary,
-        foregroundColor: Colors.white,
-      ),
-      body: SingleChildScrollView(
-        padding: const EdgeInsets.all(20),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            // Active subscription banner
-            if (subState.active != null && subState.isPremium)
-              _ActiveBanner(sub: subState.active!)
-            else ...[
-              // Hero
-              _HeroCard(),
-              const SizedBox(height: 24),
-
-              // Plan selector
-              Text(
-                'Choose a Plan',
-                style: TextStyle(
-                  fontSize: 18,
-                  fontWeight: FontWeight.bold,
-                  color: context.colors.textPrimary,
-                ),
-              ),
-              const SizedBox(height: 12),
-              if (_isLoadingCatalog)
-                const Padding(
-                  padding: EdgeInsets.only(bottom: 12),
-                  child: LinearProgressIndicator(minHeight: 2),
-                ),
-              _PlanCard(
-                plan: SubscriptionPlan.yearly,
-                selected: _selectedPlan == SubscriptionPlan.yearly,
-                product: catalog?.productForPlan(SubscriptionPlan.yearly),
-                available:
-                    catalog?.isPlanAvailable(SubscriptionPlan.yearly) ?? false,
-                badge: 'Best Value',
-                onTap: () =>
-                    setState(() => _selectedPlan = SubscriptionPlan.yearly),
-              ),
-              const SizedBox(height: 10),
-              _PlanCard(
-                plan: SubscriptionPlan.monthly,
-                selected: _selectedPlan == SubscriptionPlan.monthly,
-                product: catalog?.productForPlan(SubscriptionPlan.monthly),
-                available:
-                    catalog?.isPlanAvailable(SubscriptionPlan.monthly) ?? false,
-                onTap: () =>
-                    setState(() => _selectedPlan = SubscriptionPlan.monthly),
-              ),
-              const SizedBox(height: 10),
-              _PlanCard(
-                plan: SubscriptionPlan.weekly,
-                selected: _selectedPlan == SubscriptionPlan.weekly,
-                product: catalog?.productForPlan(SubscriptionPlan.weekly),
-                available:
-                    catalog?.isPlanAvailable(SubscriptionPlan.weekly) ?? false,
-                onTap: () =>
-                    setState(() => _selectedPlan = SubscriptionPlan.weekly),
-              ),
-              const SizedBox(height: 16),
-
-              if (!_isLoadingCatalog &&
-                  (catalog?.isAvailable != true ||
-                      catalog?.products.isEmpty == true))
-                _StoreIssueNotice(
-                  message:
-                      catalog?.error ??
-                      'Store products are not available yet. Check your App Store Connect or Google Play product IDs.',
-                  onRetry: _loadCatalog,
-                ),
-              if (!_isLoadingCatalog && catalog?.notFoundIds.isNotEmpty == true)
-                _MissingProductsNotice(ids: catalog!.notFoundIds),
-
-              _StoreBillingNote(),
-              const SizedBox(height: 16),
-
-              // Subscribe button
-              SizedBox(
-                width: double.infinity,
-                height: 56,
-                child: ElevatedButton(
-                  onPressed: canSubscribe ? _subscribe : null,
-                  style: ElevatedButton.styleFrom(
-                    backgroundColor: AppColors.primary,
-                    foregroundColor: Colors.white,
-                    shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(28),
-                    ),
-                  ),
-                  child: _isProcessing || _isLoadingCatalog
-                      ? const SizedBox(
-                          width: 24,
-                          height: 24,
-                          child: CircularProgressIndicator(
-                            color: Colors.white,
-                            strokeWidth: 2,
-                          ),
-                        )
-                      : FittedBox(
-                          fit: BoxFit.scaleDown,
-                          child: Text(
-                            _storeButtonLabel(_selectedPlan),
-                            maxLines: 1,
-                            style: const TextStyle(
-                              fontSize: 16,
-                              fontWeight: FontWeight.w600,
+      body: SafeArea(
+        child: SingleChildScrollView(
+          padding: const EdgeInsets.fromLTRB(20, 18, 20, 40),
+          child: Center(
+            child: ConstrainedBox(
+              constraints: const BoxConstraints(maxWidth: 720),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.stretch,
+                children: [
+                  _buildPageHeading(context),
+                  const SizedBox(height: 18),
+                  if (subState.hasFullAccess)
+                    _ActiveBanner(
+                      sub: active,
+                      lifetimeAccess: subState.premiumOverride,
+                    )
+                  else
+                    const _HeroCard(),
+                  const SizedBox(height: 18),
+                  const _FeaturesList(),
+                  if (showPlanOptions) ...[
+                    const SizedBox(height: 18),
+                    Container(
+                      padding: const EdgeInsets.all(18),
+                      decoration: BoxDecoration(
+                        color: context.colors.cardColor,
+                        borderRadius: BorderRadius.circular(22),
+                        border: Border.all(color: context.colors.divider),
+                      ),
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            isTrial ? 'Continue with premium' : 'Choose a plan',
+                            style: TextStyle(
+                              fontSize: 18,
+                              fontWeight: FontWeight.w700,
+                              color: context.colors.textPrimary,
                             ),
                           ),
+                          const SizedBox(height: 5),
+                          Text(
+                            'Prices and plan names come directly from ${Platform.isIOS ? 'the App Store' : 'Google Play'}.',
+                            style: TextStyle(
+                              color: context.colors.textSecondary,
+                              fontSize: 12,
+                            ),
+                          ),
+                          const SizedBox(height: 16),
+                          if (_isLoadingCatalog)
+                            const Padding(
+                              padding: EdgeInsets.only(bottom: 14),
+                              child: LinearProgressIndicator(minHeight: 2),
+                            ),
+                          _PlanCard(
+                            plan: SubscriptionPlan.yearly,
+                            selected: _selectedPlan == SubscriptionPlan.yearly,
+                            product: catalog?.productForPlan(
+                              SubscriptionPlan.yearly,
+                            ),
+                            available:
+                                catalog?.isPlanAvailable(
+                                  SubscriptionPlan.yearly,
+                                ) ??
+                                false,
+                            badge: 'Best value',
+                            onTap: () => setState(
+                              () => _selectedPlan = SubscriptionPlan.yearly,
+                            ),
+                          ),
+                          const SizedBox(height: 10),
+                          _PlanCard(
+                            plan: SubscriptionPlan.monthly,
+                            selected: _selectedPlan == SubscriptionPlan.monthly,
+                            product: catalog?.productForPlan(
+                              SubscriptionPlan.monthly,
+                            ),
+                            available:
+                                catalog?.isPlanAvailable(
+                                  SubscriptionPlan.monthly,
+                                ) ??
+                                false,
+                            onTap: () => setState(
+                              () => _selectedPlan = SubscriptionPlan.monthly,
+                            ),
+                          ),
+                          const SizedBox(height: 10),
+                          _PlanCard(
+                            plan: SubscriptionPlan.weekly,
+                            selected: _selectedPlan == SubscriptionPlan.weekly,
+                            product: catalog?.productForPlan(
+                              SubscriptionPlan.weekly,
+                            ),
+                            available:
+                                catalog?.isPlanAvailable(
+                                  SubscriptionPlan.weekly,
+                                ) ??
+                                false,
+                            onTap: () => setState(
+                              () => _selectedPlan = SubscriptionPlan.weekly,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                    const SizedBox(height: 14),
+                    if (!_isLoadingCatalog &&
+                        (catalog?.isAvailable != true ||
+                            catalog?.products.isEmpty == true))
+                      _StoreIssueNotice(
+                        message:
+                            catalog?.error ??
+                            'Store products are not available yet. Check your store product configuration.',
+                        onRetry: _loadCatalog,
+                      ),
+                    if (!_isLoadingCatalog &&
+                        catalog?.notFoundIds.isNotEmpty == true)
+                      _MissingProductsNotice(ids: catalog!.notFoundIds),
+                    const _StoreBillingNote(),
+                    const SizedBox(height: 14),
+                    SizedBox(
+                      height: 54,
+                      child: FilledButton(
+                        onPressed: canSubscribe ? _subscribe : null,
+                        style: FilledButton.styleFrom(
+                          backgroundColor: AppColors.primary,
+                          foregroundColor: Colors.white,
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(15),
+                          ),
                         ),
-                ),
+                        child: _isProcessing || _isLoadingCatalog
+                            ? const SizedBox(
+                                width: 22,
+                                height: 22,
+                                child: CircularProgressIndicator(
+                                  color: Colors.white,
+                                  strokeWidth: 2,
+                                ),
+                              )
+                            : FittedBox(
+                                fit: BoxFit.scaleDown,
+                                child: Text(
+                                  _storeButtonLabel(_selectedPlan),
+                                  maxLines: 1,
+                                  style: const TextStyle(
+                                    fontSize: 16,
+                                    fontWeight: FontWeight.w700,
+                                  ),
+                                ),
+                              ),
+                      ),
+                    ),
+                    const SizedBox(height: 8),
+                    Center(
+                      child: TextButton.icon(
+                        onPressed:
+                            (_isRestoring || catalog?.isAvailable != true)
+                            ? null
+                            : _restorePurchases,
+                        icon: _isRestoring
+                            ? const SizedBox(
+                                width: 14,
+                                height: 14,
+                                child: CircularProgressIndicator(
+                                  strokeWidth: 2,
+                                ),
+                              )
+                            : const Icon(Icons.restore_rounded, size: 18),
+                        label: const Text('Restore purchases'),
+                        style: TextButton.styleFrom(
+                          foregroundColor: context.colors.textSecondary,
+                        ),
+                      ),
+                    ),
+                  ],
+                ],
               ),
-              const SizedBox(height: 24),
-
-              Center(
-                child: TextButton.icon(
-                  onPressed: (_isRestoring || catalog?.isAvailable != true)
-                      ? null
-                      : _restorePurchases,
-                  icon: _isRestoring
-                      ? const SizedBox(
-                          width: 14,
-                          height: 14,
-                          child: CircularProgressIndicator(strokeWidth: 2),
-                        )
-                      : const Icon(Icons.restore, size: 18),
-                  label: const Text('Restore Purchases'),
-                  style: TextButton.styleFrom(
-                    foregroundColor: context.colors.textSecondary,
-                  ),
-                ),
-              ),
-              const SizedBox(height: 16),
-
-              // Features list
-              _FeaturesList(),
-            ],
-          ],
+            ),
+          ),
         ),
       ),
+    );
+  }
+
+  Widget _buildPageHeading(BuildContext context) {
+    return Row(
+      children: [
+        IconButton.filledTonal(
+          tooltip: 'Back to profile',
+          onPressed: () => Navigator.maybePop(context),
+          icon: const Icon(Icons.arrow_back_rounded),
+          style: IconButton.styleFrom(
+            foregroundColor: AppColors.primaryDark,
+            backgroundColor: AppColors.primary.withValues(alpha: 0.14),
+          ),
+        ),
+        const SizedBox(width: 12),
+        Expanded(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                'Personal Haven Premium',
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+                style: TextStyle(
+                  color: context.colors.textPrimary,
+                  fontSize: 24,
+                  fontWeight: FontWeight.w700,
+                  height: 1.05,
+                ),
+              ),
+              const SizedBox(height: 4),
+              Text(
+                'Choose the plan that fits your haven',
+                style: TextStyle(
+                  color: context.colors.textSecondary,
+                  fontSize: 13,
+                ),
+              ),
+            ],
+          ),
+        ),
+      ],
     );
   }
 }
@@ -335,6 +420,8 @@ class _SubscriptionScreenState extends ConsumerState<SubscriptionScreen> {
 // ── Sub-widgets ───────────────────────────────────────────────────────────────
 
 class _HeroCard extends StatelessWidget {
+  const _HeroCard();
+
   @override
   Widget build(BuildContext context) {
     return Container(
@@ -342,31 +429,72 @@ class _HeroCard extends StatelessWidget {
       padding: const EdgeInsets.all(24),
       decoration: BoxDecoration(
         gradient: const LinearGradient(
-          colors: [Color(0xFF4ECDC4), Color(0xFF2D3E40)],
+          colors: [Color(0xFF319E96), AppColors.primary],
           begin: Alignment.topLeft,
           end: Alignment.bottomRight,
         ),
-        borderRadius: BorderRadius.circular(20),
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: const [
-          Icon(Icons.spa, color: Colors.white, size: 40),
-          SizedBox(height: 12),
-          Text(
-            'Unlock Your Full Haven',
-            style: TextStyle(
-              color: Colors.white,
-              fontSize: 22,
-              fontWeight: FontWeight.bold,
-            ),
-          ),
-          SizedBox(height: 8),
-          Text(
-            'Journal, mood tracking, goals, budget, food diary, calendar — all in one safe space.',
-            style: TextStyle(color: Colors.white70, fontSize: 14),
+        borderRadius: BorderRadius.circular(28),
+        boxShadow: [
+          BoxShadow(
+            color: AppColors.primaryDark.withValues(alpha: 0.22),
+            blurRadius: 24,
+            offset: const Offset(0, 12),
           ),
         ],
+      ),
+      child: const Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          _PremiumHeroIcon(),
+          SizedBox(width: 16),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  'Unlock your full haven',
+                  style: TextStyle(
+                    color: Colors.white,
+                    fontSize: 23,
+                    height: 1.1,
+                    fontWeight: FontWeight.w700,
+                  ),
+                ),
+                SizedBox(height: 8),
+                Text(
+                  'More space to reflect, plan, and care for your wellbeing—all in one safe place.',
+                  style: TextStyle(
+                    color: Colors.white,
+                    fontSize: 13,
+                    height: 1.4,
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _PremiumHeroIcon extends StatelessWidget {
+  const _PremiumHeroIcon();
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      width: 54,
+      height: 54,
+      decoration: BoxDecoration(
+        color: Colors.white.withValues(alpha: 0.18),
+        borderRadius: BorderRadius.circular(17),
+        border: Border.all(color: Colors.white.withValues(alpha: 0.28)),
+      ),
+      child: const Icon(
+        Icons.workspace_premium_rounded,
+        color: Colors.white,
+        size: 28,
       ),
     );
   }
@@ -399,17 +527,17 @@ class _PlanCard extends StatelessWidget {
       onTap: available ? onTap : null,
       child: AnimatedContainer(
         duration: const Duration(milliseconds: 200),
-        padding: const EdgeInsets.all(16),
+        padding: const EdgeInsets.all(15),
         decoration: BoxDecoration(
           color: available
               ? context.colors.cardColor
               : context.colors.cardColor2.withValues(alpha: 0.65),
-          borderRadius: BorderRadius.circular(14),
+          borderRadius: BorderRadius.circular(17),
           border: Border.all(
             color: selected && available
                 ? AppColors.primary
                 : context.colors.divider.withValues(alpha: 0.35),
-            width: 2,
+            width: selected && available ? 2 : 1,
           ),
           boxShadow: selected
               ? [
@@ -535,6 +663,8 @@ class _PlanCard extends StatelessWidget {
 }
 
 class _StoreBillingNote extends StatelessWidget {
+  const _StoreBillingNote();
+
   @override
   Widget build(BuildContext context) {
     final storeName = Platform.isIOS ? 'App Store' : 'Google Play';
@@ -546,18 +676,23 @@ class _StoreBillingNote extends StatelessWidget {
     return Container(
       padding: const EdgeInsets.all(12),
       decoration: BoxDecoration(
-        color: Colors.blue.shade50,
-        borderRadius: BorderRadius.circular(10),
-        border: Border.all(color: Colors.blue.shade200),
+        color: AppColors.info.withValues(alpha: context.isDark ? 0.13 : 0.09),
+        borderRadius: BorderRadius.circular(15),
+        border: Border.all(color: AppColors.info.withValues(alpha: 0.28)),
       ),
       child: Row(
         children: [
-          Icon(icon, color: Colors.blue.shade700),
+          const SizedBox(width: 2),
+          Icon(icon, color: AppColors.info),
           const SizedBox(width: 10),
           Expanded(
             child: Text(
               'Billed through $storeName. $manageText',
-              style: TextStyle(fontSize: 12, color: Colors.blue.shade700),
+              style: TextStyle(
+                fontSize: 12,
+                height: 1.35,
+                color: context.colors.textSecondary,
+              ),
             ),
           ),
         ],
@@ -632,13 +767,15 @@ class _MissingProductsNotice extends StatelessWidget {
 }
 
 class _FeaturesList extends StatelessWidget {
+  const _FeaturesList();
+
   final _features = const [
     ('📓', 'AI Chat Assistant'),
     ('📓', 'Unlimited Journal Entries'),
     ('😊', 'Mood Tracking & Insights'),
     ('🎯', 'Goal Setting & Progress'),
     ('💰', 'Budget & Expense Tracker'),
-    ('🥗', 'Food & Nutrition Diary'),
+    //('🥗', 'Food & Nutrition Diary'),
     ('📅', 'Calendar & Events'),
     ('✅', 'Tasks, Shopping List Creation'),
   ];
@@ -646,10 +783,11 @@ class _FeaturesList extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Container(
-      padding: const EdgeInsets.all(20),
+      padding: const EdgeInsets.all(18),
       decoration: BoxDecoration(
         color: context.colors.cardColor,
-        borderRadius: BorderRadius.circular(16),
+        borderRadius: BorderRadius.circular(22),
+        border: Border.all(color: context.colors.divider),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -662,7 +800,7 @@ class _FeaturesList extends StatelessWidget {
               color: context.colors.textPrimary,
             ),
           ),
-          const SizedBox(height: 12),
+          const SizedBox(height: 14),
           ..._features.map(
             (f) => Padding(
               padding: const EdgeInsets.only(bottom: 10),
@@ -670,11 +808,13 @@ class _FeaturesList extends StatelessWidget {
                 children: [
                   Text(f.$1, style: TextStyle(fontSize: 18)),
                   const SizedBox(width: 12),
-                  Text(
-                    f.$2,
-                    style: TextStyle(
-                      fontSize: 14,
-                      color: context.colors.textPrimary,
+                  Expanded(
+                    child: Text(
+                      f.$2,
+                      style: TextStyle(
+                        fontSize: 14,
+                        color: context.colors.textPrimary,
+                      ),
                     ),
                   ),
                 ],
@@ -688,29 +828,40 @@ class _FeaturesList extends StatelessWidget {
 }
 
 class _ActiveBanner extends StatelessWidget {
-  final Subscription sub;
-  const _ActiveBanner({required this.sub});
+  final Subscription? sub;
+  final bool lifetimeAccess;
+
+  const _ActiveBanner({required this.sub, required this.lifetimeAccess});
 
   @override
   Widget build(BuildContext context) {
     return Container(
       width: double.infinity,
-      padding: const EdgeInsets.all(20),
+      padding: const EdgeInsets.all(24),
       decoration: BoxDecoration(
         gradient: const LinearGradient(
-          colors: [Color(0xFF4ECDC4), Color(0xFF2D3E40)],
+          colors: [Color(0xFF319E96), AppColors.primary],
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
         ),
-        borderRadius: BorderRadius.circular(16),
+        borderRadius: BorderRadius.circular(28),
+        boxShadow: [
+          BoxShadow(
+            color: AppColors.primaryDark.withValues(alpha: 0.22),
+            blurRadius: 24,
+            offset: const Offset(0, 12),
+          ),
+        ],
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           const Row(
             children: [
-              Icon(Icons.verified, color: Colors.white),
+              Icon(Icons.verified_rounded, color: Colors.white),
               SizedBox(width: 8),
               Text(
-                'Premium Active',
+                'Your haven is fully unlocked',
                 style: TextStyle(
                   color: Colors.white,
                   fontSize: 18,
@@ -721,10 +872,14 @@ class _ActiveBanner extends StatelessWidget {
           ),
           const SizedBox(height: 8),
           Text(
-            '${_planName(sub.plan)} · ${sub.daysRemaining} days remaining',
-            style: TextStyle(color: Colors.white70),
+            lifetimeAccess && sub == null
+                ? 'Lifetime premium access'
+                : sub == null
+                ? 'Premium access'
+                : '${_planName(sub!.plan)} · ${sub!.daysRemaining} days remaining',
+            style: TextStyle(color: Colors.white.withValues(alpha: 0.84)),
           ),
-          if (sub.plan == SubscriptionPlan.free)
+          if (sub?.plan == SubscriptionPlan.free)
             const Padding(
               padding: EdgeInsets.only(top: 4),
               child: Text(

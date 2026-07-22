@@ -83,11 +83,7 @@ Future<void> _activateAppCheck() async {
         debugToken: _appCheckDebugToken.isEmpty ? null : _appCheckDebugToken,
       ),
     );
-    debugPrint(
-      _appCheckDebugToken.isEmpty
-          ? 'Firebase App Check debug provider active. Check native logs for the debug token.'
-          : 'Firebase App Check debug provider active with token: $_appCheckDebugToken',
-    );
+    debugPrint('Firebase App Check debug provider active.');
   } else if (kReleaseMode && _appCheckProvider != 'none') {
     await FirebaseAppCheck.instance.activate(
       providerAndroid: const AndroidPlayIntegrityProvider(),
@@ -101,9 +97,6 @@ Future<void> _activateAppCheck() async {
 Future<void> _initializeOptionalServices() async {
   try {
     await NotificationService.instance.initialize();
-    await NotificationService.instance.requestPermission(
-      includeExactAlarms: false,
-    );
   } catch (error, stack) {
     debugPrint('Notification initialization failed: $error');
     debugPrintStack(stackTrace: stack);

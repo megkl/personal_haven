@@ -1,6 +1,9 @@
 import 'dart:async';
+import 'dart:convert';
 import 'dart:io';
 
+import 'package:crypto/crypto.dart';
+import 'package:firebase_auth/firebase_auth.dart';
 import 'package:in_app_purchase/in_app_purchase.dart';
 import 'package:personal_haven/data/models/subscription.dart';
 
@@ -94,6 +97,12 @@ class IAPService {
 
   static bool get isStorePlatform => Platform.isIOS || Platform.isAndroid;
 
+  String? get _storeAccountIdentifier {
+    final uid = FirebaseAuth.instance.currentUser?.uid;
+    if (uid == null || uid.isEmpty) return null;
+    return sha256.convert(utf8.encode(uid)).toString();
+  }
+
   Future<bool> initialize() async {
     if (!isStorePlatform) return false;
     if (_initialized) return true;
@@ -161,8 +170,17 @@ class IAPService {
     }
 
     _pendingPurchase = Completer<IAPResult>();
+    final accountIdentifier = _storeAccountIdentifier;
+    if (accountIdentifier == null) {
+      _pendingPurchase = null;
+      return const IAPResult(
+        success: false,
+        error: 'Sign in before starting a purchase',
+      );
+    }
     final purchaseParam = PurchaseParam(
       productDetails: response.productDetails.first,
+      applicationUserName: accountIdentifier,
     );
     final started = await _iap.buyNonConsumable(purchaseParam: purchaseParam);
     if (!started) {
@@ -195,7 +213,15 @@ class IAPService {
     }
 
     _pendingPurchase = Completer<IAPResult>();
-    await _iap.restorePurchases();
+    final accountIdentifier = _storeAccountIdentifier;
+    if (accountIdentifier == null) {
+      _pendingPurchase = null;
+      return const IAPResult(
+        success: false,
+        error: 'Sign in before restoring purchases',
+      );
+    }
+    await _iap.restorePurchases(applicationUserName: accountIdentifier);
     return _pendingPurchase!.future.timeout(
       const Duration(minutes: 1),
       onTimeout: () {

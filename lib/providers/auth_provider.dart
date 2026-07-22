@@ -6,6 +6,7 @@ import 'package:personal_haven/data/repositories/subscription_repository.dart';
 import 'package:personal_haven/data/repositories/user_repository.dart';
 import 'package:personal_haven/data/data_sources/local/shared_prefs_helper.dart';
 import 'package:personal_haven/services/social_auth_service.dart';
+import 'package:personal_haven/services/notification_service.dart';
 import 'package:riverpod_annotation/riverpod_annotation.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 part 'auth_provider.g.dart';
@@ -255,6 +256,10 @@ class AuthNotifier extends _$AuthNotifier {
 
     if (!ref.mounted) return;
 
+    await NotificationService.instance.cancelAll();
+
+    if (!ref.mounted) return;
+
     state = AuthState(isAuthenticated: false, isLoading: false);
   }
 
@@ -292,6 +297,10 @@ class AuthNotifier extends _$AuthNotifier {
     try {
       final helper = await SharedPrefsHelper.getInstance();
       await helper.clearAll();
+    } catch (_) {}
+
+    try {
+      await NotificationService.instance.cancelAll();
     } catch (_) {}
 
     if (!ref.mounted) return true;

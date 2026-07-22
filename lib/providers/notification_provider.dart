@@ -137,10 +137,11 @@ class NotificationPrefs {
 @riverpod
 class NotificationNotifier extends _$NotificationNotifier {
   static const _prefix = 'notif_';
+  Future<void>? _loading;
+
   @override
   NotificationPrefs build() {
-    // replaces the constructor — runs on first use
-    Future.microtask(_load);
+    _loading = Future.microtask(_load);
     return NotificationPrefs();
   }
 
@@ -150,7 +151,9 @@ class NotificationNotifier extends _$NotificationNotifier {
 
     final map = <String, bool>{};
     for (final key in NotificationPrefs().toMap().keys) {
-      map[key] = prefs.getBool('$_prefix$key') ?? true;
+      map[key] =
+          prefs.getBool('$_prefix$key') ??
+          (key == 'masterEnabled' ? false : true);
     }
     final times = <String, int>{};
     for (final key in NotificationPrefs().timeMap().keys) {
@@ -170,18 +173,25 @@ class NotificationNotifier extends _$NotificationNotifier {
     await prefs.setInt('$_prefix$key', value);
   }
 
-  Future<void> setMaster(bool value) async {
-    state = state.copyWith(masterEnabled: value);
-    await _save('masterEnabled', value);
-    if (!ref.mounted) return;
-
+  Future<bool> setMaster(bool value) async {
     if (value) {
-      await NotificationService.instance.requestPermission();
-      if (!ref.mounted) return;
+      final granted = await NotificationService.instance.requestPermission();
+      if (!granted || !ref.mounted) {
+        state = state.copyWith(masterEnabled: false);
+        await _save('masterEnabled', false);
+        return false;
+      }
+
+      state = state.copyWith(masterEnabled: true);
+      await _save('masterEnabled', true);
+      if (!ref.mounted) return false;
       await _rescheduleAll();
     } else {
+      state = state.copyWith(masterEnabled: false);
+      await _save('masterEnabled', false);
       await NotificationService.instance.cancelAll();
     }
+    return true;
   }
 
   Future<void> toggle(String key, bool value) async {
@@ -200,11 +210,10 @@ class NotificationNotifier extends _$NotificationNotifier {
 
   Future<bool> sendTestNotification() async {
     if (!state.masterEnabled) {
-      await setMaster(true);
+      final enabled = await setMaster(true);
+      if (!enabled) return false;
     } else {
-      final granted = await NotificationService.instance.requestPermission(
-        includeExactAlarms: false,
-      );
+      final granted = await NotificationService.instance.requestPermission();
       if (!granted) return false;
     }
     await NotificationService.instance.showTestNotification();
@@ -213,12 +222,29 @@ class NotificationNotifier extends _$NotificationNotifier {
 
   Future<bool> scheduleTestNotification() async {
     if (!state.masterEnabled) {
-      await setMaster(true);
+      final enabled = await setMaster(true);
+      if (!enabled) return false;
     }
     final granted = await NotificationService.instance.requestPermission();
     if (!granted) return false;
     await NotificationService.instance.scheduleTestNotificationInFiveSeconds();
     return true;
+  }
+
+  /// Records that the user opened the app today by moving the next noon
+  /// reminder to tomorrow. The repeating schedule then continues for every day
+  /// the user does not return.
+  Future<void> handleAppOpened() async {
+    await _loading;
+    if (!ref.mounted) return;
+
+    final svc = NotificationService.instance;
+    if (!state.masterEnabled || !state.dailyReminders) {
+      await svc.cancelNoonStreakReminder();
+      return;
+    }
+
+    await svc.scheduleNoonStreakReminderAfterToday();
   }
 
   NotificationPrefs _applyKey(String key, bool value) {
@@ -282,8 +308,10 @@ class NotificationNotifier extends _$NotificationNotifier {
       if (!prefs.journalReminder) {
         await svc.cancelJournalReminders();
       }
+      await svc.scheduleNoonStreakReminderAfterToday();
     } else {
       await svc.cancelDailyReminders();
+      await svc.cancelNoonStreakReminder();
     }
 
     if (!prefs.taskReminders) {

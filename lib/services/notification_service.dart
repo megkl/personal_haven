@@ -1,4 +1,5 @@
 import 'package:flutter_local_notifications/flutter_local_notifications.dart';
+import 'package:flutter_timezone/flutter_timezone.dart';
 import 'package:timezone/data/latest_all.dart' as tz;
 import 'package:timezone/timezone.dart' as tz;
 
@@ -16,6 +17,7 @@ class NotificationIds {
   static const eventReminderBase = 400;
   static const streakEncouragement = 500;
   static const weeklyMoodSummary = 501;
+  static const noonStreakReminder = 502;
   static const testNotification = 900;
 }
 
@@ -46,7 +48,13 @@ class NotificationService {
   Future<void> initialize() async {
     if (_initialized) return;
     tz.initializeTimeZones();
-    tz.setLocalLocation(tz.getLocation('Africa/Nairobi'));
+    try {
+      final localTimezone = await FlutterTimezone.getLocalTimezone();
+      tz.setLocalLocation(tz.getLocation(localTimezone.identifier));
+    } catch (_) {
+      // The timezone package defaults to UTC. Scheduling remains functional if
+      // a platform cannot report an IANA timezone identifier.
+    }
 
     const android = AndroidInitializationSettings('ic_notification');
     const ios = DarwinInitializationSettings(
@@ -63,7 +71,7 @@ class NotificationService {
 
   void _onTap(NotificationResponse response) {}
 
-  Future<bool> requestPermission({bool includeExactAlarms = true}) async {
+  Future<bool> requestPermission() async {
     final ios = await _plugin
         .resolvePlatformSpecificImplementation<
           IOSFlutterLocalNotificationsPlugin
@@ -74,14 +82,7 @@ class NotificationService {
           AndroidFlutterLocalNotificationsPlugin
         >()
         ?.requestNotificationsPermission();
-    final exactAlarms = includeExactAlarms
-        ? await _plugin
-              .resolvePlatformSpecificImplementation<
-                AndroidFlutterLocalNotificationsPlugin
-              >()
-              ?.requestExactAlarmsPermission()
-        : true;
-    return (ios ?? true) && (android ?? true) && (exactAlarms ?? true);
+    return (ios ?? true) && (android ?? true);
   }
 
   NotificationDetails _details(
@@ -150,9 +151,6 @@ class NotificationService {
     int journalMinuteOfDay = 21 * 60,
     int mealMinuteOfDay = 13 * 60,
   }) async {
-    final granted = await requestPermission();
-    if (!granted) return;
-
     await _scheduleDailyAt(
       id: NotificationIds.morningCheckin,
       hour: morningMinuteOfDay ~/ 60,
@@ -206,7 +204,7 @@ class NotificationService {
       body: body,
       scheduledDate: _nextInstanceOfTime(hour, minute),
       notificationDetails: _details(channelId, channelName),
-      androidScheduleMode: AndroidScheduleMode.exactAllowWhileIdle,
+      androidScheduleMode: AndroidScheduleMode.inexactAllowWhileIdle,
       matchDateTimeComponents: DateTimeComponents.time,
     );
   }
@@ -238,9 +236,6 @@ class NotificationService {
   // ── Weekly ────────────────────────────────────────────────────────────────
 
   Future<void> scheduleWeeklyMoodSummary({int minuteOfDay = 18 * 60}) async {
-    final granted = await requestPermission();
-    if (!granted) return;
-
     final now = tz.TZDateTime.now(tz.local);
     var daysUntilSunday = DateTime.sunday - now.weekday;
     if (daysUntilSunday <= 0) daysUntilSunday += 7;
@@ -262,7 +257,7 @@ class NotificationService {
         NotificationChannels.wellnessId,
         NotificationChannels.wellnessName,
       ),
-      androidScheduleMode: AndroidScheduleMode.exactAllowWhileIdle,
+      androidScheduleMode: AndroidScheduleMode.inexactAllowWhileIdle,
       matchDateTimeComponents: DateTimeComponents.dayOfWeekAndTime,
     );
   }
@@ -340,9 +335,6 @@ class NotificationService {
     String eventTitle,
     DateTime eventTime,
   ) async {
-    final granted = await requestPermission();
-    if (!granted) return;
-
     final reminderTime = eventTime.subtract(const Duration(hours: 1));
     if (reminderTime.isBefore(DateTime.now())) return;
 
@@ -359,7 +351,7 @@ class NotificationService {
         importance: Importance.high,
         priority: Priority.high,
       ),
-      androidScheduleMode: AndroidScheduleMode.exactAllowWhileIdle,
+      androidScheduleMode: AndroidScheduleMode.inexactAllowWhileIdle,
     );
   }
 
@@ -378,9 +370,6 @@ class NotificationService {
   // ── Subscription ─────────────────────────────────────────────────────────
 
   Future<void> scheduleSubscriptionReminders(DateTime expiryDate) async {
-    final granted = await requestPermission();
-    if (!granted) return;
-
     final now = DateTime.now();
     final threeDays = expiryDate.subtract(const Duration(days: 3));
     final oneDay = expiryDate.subtract(const Duration(days: 1));
@@ -398,7 +387,7 @@ class NotificationService {
           importance: Importance.high,
           priority: Priority.high,
         ),
-        androidScheduleMode: AndroidScheduleMode.exactAllowWhileIdle,
+        androidScheduleMode: AndroidScheduleMode.inexactAllowWhileIdle,
       );
     }
 
@@ -415,7 +404,7 @@ class NotificationService {
           importance: Importance.high,
           priority: Priority.high,
         ),
-        androidScheduleMode: AndroidScheduleMode.exactAllowWhileIdle,
+        androidScheduleMode: AndroidScheduleMode.inexactAllowWhileIdle,
       );
     }
   }
@@ -437,6 +426,39 @@ class NotificationService {
   }
 
   // ── Streaks ───────────────────────────────────────────────────────────────
+
+  /// Schedule a daily noon reminder. Calling this whenever the app is opened
+  /// moves the next reminder to tomorrow; if the app stays closed, it repeats
+  /// each day until the user returns.
+  Future<void> scheduleNoonStreakReminderAfterToday() async {
+    await cancelNoonStreakReminder();
+
+    final now = tz.TZDateTime.now(tz.local);
+    final tomorrowAtNoon = tz.TZDateTime(
+      tz.local,
+      now.year,
+      now.month,
+      now.day + 1,
+      12,
+    );
+
+    await _plugin.zonedSchedule(
+      id: NotificationIds.noonStreakReminder,
+      title: 'Keep your haven streak going 🔥',
+      body: 'A small check-in today keeps your momentum alive.',
+      scheduledDate: tomorrowAtNoon,
+      notificationDetails: _details(
+        NotificationChannels.dailyId,
+        NotificationChannels.dailyName,
+      ),
+      androidScheduleMode: AndroidScheduleMode.inexactAllowWhileIdle,
+      matchDateTimeComponents: DateTimeComponents.time,
+    );
+  }
+
+  Future<void> cancelNoonStreakReminder() async {
+    await _plugin.cancel(id: NotificationIds.noonStreakReminder);
+  }
 
   Future<void> notifyJournalStreak(int days) async {
     await show(
@@ -483,7 +505,7 @@ class NotificationService {
         importance: Importance.high,
         priority: Priority.high,
       ),
-      androidScheduleMode: AndroidScheduleMode.exactAllowWhileIdle,
+      androidScheduleMode: AndroidScheduleMode.inexactAllowWhileIdle,
     );
   }
 

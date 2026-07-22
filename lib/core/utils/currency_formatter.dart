@@ -13,7 +13,39 @@ class AppCurrency {
 }
 
 class CurrencyFormatter {
-  static const defaultCode = 'KES';
+  /// Used when the device region does not map to one of our supported
+  /// currencies. A user's saved preference always takes priority.
+  static const defaultCode = 'USD';
+
+  static const _euroCountries = {
+    'AD',
+    'AT',
+    'BE',
+    'BG',
+    'HR',
+    'CY',
+    'EE',
+    'FI',
+    'FR',
+    'DE',
+    'GR',
+    'IE',
+    'IT',
+    'LV',
+    'LT',
+    'LU',
+    'MT',
+    'MC',
+    'ME',
+    'NL',
+    'PT',
+    'SK',
+    'SI',
+    'ES',
+    'SM',
+    'VA',
+    'XK',
+  };
 
   static const supported = [
     AppCurrency(code: 'KES', symbol: 'KES ', name: 'Kenyan Shilling'),
@@ -23,6 +55,20 @@ class CurrencyFormatter {
     AppCurrency(code: 'NGN', symbol: '₦', name: 'Nigerian Naira'),
     AppCurrency(code: 'ZAR', symbol: 'R ', name: 'South African Rand'),
   ];
+
+  static String defaultCodeForCountry(String? countryCode) {
+    final country = countryCode?.toUpperCase();
+    if (_euroCountries.contains(country)) return 'EUR';
+
+    return switch (country) {
+      'KE' => 'KES',
+      'US' => 'USD',
+      'GB' => 'GBP',
+      'NG' => 'NGN',
+      'ZA' => 'ZAR',
+      _ => defaultCode,
+    };
+  }
 
   static AppCurrency optionFor(String code) {
     return supported.firstWhere(
