@@ -56,10 +56,14 @@ class _MainNavigationScreenState extends ConsumerState<MainNavigationScreen>
     final subscriptionState = ref.watch(subscriptionProvider);
     final hasAccess =
         subscriptionState.isLoading || subscriptionState.hasFullAccess;
+    final lockedScreen = _SubscriptionLockedScreen(
+      entitlementError: subscriptionState.error,
+      onRetry: () => ref.read(subscriptionProvider.notifier).refresh(),
+    );
     final screens = [
       const HomeScreen(),
-      hasAccess ? const JournalScreen() : const _SubscriptionLockedScreen(),
-      hasAccess ? const WellnessScreen() : const _SubscriptionLockedScreen(),
+      hasAccess ? const JournalScreen() : lockedScreen,
+      hasAccess ? const WellnessScreen() : lockedScreen,
       const RitualsScreen(),
       ProfileScreen(),
     ];
@@ -174,7 +178,13 @@ class _MainNavigationScreenState extends ConsumerState<MainNavigationScreen>
 }
 
 class _SubscriptionLockedScreen extends StatelessWidget {
-  const _SubscriptionLockedScreen();
+  const _SubscriptionLockedScreen({
+    required this.entitlementError,
+    required this.onRetry,
+  });
+
+  final String? entitlementError;
+  final Future<void> Function() onRetry;
 
   @override
   Widget build(BuildContext context) {
@@ -190,7 +200,9 @@ class _SubscriptionLockedScreen extends StatelessWidget {
                 Icon(Icons.lock_outline, size: 48, color: AppColors.primary),
                 const SizedBox(height: 16),
                 Text(
-                  'Your free trial has ended',
+                  entitlementError == null
+                      ? 'Your free trial has ended'
+                      : 'We could not verify your access',
                   textAlign: TextAlign.center,
                   style: TextStyle(
                     fontSize: 20,
@@ -200,11 +212,21 @@ class _SubscriptionLockedScreen extends StatelessWidget {
                 ),
                 const SizedBox(height: 8),
                 Text(
-                  'Subscribe to unlock this section again.',
+                  entitlementError == null
+                      ? 'Subscribe to unlock this section again.'
+                      : 'Check your connection and try again. Make sure the app was installed from an official store or testing link.',
                   textAlign: TextAlign.center,
                   style: TextStyle(color: context.colors.textSecondary),
                 ),
                 const SizedBox(height: 20),
+                if (entitlementError != null) ...[
+                  FilledButton.icon(
+                    onPressed: onRetry,
+                    icon: const Icon(Icons.refresh_rounded),
+                    label: const Text('Retry access check'),
+                  ),
+                  const SizedBox(height: 10),
+                ],
                 FilledButton(
                   onPressed: () => Navigator.push(
                     context,

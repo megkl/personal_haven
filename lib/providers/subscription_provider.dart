@@ -59,18 +59,28 @@ class SubscriptionNotifier extends _$SubscriptionNotifier {
     }
     try {
       final previousActive = state.active;
-      final premiumOverride = await _repo.hasLifetimePremium();
-      Subscription? active;
-      try {
-        active = await _repo.getActive(targetUserId);
-      } catch (e) {
-        if (!premiumOverride) rethrow;
-      }
+      var active = await _repo.getActive(targetUserId);
+      active ??= await _createMissingTrial(targetUserId);
+
+      // Publish ordinary access immediately. Lifetime access is an exceptional
+      // override, so its callable must never delay or hide a valid trial.
       state = SubscriptionState(
         active: active,
-        premiumOverride: premiumOverride,
         isLoading: false,
       );
+
+      try {
+        final premiumOverride = await _repo.hasLifetimePremium();
+        if (!ref.mounted) return;
+        state = SubscriptionState(
+          active: active,
+          premiumOverride: premiumOverride,
+          isLoading: false,
+        );
+      } catch (_) {
+        // Firestore remains the source of truth for regular subscriptions.
+      }
+
       final notificationPrefs = ref.read(notificationProvider);
       final subscriptionNotificationsEnabled =
           notificationPrefs.masterEnabled &&
@@ -92,6 +102,15 @@ class SubscriptionNotifier extends _$SubscriptionNotifier {
     } catch (e) {
       state = SubscriptionState(isLoading: false, error: e.toString());
     }
+  }
+
+  /// Recovers accounts whose one-time trial was not created during sign-in,
+  /// for example after a temporary network or App Check failure. The backend
+  /// remains authoritative and rejects any attempt to receive a second trial.
+  Future<Subscription?> _createMissingTrial(String userId) async {
+    final hasUsedTrial = await _repo.hasUsedTrial(userId);
+    if (hasUsedTrial) return null;
+    return _repo.createTrial(userId);
   }
 
   /// Activate the free trial (called once on first sign-up).

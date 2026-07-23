@@ -54,13 +54,8 @@ exports.startTrial = onCall(
       return db.runTransaction(async (transaction) => {
         const userSnap = await transaction.get(userRef);
         const previousTrialSnap = await transaction.get(previousTrials);
-        if (!userSnap.exists) {
-          throw new HttpsError(
-              "failed-precondition",
-              "Create your profile before starting a trial.",
-          );
-        }
-        if (userSnap.data().trialUsed === true || !previousTrialSnap.empty) {
+        if ((userSnap.exists && userSnap.data().trialUsed === true) ||
+            !previousTrialSnap.empty) {
           throw new HttpsError(
               "already-exists",
               "The free trial has already been used.",
@@ -68,6 +63,26 @@ exports.startTrial = onCall(
         }
 
         const now = new Date();
+        if (!userSnap.exists) {
+          const token = request.auth.token || {};
+          const displayName = typeof token.name === "string" ?
+            token.name.trim() : "";
+          const nameParts = displayName ? displayName.split(/\s+/) : [];
+          transaction.set(userRef, {
+            user_id: uid,
+            email: typeof token.email === "string" ? token.email : "",
+            username: null,
+            firstName: nameParts.length ? nameParts[0] : null,
+            lastName: nameParts.length > 1 ? nameParts.slice(1).join(" ") : null,
+            avatarUrl: typeof token.picture === "string" ? token.picture : null,
+            bio: null,
+            createdAt: now.toISOString(),
+            lastLoginAt: now.toISOString(),
+            isPremium: false,
+            preferences: null,
+          });
+        }
+
         const subscription = {
           id: trialRef.id,
           userId: uid,
