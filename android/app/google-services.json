@@ -30,6 +30,14 @@
           }
         },
         {
+          "client_id": "748102487039-u3ort3df1stet6fcjgtrgl3hanvsmc1k.apps.googleusercontent.com",
+          "client_type": 1,
+          "android_info": {
+            "package_name": "com.megnifylabs.personal_haven",
+            "certificate_hash": "17f5cb399e5cf69c34dc1b5d365e2b16a6a0cf42"
+          }
+        },
+        {
           "client_id": "748102487039-m0nncvs7te5o8viq3s28vdru5hb4j3re.apps.googleusercontent.com",
           "client_type": 3
         }

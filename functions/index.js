@@ -15,14 +15,12 @@ const crypto = require("node:crypto");
 const admin = require("firebase-admin");
 const OpenAI = require("openai");
 const {isLifetimePremiumAccount} = require("./entitlements");
+const {requiredString} = require("./request-fields");
 
 admin.initializeApp();
 
 const aiApiKey = defineSecret("AI_API_KEY");
 const androidPackageName = defineSecret("ANDROID_PACKAGE_NAME");
-const googlePlayServiceAccountJson = defineSecret(
-    "GOOGLE_PLAY_SERVICE_ACCOUNT_JSON",
-);
 const aiModel = "gpt-4o-mini";
 const aiEndpoint = "https://api.openai.com/v1/chat/completions";
 
@@ -388,7 +386,7 @@ exports.chatWithHavenAI = onCall(
 exports.verifyStorePurchase = onCall(
     {
       region: "us-central1",
-      secrets: [androidPackageName, googlePlayServiceAccountJson],
+      secrets: [androidPackageName],
       enforceAppCheck: true,
     },
     async (request) => {
@@ -398,13 +396,13 @@ exports.verifyStorePurchase = onCall(
 
       const data = request.data || {};
       const uid = request.auth.uid;
-      const productId = stringField(data.productId, "productId");
+      const productId = stringField(data, "productId");
       const receipt = stringField(
-          data.serverVerificationData,
+          data,
           "serverVerificationData",
       );
-      const requestedPlan = stringField(data.plan, "plan");
-      const source = stringField(data.verificationSource, "verificationSource")
+      const requestedPlan = stringField(data, "plan");
+      const source = stringField(data, "verificationSource")
           .toLowerCase();
       const transactionId = typeof data.transactionId === "string" ?
         data.transactionId :
@@ -440,7 +438,6 @@ exports.verifyStorePurchase = onCall(
         transactionRef: verification.transactionRef || transactionId,
         expiryDate,
         store: verification.store,
-        hasStoreAccountId: verification.hasStoreAccountId,
       });
       if (verification.acknowledge) {
         await verification.acknowledge();
@@ -637,16 +634,6 @@ async function verifyAppleReceipt(options) {
  * @return {Promise<object>} Normalized verification result.
  */
 async function verifyGooglePlayPurchase(options) {
-  let credentials;
-  try {
-    credentials = JSON.parse(googlePlayServiceAccountJson.value());
-  } catch (error) {
-    throw new HttpsError(
-        "failed-precondition",
-        "Google Play service credentials are invalid.",
-    );
-  }
-
   const packageName = androidPackageName.value();
   if (packageName !== "com.megnifylabs.personal_haven") {
     throw new HttpsError(
@@ -656,7 +643,6 @@ async function verifyGooglePlayPurchase(options) {
   }
 
   const auth = new GoogleAuth({
-    credentials,
     scopes: ["https://www.googleapis.com/auth/androidpublisher"],
   });
   const client = await auth.getClient();
@@ -723,7 +709,6 @@ async function verifyGooglePlayPurchase(options) {
     store: "google_play",
     expiryDate,
     transactionRef: options.receipt,
-    hasStoreAccountId: Boolean(accountId),
     acknowledge: needsAcknowledgement ? async () => {
       const encodedProduct = encodeURIComponent(options.productId);
       await client.request({
@@ -768,13 +753,6 @@ async function writeVerifiedSubscription(options) {
       throw new HttpsError(
           "permission-denied",
           "This store purchase is already linked to another account.",
-      );
-    }
-
-    if (!options.hasStoreAccountId && duplicate.empty) {
-      throw new HttpsError(
-          "failed-precondition",
-          "Restore this subscription from the account that purchased it.",
       );
     }
 
@@ -828,11 +806,11 @@ async function writeVerifiedSubscription(options) {
  * @return {string} Required string value.
  */
 function stringField(source, name) {
-  const value = source[name];
-  if (typeof value !== "string" || value.trim() === "") {
+  const value = requiredString(source, name);
+  if (value === null) {
     throw new HttpsError("invalid-argument", `${name} is required.`);
   }
-  return value.trim();
+  return value;
 }
 
 /**

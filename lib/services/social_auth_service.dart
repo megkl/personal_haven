@@ -34,6 +34,8 @@ class SocialAuthService {
   static final SocialAuthService instance = SocialAuthService._();
   SocialAuthService._();
 
+  static const _googleServerClientId =
+      '748102487039-m0nncvs7te5o8viq3s28vdru5hb4j3re.apps.googleusercontent.com';
   final _appAuth = const FlutterAppAuth();
   bool _googleInitialized = false;
 
@@ -45,7 +47,9 @@ class SocialAuthService {
     if (_googleInitialized) return;
 
     try {
-      await GoogleSignIn.instance.initialize();
+      await GoogleSignIn.instance.initialize(
+        serverClientId: _googleServerClientId,
+      );
       _googleInitialized = true;
     } catch (e) {
       debugPrint('Error initializing Google Sign-In: $e');
@@ -61,6 +65,12 @@ class SocialAuthService {
       // Ensure Google Sign-In is initialized
       if (!_googleInitialized) {
         await initializeGoogle();
+      }
+      if (!_googleInitialized) {
+        return SocialAuthResult(
+          success: false,
+          error: 'Google Sign-In could not be initialized. Please try again.',
+        );
       }
 
       GoogleSignInAccount? account;
