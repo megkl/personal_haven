@@ -1,3 +1,4 @@
+import 'package:cloud_functions/cloud_functions.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:personal_haven/data/models/subscription.dart';
 import 'package:personal_haven/data/repositories/subscription_repository.dart';
@@ -64,10 +65,7 @@ class SubscriptionNotifier extends _$SubscriptionNotifier {
 
       // Publish ordinary access immediately. Lifetime access is an exceptional
       // override, so its callable must never delay or hide a valid trial.
-      state = SubscriptionState(
-        active: active,
-        isLoading: false,
-      );
+      state = SubscriptionState(active: active, isLoading: false);
 
       try {
         final premiumOverride = await _repo.hasLifetimePremium();
@@ -147,6 +145,7 @@ class SubscriptionNotifier extends _$SubscriptionNotifier {
         localVerificationData: localVerificationData,
         verificationSource: verificationSource,
       );
+      if (!ref.mounted) return false;
       state = SubscriptionState(active: sub, isLoading: false);
       final notificationPrefs = ref.read(notificationProvider);
       if (notificationPrefs.masterEnabled &&
@@ -157,8 +156,12 @@ class SubscriptionNotifier extends _$SubscriptionNotifier {
         );
       }
       return true;
-    } catch (e) {
-      state = state.copyWith(isLoading: false, error: e.toString());
+    } catch (error) {
+      if (!ref.mounted) return false;
+      state = state.copyWith(
+        isLoading: false,
+        error: _purchaseErrorMessage(error),
+      );
       return false;
     }
   }
@@ -166,6 +169,25 @@ class SubscriptionNotifier extends _$SubscriptionNotifier {
   Future<void> refresh() => _load();
 
   void clearError() => state = state.copyWith(error: null);
+
+  String _purchaseErrorMessage(Object error) {
+    if (error is FirebaseFunctionsException) {
+      switch (error.code) {
+        case 'unauthenticated':
+          return 'Please sign in again, then restore your purchase.';
+        case 'permission-denied':
+          return 'This purchase is linked to a different account.';
+        case 'unavailable':
+        case 'deadline-exceeded':
+          return 'Purchase verification is temporarily unavailable. '
+              'Please try again.';
+        case 'failed-precondition':
+          return error.message ??
+              'Google Play could not verify this subscription.';
+      }
+    }
+    return 'The purchase could not be verified. Please try Restore purchases.';
+  }
 }
 
 /// Convenience — true when user has an active paid/trial subscription.

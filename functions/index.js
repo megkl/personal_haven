@@ -20,7 +20,7 @@ const {requiredString} = require("./request-fields");
 admin.initializeApp();
 
 const aiApiKey = defineSecret("AI_API_KEY");
-const androidPackageName = defineSecret("ANDROID_PACKAGE_NAME");
+const androidPackageName = "com.megnifylabs.personal_haven";
 const aiModel = "gpt-4o-mini";
 const aiEndpoint = "https://api.openai.com/v1/chat/completions";
 
@@ -386,7 +386,6 @@ exports.chatWithHavenAI = onCall(
 exports.verifyStorePurchase = onCall(
     {
       region: "us-central1",
-      secrets: [androidPackageName],
       enforceAppCheck: true,
     },
     async (request) => {
@@ -634,13 +633,7 @@ async function verifyAppleReceipt(options) {
  * @return {Promise<object>} Normalized verification result.
  */
 async function verifyGooglePlayPurchase(options) {
-  const packageName = androidPackageName.value();
-  if (packageName !== "com.megnifylabs.personal_haven") {
-    throw new HttpsError(
-        "failed-precondition",
-        "Google Play package configuration does not match this app.",
-    );
-  }
+  const packageName = androidPackageName;
 
   const auth = new GoogleAuth({
     scopes: ["https://www.googleapis.com/auth/androidpublisher"],

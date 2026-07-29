@@ -1,5 +1,7 @@
+import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:personal_haven/core/utils/currency_formatter.dart';
+import 'package:personal_haven/presentation/widgets/common/network_avatar.dart';
 import 'package:personal_haven/services/notification_service.dart';
 
 void main() {
@@ -32,5 +34,40 @@ void main() {
     };
 
     expect(ids, hasLength(11));
+  });
+
+  testWidgets('network avatar renders a local fallback without an image URL', (
+    tester,
+  ) async {
+    const fallbackKey = Key('avatar-fallback');
+
+    await tester.pumpWidget(
+      const MaterialApp(
+        home: NetworkAvatar(
+          size: 48,
+          fallback: Icon(Icons.person, key: fallbackKey),
+        ),
+      ),
+    );
+
+    expect(find.byKey(fallbackKey), findsOneWidget);
+    expect(find.byType(Image), findsNothing);
+  });
+
+  testWidgets('network avatar installs an image error fallback', (
+    tester,
+  ) async {
+    await tester.pumpWidget(
+      const MaterialApp(
+        home: NetworkAvatar(
+          size: 48,
+          imageUrl: 'https://lh3.googleusercontent.com/avatar.png',
+          fallback: Icon(Icons.person),
+        ),
+      ),
+    );
+
+    final image = tester.widget<Image>(find.byType(Image));
+    expect(image.errorBuilder, isNotNull);
   });
 }

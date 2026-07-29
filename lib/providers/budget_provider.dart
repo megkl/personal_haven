@@ -96,13 +96,18 @@ class TransactionNotifier extends _$TransactionNotifier {
 
   /// Load all transactions for current month
   Future<void> loadTransactions() async {
+    if (!ref.mounted) return;
+    final userId = _userId;
     state = state.copyWith(isLoading: true, error: null);
 
     try {
-      final transactions = await _repository.getThisMonthTransactions(_userId);
+      final transactions = await _repository.getThisMonthTransactions(userId);
+      if (!ref.mounted) return;
+
       final expensesByCategory = await _repository.getExpensesByCategory(
-        _userId,
+        userId,
       );
+      if (!ref.mounted) return;
 
       state = state.copyWith(
         transactions: transactions,
@@ -110,6 +115,7 @@ class TransactionNotifier extends _$TransactionNotifier {
         isLoading: false,
       );
     } catch (e) {
+      if (!ref.mounted) return;
       state = state.copyWith(
         isLoading: false,
         error: 'Failed to load transactions: ${e.toString()}',
@@ -125,15 +131,19 @@ class TransactionNotifier extends _$TransactionNotifier {
     String? description,
     DateTime? date,
   }) async {
+    if (!ref.mounted) return;
+    final userId = _userId;
+
     try {
       final newTransaction = await _repository.createTransaction(
-        userId: _userId,
+        userId: userId,
         type: type,
         amount: amount,
         category: category,
         description: description,
         transactionDate: date,
       );
+      if (!ref.mounted) return;
 
       // Update state with new transaction
       final updatedTransactions = [newTransaction, ...state.transactions];
@@ -152,6 +162,7 @@ class TransactionNotifier extends _$TransactionNotifier {
         expensesByCategory: updatedCategories,
       );
     } catch (e) {
+      if (!ref.mounted) return;
       state = state.copyWith(
         error: 'Failed to add transaction: ${e.toString()}',
       );
@@ -192,8 +203,12 @@ class TransactionNotifier extends _$TransactionNotifier {
 
   /// Update an existing transaction
   Future<void> updateTransaction(BudgetTransaction transaction) async {
+    if (!ref.mounted) return;
+    final userId = _userId;
+
     try {
       await _repository.updateTransaction(transaction);
+      if (!ref.mounted) return;
 
       final updatedTransactions = state.transactions.map((t) {
         return t.id == transaction.id ? transaction : t;
@@ -201,14 +216,16 @@ class TransactionNotifier extends _$TransactionNotifier {
 
       // Recalculate category totals
       final expensesByCategory = await _repository.getExpensesByCategory(
-        _userId,
+        userId,
       );
+      if (!ref.mounted) return;
 
       state = state.copyWith(
         transactions: updatedTransactions,
         expensesByCategory: expensesByCategory,
       );
     } catch (e) {
+      if (!ref.mounted) return;
       state = state.copyWith(
         error: 'Failed to update transaction: ${e.toString()}',
       );
@@ -217,17 +234,23 @@ class TransactionNotifier extends _$TransactionNotifier {
 
   /// Delete a transaction
   Future<void> deleteTransaction(String transactionId) async {
+    if (!ref.mounted) return;
+    final userId = _userId;
+
     try {
-      final transaction = state.transactions.firstWhere(
+      final currentState = state;
+      final transaction = currentState.transactions.firstWhere(
         (t) => t.id == transactionId,
         orElse: () => throw Exception('Transaction not found'),
       );
-      await _repository.deleteTransaction(_userId, transactionId);
-      final updatedTransactions = state.transactions
+      await _repository.deleteTransaction(userId, transactionId);
+      if (!ref.mounted) return;
+
+      final updatedTransactions = currentState.transactions
           .where((t) => t.id != transactionId)
           .toList();
       Map<String, double> updatedCategories = Map.from(
-        state.expensesByCategory,
+        currentState.expensesByCategory,
       );
       if (transaction.isExpense) {
         final newAmount =
@@ -243,6 +266,7 @@ class TransactionNotifier extends _$TransactionNotifier {
         expensesByCategory: updatedCategories,
       );
     } catch (e) {
+      if (!ref.mounted) return;
       state = state.copyWith(
         error: 'Failed to delete transaction: ${e.toString()}',
       );
@@ -251,10 +275,16 @@ class TransactionNotifier extends _$TransactionNotifier {
 
   /// Clear all transactions
   Future<void> clearAllTransactions() async {
+    if (!ref.mounted) return;
+    final userId = _userId;
+
     try {
-      await _repository.deleteAllTransactions(_userId);
+      await _repository.deleteAllTransactions(userId);
+      if (!ref.mounted) return;
+
       state = state.copyWith(transactions: [], expensesByCategory: {});
     } catch (e) {
+      if (!ref.mounted) return;
       state = state.copyWith(
         error: 'Failed to clear transactions: ${e.toString()}',
       );

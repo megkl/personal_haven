@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:personal_haven/core/theme/app_theme.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:personal_haven/core/constants/app_colors.dart';
+import 'package:personal_haven/presentation/widgets/common/network_avatar.dart';
 import 'package:personal_haven/providers/user_provider.dart';
 
 /// Edit Profile Screen - Update user profile information
@@ -72,19 +73,15 @@ class _EditProfileScreenState extends ConsumerState<EditProfileScreen> {
         child: Column(
           children: [
             // The avatar comes from the authenticated sign-in provider.
-            CircleAvatar(
-              radius: 60,
+            NetworkAvatar(
+              size: 120,
+              imageUrl: user?.avatarUrl,
               backgroundColor: context.colors.cardColor,
-              backgroundImage: user?.avatarUrl != null
-                  ? NetworkImage(user!.avatarUrl!)
-                  : null,
-              child: user?.avatarUrl == null
-                  ? Icon(
-                      Icons.person,
-                      size: 60,
-                      color: AppColors.primaryLight,
-                    )
-                  : null,
+              fallback: Icon(
+                Icons.person,
+                size: 60,
+                color: AppColors.primaryLight,
+              ),
             ),
             const SizedBox(height: 16),
             Text(

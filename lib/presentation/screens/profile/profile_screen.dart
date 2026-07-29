@@ -10,6 +10,7 @@ import 'package:personal_haven/presentation/screens/profile/mood_insights_screen
 import 'package:personal_haven/presentation/screens/profile/privacy_security_screen.dart';
 import 'package:personal_haven/presentation/screens/profile/settings_screen.dart';
 import 'package:personal_haven/presentation/screens/subscription/subscription_screen.dart';
+import 'package:personal_haven/presentation/widgets/common/network_avatar.dart';
 import 'package:personal_haven/providers/auth_provider.dart';
 import 'package:personal_haven/providers/subscription_provider.dart';
 import 'package:personal_haven/providers/user_provider.dart';
@@ -75,7 +76,8 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
                       _ProfileAction(
                         icon: Icons.insights_outlined,
                         title: 'Insights',
-                        subtitle: 'See patterns in how you have been feeling and what you have achieved.',
+                        subtitle:
+                            'See patterns in how you have been feeling and what you have achieved.',
                         onTap: () => _open(context, const MoodInsightsScreen()),
                       ),
                       _ProfileAction(
@@ -131,7 +133,7 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
                 'Profile',
                 style: TextStyle(
                   color: context.colors.textPrimary,
-                  fontSize: 30,
+                  fontSize: 22,
                   fontWeight: FontWeight.w700,
                   height: 1.05,
                 ),
@@ -147,15 +149,7 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
             ],
           ),
         ),
-        IconButton.filledTonal(
-          tooltip: 'Edit personal details',
-          onPressed: () => _open(context, const EditProfileScreen()),
-          icon: const Icon(Icons.edit_outlined),
-          style: IconButton.styleFrom(
-            foregroundColor: AppColors.primaryDark,
-            backgroundColor: AppColors.primary.withValues(alpha: 0.14),
-          ),
-        ),
+       
       ],
     );
   }
@@ -558,34 +552,18 @@ class _ProfileAvatar extends StatelessWidget {
     final initial = displayName.trim().isEmpty
         ? 'P'
         : displayName.trim().characters.first.toUpperCase();
-    return Container(
-      width: 76,
-      height: 76,
-      decoration: BoxDecoration(
-        shape: BoxShape.circle,
-        color: Colors.white,
-        border: Border.all(
-          color: Colors.white.withValues(alpha: 0.72),
-          width: 3,
+    return NetworkAvatar(
+      size: 76,
+      imageUrl: avatarUrl,
+      border: Border.all(color: Colors.white.withValues(alpha: 0.72), width: 3),
+      fallback: Text(
+        initial,
+        style: const TextStyle(
+          color: AppColors.primaryDark,
+          fontSize: 28,
+          fontWeight: FontWeight.w700,
         ),
-        image: avatarUrl != null && avatarUrl!.isNotEmpty
-            ? DecorationImage(
-                image: NetworkImage(avatarUrl!),
-                fit: BoxFit.cover,
-              )
-            : null,
       ),
-      alignment: Alignment.center,
-      child: avatarUrl == null || avatarUrl!.isEmpty
-          ? Text(
-              initial,
-              style: const TextStyle(
-                color: AppColors.primaryDark,
-                fontSize: 28,
-                fontWeight: FontWeight.w700,
-              ),
-            )
-          : null,
     );
   }
 }

@@ -18,6 +18,7 @@ import 'package:personal_haven/presentation/screens/home/widgets/haven_ai_chat_s
 import 'package:personal_haven/presentation/screens/home/widgets/mood_caurosel_sheet.dart';
 import 'package:personal_haven/presentation/screens/profile/main_navigation_screen.dart';
 import 'package:personal_haven/presentation/screens/subscription/subscription_screen.dart';
+import 'package:personal_haven/presentation/widgets/common/network_avatar.dart';
 import 'package:personal_haven/presentation/widgets/common/task_complete_toggle.dart';
 import 'package:personal_haven/providers/event_provider.dart';
 import 'package:personal_haven/providers/food_provider.dart';
@@ -507,26 +508,22 @@ class _HomeScreenState extends ConsumerState<HomeScreen>
                       width: 2,
                     ),
                   ),
-                  child: _avatarUrl != null
-                      ? CircleAvatar(
-                          radius: 18,
-                          backgroundImage: NetworkImage(_avatarUrl!),
-                        )
-                      : CircleAvatar(
-                          radius: 18,
-                          backgroundColor: context.colors.cardColor.withValues(
-                            alpha: 0.3,
-                          ),
-                          child: Text(
-                            _userName?.isNotEmpty == true
-                                ? _userName![0].toUpperCase()
-                                : 'U',
-                            style: TextStyle(
-                              color: Colors.white,
-                              fontWeight: FontWeight.bold,
-                            ),
-                          ),
-                        ),
+                  child: NetworkAvatar(
+                    size: 36,
+                    imageUrl: _avatarUrl,
+                    backgroundColor: context.colors.cardColor.withValues(
+                      alpha: 0.3,
+                    ),
+                    fallback: Text(
+                      _userName?.isNotEmpty == true
+                          ? _userName![0].toUpperCase()
+                          : 'U',
+                      style: const TextStyle(
+                        color: Colors.white,
+                        fontWeight: FontWeight.bold,
+                      ),
+                    ),
+                  ),
                 ),
               ),
             ],
