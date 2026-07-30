@@ -575,7 +575,7 @@ class _HavenAiChatSheetState extends ConsumerState<HavenAiChatSheet> {
       'event' => ['title', 'dateText'],
       'mood' => ['label'],
       'food' => ['mealType', 'foodName'],
-      'journal' => ['content', 'category'],
+      'journal' => ['title', 'content'],
       'transaction' => ['type', 'amount', 'category'],
       'shopping' => ['itemName'],
       _ => <String>[],
@@ -613,8 +613,8 @@ class _HavenAiChatSheetState extends ConsumerState<HavenAiChatSheet> {
       ('mood', 'label') => 'How are you feeling?',
       ('food', 'mealType') => 'Which meal is this for?',
       ('food', 'foodName') => 'What did you eat?',
+      ('journal', 'title') => 'What title should this journal entry have?',
       ('journal', 'content') => 'What would you like to write down?',
-      ('journal', 'category') => 'What category fits best?',
       ('transaction', 'type') => 'Is this income or an expense?',
       ('transaction', 'amount') => 'How much was it?',
       ('transaction', 'category') => 'Which category?',
@@ -659,12 +659,16 @@ class _HavenAiChatSheetState extends ConsumerState<HavenAiChatSheet> {
         'Chicken rice bowl',
         'Smoothie',
       ],
-      ('journal', 'content') => const [
-        'I felt proud today',
-        'Gratitude',
+      ('journal', 'title') => const [
+        'Today’s reflection',
+        'A grateful moment',
         'New idea',
       ],
-      ('journal', 'category') => const ['Notes', 'Gratitude', 'Work', 'Ideas'],
+      ('journal', 'content') => const [
+        'I felt proud today',
+        'Something I am grateful for',
+        'An idea I want to remember',
+      ],
       ('transaction', 'type') => const ['Expense', 'Income'],
       ('transaction', 'amount') => const ['KES 500', '1000', '2500'],
       ('transaction', 'category') => const [
@@ -728,7 +732,7 @@ class _HavenAiChatSheetState extends ConsumerState<HavenAiChatSheet> {
       'food' =>
         'I’ll log ${fields['foodName']} for ${fields['mealType']}. Save it?',
       'journal' =>
-        'I’ll save this journal entry under ${fields['category']}. Save it?',
+        'I’ll save “${fields['title']}” as a journal entry. Save it?',
       'transaction' =>
         'I’ll log ${fields['amount']} as ${fields['type']} in ${fields['category']}. Save it?',
       'shopping' => _shoppingConfirmationText(fields),
@@ -871,10 +875,15 @@ class _HavenAiChatSheetState extends ConsumerState<HavenAiChatSheet> {
               );
           break;
         case 'journal':
+          final inferredCategory =
+              fields['category']?.toString() ??
+              _journalCategoryFor(
+                '${fields['title'] ?? ''} ${fields['content']}',
+              );
           final journal = _cleanJournalFields(
             title: fields['title']?.toString(),
             content: fields['content'].toString(),
-            category: fields['category']?.toString(),
+            category: inferredCategory,
           );
           final category =
               JournalCategories.getByName(journal.category ?? '') ??
@@ -982,8 +991,12 @@ class _HavenAiChatSheetState extends ConsumerState<HavenAiChatSheet> {
         break;
       case _GuidedFlowType.journal:
         _reply(
-          'What would you like to write down?',
-          prompts: const ['I felt proud today', 'Gratitude', 'New idea'],
+          'What title should this journal entry have?',
+          prompts: const [
+            'Today’s reflection',
+            'A grateful moment',
+            'New idea',
+          ],
         );
         break;
       case _GuidedFlowType.transaction:
@@ -1249,31 +1262,34 @@ class _HavenAiChatSheetState extends ConsumerState<HavenAiChatSheet> {
   ) async {
     switch (draft.step) {
       case 0:
-        _guidedDraft = draft.put('content', input.trim()).next();
+        _guidedDraft = draft
+            .put('title', _HavenAction._capitalize(input))
+            .next();
         _reply(
-          'What category fits best?',
-          prompts: const ['Notes', 'Gratitude', 'Work', 'Ideas'],
+          'What would you like to write down?',
+          prompts: const [
+            'I felt proud today',
+            'Something I am grateful for',
+            'An idea I want to remember',
+          ],
         );
         break;
       default:
-        final category =
-            JournalCategories.getByName(input)?.name ??
-            _journalCategoryFor('${draft.string('content')} $input');
+        final content = input.trim();
+        final title = draft.string('title')!;
+        final category = _journalCategoryFor('$title $content');
         final journalCategory = JournalCategories.getByName(category);
-        final content = draft.string('content')!;
         _guidedDraft = null;
         await ref
             .read(journalProvider.notifier)
             .addEntry(
-              title: _HavenAction._journalTitleFor(content),
+              title: title,
               content: content,
               category: journalCategory?.name ?? category,
               emoji: journalCategory?.emoji,
               tags: _HavenAction._tagsFor(content),
             );
-        _reply(
-          'Saved that journal entry under ${journalCategory?.name ?? category}.',
-        );
+        _reply('Saved “$title” under ${journalCategory?.name ?? category}.');
     }
   }
 

@@ -2,11 +2,12 @@ import 'package:flutter/material.dart';
 import 'package:personal_haven/core/constants/app_colors.dart';
 import 'package:personal_haven/core/theme/app_theme.dart';
 import 'package:personal_haven/presentation/screens/wellness/budget_tracker_screen.dart';
-import 'package:personal_haven/presentation/screens/wellness/food_diary_screen.dart';
 import 'package:personal_haven/presentation/screens/wellness/goals_screen.dart';
 
 class WellnessScreen extends StatefulWidget {
-  const WellnessScreen({super.key});
+  const WellnessScreen({super.key, this.initialTabIndex = 0});
+
+  final int initialTabIndex;
 
   @override
   State<WellnessScreen> createState() => _WellnessScreenState();
@@ -19,7 +20,7 @@ class _WellnessScreenState extends State<WellnessScreen>
   static const _tabs = [
     _WellnessTab('Budget'),
     _WellnessTab('Goals'),
-   // _WellnessTab('Food'),
+    // _WellnessTab('Food'),
   ];
 
   @override
@@ -28,6 +29,7 @@ class _WellnessScreenState extends State<WellnessScreen>
     _tabController = TabController(
       length: _tabs.length,
       vsync: this,
+      initialIndex: widget.initialTabIndex.clamp(0, _tabs.length - 1),
       animationDuration: const Duration(milliseconds: 280),
     );
   }

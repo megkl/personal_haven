@@ -12,9 +12,16 @@ import 'package:personal_haven/providers/subscription_provider.dart';
 import 'package:personal_haven/providers/notification_provider.dart';
 
 class MainNavigationScreen extends ConsumerStatefulWidget {
-  const MainNavigationScreen({super.key, this.currentIndex = 0});
+  const MainNavigationScreen({
+    super.key,
+    this.currentIndex = 0,
+    this.wellnessTabIndex = 0,
+    this.ritualsTabIndex = 0,
+  });
 
   final int currentIndex;
+  final int wellnessTabIndex;
+  final int ritualsTabIndex;
 
   @override
   ConsumerState<MainNavigationScreen> createState() =>
@@ -63,8 +70,10 @@ class _MainNavigationScreenState extends ConsumerState<MainNavigationScreen>
     final screens = [
       const HomeScreen(),
       hasAccess ? const JournalScreen() : lockedScreen,
-      hasAccess ? const WellnessScreen() : lockedScreen,
-      const RitualsScreen(),
+      hasAccess
+          ? WellnessScreen(initialTabIndex: widget.wellnessTabIndex)
+          : lockedScreen,
+      RitualsScreen(initialTabIndex: widget.ritualsTabIndex),
       ProfileScreen(),
     ];
 

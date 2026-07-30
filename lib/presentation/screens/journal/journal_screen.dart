@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:personal_haven/core/theme/app_theme.dart';
 import 'package:personal_haven/presentation/widgets/voice_dictation_button.dart';
@@ -7,6 +9,7 @@ import 'package:personal_haven/core/constants/app_colors.dart';
 import 'package:personal_haven/data/models/journal_entry.dart';
 import 'package:personal_haven/presentation/widgets/common/app_confirm_dialog.dart';
 import 'package:personal_haven/providers/journal_provider.dart';
+import 'package:personal_haven/services/journal_ambient_audio.dart';
 
 class JournalScreen extends ConsumerStatefulWidget {
   const JournalScreen({super.key});
@@ -865,9 +868,13 @@ class _AddEditEntrySheetState extends State<_AddEditEntrySheet> {
   late TextEditingController _titleController;
   late TextEditingController _contentController;
   late TextEditingController _tagController;
+  final FocusNode _contentFocusNode = FocusNode();
+  final JournalAmbientAudio _ambientAudio = JournalAmbientAudio();
   late String _selectedCategory;
   String? _selectedEmoji;
   List<String> _tags = [];
+  bool _musicEnabled = true;
+  bool _musicErrorShown = false;
 
   @override
   void initState() {
@@ -880,10 +887,14 @@ class _AddEditEntrySheetState extends State<_AddEditEntrySheet> {
     _selectedCategory = widget.entry?.category ?? 'Notes';
     _selectedEmoji = widget.entry?.emoji;
     _tags = widget.entry?.tags.toList() ?? [];
+    _contentFocusNode.addListener(_handleContentFocus);
   }
 
   @override
   void dispose() {
+    _contentFocusNode.removeListener(_handleContentFocus);
+    _contentFocusNode.dispose();
+    unawaited(_ambientAudio.dispose());
     _titleController.dispose();
     _contentController.dispose();
     _tagController.dispose();
@@ -967,6 +978,20 @@ class _AddEditEntrySheetState extends State<_AddEditEntrySheet> {
                           ),
                         ],
                       ),
+                    ),
+                    IconButton(
+                      tooltip: _musicEnabled
+                          ? 'Mute writing music'
+                          : 'Play writing music',
+                      onPressed: _toggleMusic,
+                      icon: Icon(
+                        _musicEnabled
+                            ? Icons.music_note_rounded
+                            : Icons.music_off_rounded,
+                      ),
+                      color: _musicEnabled
+                          ? AppColors.primary
+                          : context.colors.textSecondary,
                     ),
                     IconButton(
                       tooltip: 'Close',
@@ -1102,6 +1127,7 @@ class _AddEditEntrySheetState extends State<_AddEditEntrySheet> {
                       // Content
                       TextField(
                         controller: _contentController,
+                        focusNode: _contentFocusNode,
                         decoration: _inputDec('Write your thoughts... *')
                             .copyWith(
                               alignLabelWithHint: true,
@@ -1207,6 +1233,40 @@ class _AddEditEntrySheetState extends State<_AddEditEntrySheet> {
         _tagController.clear();
       });
     }
+  }
+
+  void _handleContentFocus() {
+    if (_contentFocusNode.hasFocus && _musicEnabled) {
+      unawaited(_playAmbientAudio());
+    } else {
+      unawaited(_ambientAudio.pause());
+    }
+  }
+
+  Future<void> _playAmbientAudio() async {
+    final didStart = await _ambientAudio.play();
+    if (didStart ||
+        !mounted ||
+        !_contentFocusNode.hasFocus ||
+        !_musicEnabled ||
+        _musicErrorShown) {
+      return;
+    }
+
+    _musicErrorShown = true;
+    setState(() => _musicEnabled = false);
+    ScaffoldMessenger.of(context).showSnackBar(
+      const SnackBar(
+        content: Text(
+          'Writing music could not start. You can keep journaling normally.',
+        ),
+      ),
+    );
+  }
+
+  void _toggleMusic() {
+    setState(() => _musicEnabled = !_musicEnabled);
+    _handleContentFocus();
   }
 
   InputDecoration _inputDec(String hint) => InputDecoration(

@@ -198,41 +198,25 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
                   style: TextStyle(fontSize: 13, color: colors.textSecondary),
                 ),
                 const SizedBox(height: 12),
-                Row(
-                  children: [
-                    Expanded(
-                      child: OutlinedButton.icon(
-                        onPressed: () => _sendTestNotification(context),
-                        icon: const Icon(Icons.notifications_active_outlined),
-                        label: const Text('Test now'),
-                        style: OutlinedButton.styleFrom(
-                          foregroundColor: AppColors.primary,
-                          side: const BorderSide(color: AppColors.primary),
-                          padding: const EdgeInsets.symmetric(vertical: 12),
-                          shape: RoundedRectangleBorder(
-                            borderRadius: BorderRadius.circular(14),
-                          ),
-                        ),
-                      ),
-                    ),
-                    const SizedBox(width: 10),
-                    Expanded(
-                      child: OutlinedButton.icon(
-                        onPressed: () => _scheduleTestNotification(context),
-                        icon: const Icon(Icons.schedule_outlined),
-                        label: const Text('Test schedule'),
-                        style: OutlinedButton.styleFrom(
-                          foregroundColor: AppColors.primary,
-                          side: const BorderSide(color: AppColors.primary),
-                          padding: const EdgeInsets.symmetric(vertical: 12),
-                          shape: RoundedRectangleBorder(
-                            borderRadius: BorderRadius.circular(14),
-                          ),
-                        ),
-                      ),
-                    ),
-                  ],
-                ),
+                // Row(
+                //   children: [
+                //     Expanded(
+                //       child: OutlinedButton.icon(
+                //         onPressed: () => _sendTestNotification(context),
+                //         icon: const Icon(Icons.notifications_active_outlined),
+                //         label: const Text('Test now'),
+                //       ),
+                //     ),
+                //     const SizedBox(width: 10),
+                //     Expanded(
+                //       child: OutlinedButton.icon(
+                //         onPressed: () => _scheduleTestNotification(context),
+                //         icon: const Icon(Icons.schedule_outlined),
+                //         label: const Text('Test schedule'),
+                //       ),
+                //     ),
+                //   ],
+                // ),
                 const SizedBox(height: 12),
                 _notificationToggle(
                   context,

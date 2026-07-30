@@ -6,7 +6,9 @@ import 'package:personal_haven/presentation/screens/rituals/shopping_list_screen
 import 'package:personal_haven/presentation/screens/rituals/tasks_screen.dart';
 
 class RitualsScreen extends StatefulWidget {
-  const RitualsScreen({super.key});
+  const RitualsScreen({super.key, this.initialTabIndex = 0});
+
+  final int initialTabIndex;
 
   @override
   State<RitualsScreen> createState() => _RitualsScreenState();
@@ -28,6 +30,7 @@ class _RitualsScreenState extends State<RitualsScreen>
     _tabController = TabController(
       length: _tabs.length,
       vsync: this,
+      initialIndex: widget.initialTabIndex.clamp(0, _tabs.length - 1),
       animationDuration: const Duration(milliseconds: 280),
     );
   }

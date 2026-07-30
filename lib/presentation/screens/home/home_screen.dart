@@ -907,7 +907,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen>
                 value: '${goalState.activeCount}',
                 navigationLabel: 'Grow goals',
                 color: const Color(0xFF667eea),
-                onTap: () => _navigateTo(2),
+                onTap: () => _navigateTo(2, wellnessTabIndex: 1),
               ),
             ],
           ),
@@ -1081,6 +1081,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen>
     final goals = goalState.activeGoals.take(3).toList();
 
     return _glassCard(
+      onTap: () => _navigateTo(2, wellnessTabIndex: 1),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
@@ -1090,7 +1091,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen>
           if (goalState.activeGoals.length > 3)
             _viewAllButton(
               'View all ${goalState.activeCount} goals',
-              () => _navigateTo(2),
+              () => _navigateTo(2, wellnessTabIndex: 1),
             ),
         ],
       ),
@@ -1245,6 +1246,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen>
     final completionPct = taskState.completionPercentage;
 
     return _glassCard(
+      onTap: () => _navigateTo(3, ritualsTabIndex: 0),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
@@ -1286,7 +1288,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen>
           if (taskState.pendingCount > 3)
             _viewAllButton(
               'View all ${taskState.pendingCount} tasks',
-              () => _navigateTo(3),
+              () => _navigateTo(3, ritualsTabIndex: 0),
             ),
         ],
       ),
@@ -1364,6 +1366,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen>
 
   Widget _buildEventsCard(List<Event> events) {
     return _glassCard(
+      onTap: () => _navigateTo(3, ritualsTabIndex: 1),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
@@ -1442,7 +1445,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen>
           if (events.length > 3)
             _viewAllButton(
               'View all ${events.length} events',
-              () => _navigateTo(3),
+              () => _navigateTo(3, ritualsTabIndex: 1),
             ),
         ],
       ),
@@ -1455,6 +1458,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen>
     final recentEntries = journalState.entries.take(2).toList();
 
     return _glassCard(
+      onTap: () => _navigateTo(1),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
@@ -1633,8 +1637,8 @@ class _HomeScreenState extends ConsumerState<HomeScreen>
 
   // ─── SHARED UI HELPERS ────────────────────────────────────────
 
-  Widget _glassCard({required Widget child}) {
-    return Container(
+  Widget _glassCard({required Widget child, VoidCallback? onTap}) {
+    final card = Container(
       width: double.infinity,
       padding: const EdgeInsets.all(18),
       decoration: BoxDecoration(
@@ -1650,6 +1654,16 @@ class _HomeScreenState extends ConsumerState<HomeScreen>
         ],
       ),
       child: child,
+    );
+    if (onTap == null) return card;
+
+    return Semantics(
+      button: true,
+      child: InkWell(
+        onTap: onTap,
+        borderRadius: BorderRadius.circular(18),
+        child: card,
+      ),
     );
   }
 
@@ -1725,11 +1739,19 @@ class _HomeScreenState extends ConsumerState<HomeScreen>
 
   // ─── UTILITIES ────────────────────────────────────────────────
 
-  void _navigateTo(int index) {
+  void _navigateTo(
+    int index, {
+    int wellnessTabIndex = 0,
+    int ritualsTabIndex = 0,
+  }) {
     Navigator.pushReplacement(
       context,
       PageRouteBuilder(
-        pageBuilder: (_, _, _) => MainNavigationScreen(currentIndex: index),
+        pageBuilder: (_, _, _) => MainNavigationScreen(
+          currentIndex: index,
+          wellnessTabIndex: wellnessTabIndex,
+          ritualsTabIndex: ritualsTabIndex,
+        ),
         transitionsBuilder: (_, anim, _, child) =>
             FadeTransition(opacity: anim, child: child),
         transitionDuration: const Duration(milliseconds: 250),
