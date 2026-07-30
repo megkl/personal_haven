@@ -1,10 +1,11 @@
 import 'package:flutter/material.dart';
-import 'package:personal_haven/core/theme/app_theme.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:personal_haven/core/constants/app_colors.dart';
 import 'package:personal_haven/presentation/screens/auth/signup_screen.dart';
 import 'package:personal_haven/presentation/screens/profile/main_navigation_screen.dart';
-import 'package:personal_haven/providers/auth_provider.dart';
+import 'package:personal_haven/presentation/widgets/auth/auth_shell.dart';
 import 'package:personal_haven/presentation/widgets/common/google_mark.dart';
+import 'package:personal_haven/providers/auth_provider.dart';
 import 'package:personal_haven/services/biometric_service.dart';
 import 'package:personal_haven/services/social_auth_service.dart';
 import 'package:shared_preferences/shared_preferences.dart';
@@ -28,7 +29,6 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
   }
 
   Future<void> _checkBiometric() async {
-    // Only show biometric on login if user was previously logged in
     final prefs = await SharedPreferences.getInstance();
     final wasLoggedIn = prefs.getBool('isLoggedIn') ?? false;
     if (!wasLoggedIn) return;
@@ -37,14 +37,12 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
     final enabled = await BiometricService.instance.isEnabled();
     final label = await BiometricService.instance.getBiometricLabel();
 
-    if (mounted) {
-      setState(() {
-        _biometricAvailable = available && enabled;
-        _biometricLabel = label;
-      });
-      // Auto-prompt if available
-      if (_biometricAvailable) _loginWithBiometric();
-    }
+    if (!mounted) return;
+    setState(() {
+      _biometricAvailable = available && enabled;
+      _biometricLabel = label;
+    });
+    if (_biometricAvailable) _loginWithBiometric();
   }
 
   Future<void> _loginWithBiometric() async {
@@ -53,15 +51,12 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
       reason: 'Log in to Personal Haven',
     );
     if (!mounted) return;
+
     if (ok) {
-      // Biometric passed — restore the existing Firebase session
       await ref.read(authProvider.notifier).checkAuthStatus();
       if (!mounted) return;
       if (ref.read(authProvider).isAuthenticated) {
-        Navigator.pushReplacement(
-          context,
-          MaterialPageRoute(builder: (_) => const MainNavigationScreen()),
-        );
+        _openHome();
         return;
       }
     }
@@ -92,15 +87,13 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
     }
 
     setState(() => _isLoading = false);
-    if (mounted) {
-      final authError = ref.read(authProvider).error;
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text(authError ?? result.error ?? 'Sign-in failed'),
-          backgroundColor: Colors.red,
-        ),
-      );
-    }
+    final authError = ref.read(authProvider).error;
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text(authError ?? result.error ?? 'Sign-in failed'),
+        backgroundColor: AppColors.error,
+      ),
+    );
   }
 
   void _openHome() {
@@ -112,159 +105,71 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      backgroundColor: const Color(0xFFB8E6E3),
-      body: SafeArea(
-        child: Padding(
-          padding: const EdgeInsets.all(24.0),
-          child: Column(
-            children: [
-              const SizedBox(height: 40),
-              Row(
-                mainAxisAlignment: MainAxisAlignment.center,
-                children: [
-                  Icon(
-                    Icons.spa,
-                    color: Colors.white.withValues(alpha: 0.9),
-                    size: 32,
-                  ),
-                  const SizedBox(width: 12),
-                  Text(
-                    'Personal Haven',
-                    style: TextStyle(
-                      fontSize: 24,
-                      fontWeight: FontWeight.w600,
-                      color: Color(0xFF2D3E40),
-                    ),
-                  ),
-                ],
-              ),
-              const Spacer(),
-              Text(
-                'Welcome Back',
-                style: TextStyle(
-                  fontSize: 32,
-                  fontWeight: FontWeight.bold,
-                  color: Color(0xFF2D3E40),
-                ),
-              ),
-              const SizedBox(height: 8),
-              Text(
-                'Log in to your safe space',
-                style: TextStyle(fontSize: 16, color: Color(0xFF2D3E40)),
-              ),
-              const SizedBox(height: 48),
-              if (_isLoading)
-                const CircularProgressIndicator(color: Color(0xFF4ECDC4))
-              else ...[
-                _SocialButton(
-                  label: 'Continue with Google',
-                  icon: _googleIcon(),
-                  onTap: () => _handleSocialLogin(
-                    SocialAuthService.instance.signInWithGoogle,
-                  ),
-                ),
-                if (_biometricAvailable) ...[
-                  const SizedBox(height: 24),
-                  Row(
-                    children: const [
-                      Expanded(child: Divider(color: Color(0xFF2D3E40))),
-                      Padding(
-                        padding: EdgeInsets.symmetric(horizontal: 12),
-                        child: Text(
-                          'or',
-                          style: TextStyle(color: Color(0xFF2D3E40)),
-                        ),
-                      ),
-                      Expanded(child: Divider(color: Color(0xFF2D3E40))),
-                    ],
-                  ),
-                  const SizedBox(height: 24),
-                  _SocialButton(
-                    label: 'Use $_biometricLabel',
-                    icon: Icon(
-                      _biometricLabel == 'Face ID'
-                          ? Icons.face_unlock_rounded
-                          : Icons.fingerprint,
-                      size: 24,
-                      color: const Color(0xFF4ECDC4),
-                    ),
-                    onTap: _loginWithBiometric,
-                  ),
-                ],
-              ],
-              const Spacer(),
-              Row(
-                mainAxisAlignment: MainAxisAlignment.center,
-                children: [
-                  Text(
-                    "Don't have an account? ",
-                    style: TextStyle(color: Color(0xFF2D3E40)),
-                  ),
-                  TextButton(
-                    onPressed: () => Navigator.pushReplacement(
-                      context,
-                      MaterialPageRoute(builder: (_) => const SignUpScreen()),
-                    ),
-                    child: Text(
-                      'Sign Up',
-                      style: TextStyle(
-                        color: Color(0xFF4ECDC4),
-                        fontWeight: FontWeight.bold,
-                      ),
-                    ),
-                  ),
-                ],
-              ),
-              const SizedBox(height: 16),
-            ],
+    return AuthShell(
+      imagePath: 'assets/images/auth/login-welcome.png',
+      imageSemanticLabel: 'A person returning to their peaceful haven',
+      eyebrow: 'WELCOME BACK TO',
+      title: 'Your Personal Haven.',
+      subtitle:
+          'Pick up where you left off and make a little space for yourself.',
+      content: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          AuthActionButton(
+            label: 'Log in with Google',
+            icon: const GoogleMark(size: 22),
+            isLoading: _isLoading,
+            onPressed: () =>
+                _handleSocialLogin(SocialAuthService.instance.signInWithGoogle),
           ),
+          if (_biometricAvailable) ...[
+            const SizedBox(height: 18),
+            _AuthDivider(label: 'or use $_biometricLabel'),
+            const SizedBox(height: 18),
+            AuthActionButton(
+              label: 'Use $_biometricLabel',
+              icon: Icon(
+                _biometricLabel == 'Face ID'
+                    ? Icons.face_unlock_rounded
+                    : Icons.fingerprint_rounded,
+                size: 24,
+                color: AppColors.primaryDark,
+              ),
+              isLoading: _isLoading,
+              emphasized: false,
+              onPressed: _loginWithBiometric,
+            ),
+          ],
+        ],
+      ),
+      footer: AuthSwitchPrompt(
+        message: "Start your personal haven journey? ",
+        actionLabel: 'Create one',
+        onPressed: () => Navigator.pushReplacement(
+          context,
+          MaterialPageRoute(builder: (_) => const SignUpScreen()),
         ),
       ),
     );
   }
-
-  Widget _googleIcon() {
-    return const GoogleMark(size: 22);
-  }
 }
 
-class _SocialButton extends StatelessWidget {
-  final String label;
-  final Widget icon;
-  final VoidCallback onTap;
+class _AuthDivider extends StatelessWidget {
+  const _AuthDivider({required this.label});
 
-  const _SocialButton({
-    required this.label,
-    required this.icon,
-    required this.onTap,
-  });
+  final String label;
 
   @override
   Widget build(BuildContext context) {
-    return SizedBox(
-      width: double.infinity,
-      height: 56,
-      child: OutlinedButton.icon(
-        onPressed: onTap,
-        icon: icon,
-        label: Text(
-          label,
-          style: TextStyle(
-            fontSize: 16,
-            fontWeight: FontWeight.w600,
-            color: Color(0xFF2D3E40),
-          ),
+    return Row(
+      children: [
+        Expanded(child: Divider(color: Theme.of(context).dividerColor)),
+        Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 12),
+          child: Text(label, style: Theme.of(context).textTheme.bodySmall),
         ),
-        style: OutlinedButton.styleFrom(
-          backgroundColor: context.colors.cardColor,
-          side: BorderSide.none,
-          shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(28),
-          ),
-          elevation: 0,
-        ),
-      ),
+        Expanded(child: Divider(color: Theme.of(context).dividerColor)),
+      ],
     );
   }
 }
