@@ -4,6 +4,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:intl/intl.dart';
 import 'package:personal_haven/core/constants/app_colors.dart';
 import 'package:personal_haven/providers/task_provider.dart';
+import 'package:personal_haven/presentation/widgets/voice_dictation_button.dart';
 
 /// Add Task Screen - Create new tasks
 class AddTaskScreen extends ConsumerStatefulWidget {
@@ -153,10 +154,14 @@ class _AddTaskScreenState extends ConsumerState<AddTaskScreen> {
             // Title Field
             TextField(
               controller: _titleController,
-              decoration: const InputDecoration(
+              decoration: InputDecoration(
                 labelText: 'Task Title',
                 hintText: 'e.g., Buy groceries',
-                prefixIcon: Icon(Icons.edit, color: AppColors.primary),
+                prefixIcon: const Icon(Icons.edit, color: AppColors.primary),
+                suffixIcon: VoiceDictationButton(
+                  controller: _titleController,
+                  tooltip: 'Dictate task title',
+                ),
               ),
               textCapitalization: TextCapitalization.sentences,
             ),
@@ -166,10 +171,14 @@ class _AddTaskScreenState extends ConsumerState<AddTaskScreen> {
             TextField(
               controller: _descriptionController,
               maxLines: 3,
-              decoration: const InputDecoration(
+              decoration: InputDecoration(
                 labelText: 'Description (Optional)',
                 hintText: 'Add more details...',
-                prefixIcon: Icon(Icons.notes, color: AppColors.primary),
+                prefixIcon: const Icon(Icons.notes, color: AppColors.primary),
+                suffixIcon: VoiceDictationButton(
+                  controller: _descriptionController,
+                  tooltip: 'Dictate task details',
+                ),
                 alignLabelWithHint: true,
               ),
               textCapitalization: TextCapitalization.sentences,

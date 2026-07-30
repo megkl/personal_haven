@@ -146,6 +146,7 @@ class NotificationNotifier extends _$NotificationNotifier {
   }
 
   Future<void> _load() async {
+    await NotificationService.instance.initialize();
     final prefs = await SharedPreferences.getInstance();
     if (!ref.mounted) return;
 
@@ -161,6 +162,9 @@ class NotificationNotifier extends _$NotificationNotifier {
       times[key] = prefs.getInt('$_prefix$key') ?? defaultValue;
     }
     state = NotificationPrefs.fromPrefs(bools: map, times: times);
+    if (state.masterEnabled) {
+      await _rescheduleAll();
+    }
   }
 
   Future<void> _save(String key, bool value) async {
@@ -174,6 +178,9 @@ class NotificationNotifier extends _$NotificationNotifier {
   }
 
   Future<bool> setMaster(bool value) async {
+    await _loading;
+    if (!ref.mounted) return false;
+
     if (value) {
       final granted = await NotificationService.instance.requestPermission();
       if (!granted || !ref.mounted) {
@@ -217,7 +224,9 @@ class NotificationNotifier extends _$NotificationNotifier {
       if (!granted) return false;
     }
     await NotificationService.instance.showTestNotification();
-    return true;
+    return NotificationService.instance.notificationsEnabled(
+      androidChannelId: NotificationChannels.testId,
+    );
   }
 
   Future<bool> scheduleTestNotification() async {
@@ -228,7 +237,9 @@ class NotificationNotifier extends _$NotificationNotifier {
     final granted = await NotificationService.instance.requestPermission();
     if (!granted) return false;
     await NotificationService.instance.scheduleTestNotificationInFiveSeconds();
-    return true;
+    return NotificationService.instance.isPending(
+      NotificationIds.testNotification + 1,
+    );
   }
 
   /// Records that the user opened the app today by moving the next noon
@@ -293,6 +304,7 @@ class NotificationNotifier extends _$NotificationNotifier {
     final prefs = state;
     if (!prefs.masterEnabled) return;
     final svc = NotificationService.instance;
+    await svc.initialize();
 
     // Daily reminders
     if (prefs.dailyReminders) {

@@ -1,5 +1,6 @@
 import 'package:flutter_local_notifications/flutter_local_notifications.dart';
 import 'package:flutter_timezone/flutter_timezone.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 import 'package:timezone/data/latest_all.dart' as tz;
 import 'package:timezone/timezone.dart' as tz;
 
@@ -44,9 +45,18 @@ class NotificationService {
 
   final _plugin = FlutterLocalNotificationsPlugin();
   bool _initialized = false;
+  Future<void>? _initializing;
+  static const _firstPermissionPromptKey =
+      'notification_permission_prompted_once';
 
-  Future<void> initialize() async {
-    if (_initialized) return;
+  Future<void> initialize() {
+    if (_initialized) return Future<void>.value();
+    return _initializing ??= _initialize().whenComplete(() {
+      _initializing = null;
+    });
+  }
+
+  Future<void> _initialize() async {
     tz.initializeTimeZones();
     try {
       final localTimezone = await FlutterTimezone.getLocalTimezone();
@@ -72,6 +82,7 @@ class NotificationService {
   void _onTap(NotificationResponse response) {}
 
   Future<bool> requestPermission() async {
+    await initialize();
     final ios = await _plugin
         .resolvePlatformSpecificImplementation<
           IOSFlutterLocalNotificationsPlugin
@@ -82,7 +93,64 @@ class NotificationService {
           AndroidFlutterLocalNotificationsPlugin
         >()
         ?.requestNotificationsPermission();
-    return (ios ?? true) && (android ?? true);
+    final androidEnabled = await _plugin
+        .resolvePlatformSpecificImplementation<
+          AndroidFlutterLocalNotificationsPlugin
+        >()
+        ?.areNotificationsEnabled();
+    return (ios ?? true) && (android ?? true) && (androidEnabled ?? true);
+  }
+
+  Future<bool?> requestPermissionOnFirstLaunch() async {
+    final prefs = await SharedPreferences.getInstance();
+    if (prefs.getBool(_firstPermissionPromptKey) ?? false) return null;
+
+    final granted = await requestPermission();
+    if (granted) {
+      // Match the notification provider's persisted master preference so a
+      // user who accepts the system prompt actually receives reminders.
+      await prefs.setBool('notif_masterEnabled', true);
+    }
+    await prefs.setBool(_firstPermissionPromptKey, true);
+    return granted;
+  }
+
+  Future<bool> notificationsEnabled({String? androidChannelId}) async {
+    await initialize();
+
+    final android = _plugin
+        .resolvePlatformSpecificImplementation<
+          AndroidFlutterLocalNotificationsPlugin
+        >();
+    if (android != null) {
+      if (await android.areNotificationsEnabled() != true) return false;
+      if (androidChannelId != null) {
+        final channels = await android.getNotificationChannels();
+        final matching = channels
+            ?.where((channel) => channel.id == androidChannelId)
+            .firstOrNull;
+        if (matching != null && matching.importance == Importance.none) {
+          return false;
+        }
+      }
+    }
+
+    final ios = _plugin
+        .resolvePlatformSpecificImplementation<
+          IOSFlutterLocalNotificationsPlugin
+        >();
+    final iosPermissions = await ios?.checkPermissions();
+    if (iosPermissions != null &&
+        (!iosPermissions.isEnabled || !iosPermissions.isAlertEnabled)) {
+      return false;
+    }
+    return true;
+  }
+
+  Future<bool> isPending(int id) async {
+    await initialize();
+    final pending = await _plugin.pendingNotificationRequests();
+    return pending.any((notification) => notification.id == id);
   }
 
   NotificationDetails _details(
@@ -134,6 +202,7 @@ class NotificationService {
     String channelId = NotificationChannels.dailyId,
     String channelName = NotificationChannels.dailyName,
   }) async {
+    await initialize();
     await _plugin.show(
       id: id,
       title: title,
@@ -151,6 +220,7 @@ class NotificationService {
     int journalMinuteOfDay = 21 * 60,
     int mealMinuteOfDay = 13 * 60,
   }) async {
+    await initialize();
     await _scheduleDailyAt(
       id: NotificationIds.morningCheckin,
       hour: morningMinuteOfDay ~/ 60,
@@ -236,6 +306,7 @@ class NotificationService {
   // ── Weekly ────────────────────────────────────────────────────────────────
 
   Future<void> scheduleWeeklyMoodSummary({int minuteOfDay = 18 * 60}) async {
+    await initialize();
     final now = tz.TZDateTime.now(tz.local);
     var daysUntilSunday = DateTime.sunday - now.weekday;
     if (daysUntilSunday <= 0) daysUntilSunday += 7;
@@ -335,6 +406,7 @@ class NotificationService {
     String eventTitle,
     DateTime eventTime,
   ) async {
+    await initialize();
     final reminderTime = eventTime.subtract(const Duration(hours: 1));
     if (reminderTime.isBefore(DateTime.now())) return;
 
@@ -370,6 +442,7 @@ class NotificationService {
   // ── Subscription ─────────────────────────────────────────────────────────
 
   Future<void> scheduleSubscriptionReminders(DateTime expiryDate) async {
+    await initialize();
     final now = DateTime.now();
     final threeDays = expiryDate.subtract(const Duration(days: 3));
     final oneDay = expiryDate.subtract(const Duration(days: 1));
@@ -431,6 +504,7 @@ class NotificationService {
   /// moves the next reminder to tomorrow; if the app stays closed, it repeats
   /// each day until the user returns.
   Future<void> scheduleNoonStreakReminderAfterToday() async {
+    await initialize();
     await cancelNoonStreakReminder();
 
     final now = tz.TZDateTime.now(tz.local);
@@ -477,6 +551,7 @@ class NotificationService {
   }
 
   Future<void> showTestNotification() async {
+    await initialize();
     await _plugin.show(
       id: NotificationIds.testNotification,
       title: '🔔 Test notification',
@@ -492,6 +567,7 @@ class NotificationService {
   }
 
   Future<void> scheduleTestNotificationInFiveSeconds() async {
+    await initialize();
     await _plugin.zonedSchedule(
       id: NotificationIds.testNotification + 1,
       title: '⏰ Scheduled test',
@@ -509,5 +585,8 @@ class NotificationService {
     );
   }
 
-  Future<void> cancelAll() async => _plugin.cancelAll();
+  Future<void> cancelAll() async {
+    await initialize();
+    await _plugin.cancelAll();
+  }
 }

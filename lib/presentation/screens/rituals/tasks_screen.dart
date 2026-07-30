@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:personal_haven/core/theme/app_theme.dart';
+import 'package:personal_haven/presentation/widgets/voice_dictation_button.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:intl/intl.dart';
 import 'package:personal_haven/core/constants/app_colors.dart';
@@ -1299,7 +1300,12 @@ class _AddEditTaskSheetState extends State<_AddEditTaskSheet> {
                 controller: _titleController,
                 autofocus: true,
                 textCapitalization: TextCapitalization.sentences,
-                decoration: _inputDec('What needs to be done? *'),
+                decoration: _inputDec('What needs to be done? *').copyWith(
+                  suffixIcon: VoiceDictationButton(
+                    controller: _titleController,
+                    tooltip: 'Dictate task title',
+                  ),
+                ),
               ),
               const SizedBox(height: 12),
 
@@ -1308,7 +1314,12 @@ class _AddEditTaskSheetState extends State<_AddEditTaskSheet> {
                 controller: _descriptionController,
                 maxLines: 2,
                 textCapitalization: TextCapitalization.sentences,
-                decoration: _inputDec('Add details (optional)'),
+                decoration: _inputDec('Add details (optional)').copyWith(
+                  suffixIcon: VoiceDictationButton(
+                    controller: _descriptionController,
+                    tooltip: 'Dictate task details',
+                  ),
+                ),
               ),
               const SizedBox(height: 16),
 

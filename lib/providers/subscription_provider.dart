@@ -47,7 +47,12 @@ class SubscriptionNotifier extends _$SubscriptionNotifier {
 
   @override
   SubscriptionState build() {
-    final userId = ref.watch(currentUserIdProvider);
+    // MainNavigationScreen creates this provider immediately after sign-in.
+    // Reading the already-authenticated user avoids establishing a dependency
+    // that can invalidate this notifier while its first build is still active.
+    // The provider is auto-disposed when the authenticated navigation tree is
+    // removed, so a new session receives a fresh notifier and user ID.
+    final userId = ref.read(currentUserIdProvider);
     Future.microtask(() => _load(userId: userId));
     return SubscriptionState();
   }
@@ -61,7 +66,10 @@ class SubscriptionNotifier extends _$SubscriptionNotifier {
     try {
       final previousActive = state.active;
       var active = await _repo.getActive(targetUserId);
+      if (!ref.mounted) return;
+
       active ??= await _createMissingTrial(targetUserId);
+      if (!ref.mounted) return;
 
       // Publish ordinary access immediately. Lifetime access is an exceptional
       // override, so its callable must never delay or hide a valid trial.
@@ -98,6 +106,7 @@ class SubscriptionNotifier extends _$SubscriptionNotifier {
         await NotificationService.instance.notifySubscriptionExpired();
       }
     } catch (e) {
+      if (!ref.mounted) return;
       state = SubscriptionState(isLoading: false, error: e.toString());
     }
   }
@@ -115,11 +124,15 @@ class SubscriptionNotifier extends _$SubscriptionNotifier {
   Future<bool> activateTrial() async {
     try {
       final alreadyUsed = await _repo.hasUsedTrial(_userId);
+      if (!ref.mounted) return false;
       if (alreadyUsed) return false;
+
       final sub = await _repo.createTrial(_userId);
+      if (!ref.mounted) return false;
       state = state.copyWith(active: sub, isLoading: false);
       return true;
     } catch (e) {
+      if (!ref.mounted) return false;
       state = state.copyWith(error: e.toString(), isLoading: false);
       return false;
     }

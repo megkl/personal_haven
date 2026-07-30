@@ -1,4 +1,3 @@
-import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:personal_haven/services/biometric_service.dart';
 import 'package:riverpod_annotation/riverpod_annotation.dart';
 
@@ -34,7 +33,7 @@ class BiometricState {
 
 @riverpod
 class BiometricNotifier extends _$BiometricNotifier {
-      final _service = BiometricService.instance;
+  final _service = BiometricService.instance;
 
   @override
   BiometricState build() {
@@ -44,10 +43,10 @@ class BiometricNotifier extends _$BiometricNotifier {
   }
 
   Future<void> _load() async {
-
     final available = await _service.isAvailable();
     final enabled = await _service.isEnabled();
     final label = await _service.getBiometricLabel();
+    if (!ref.mounted) return;
     state = BiometricState(
       isAvailable: available,
       isEnabled: available && enabled,
@@ -65,15 +64,14 @@ class BiometricNotifier extends _$BiometricNotifier {
       final ok = await _service.authenticate(
         reason: 'Confirm your identity to enable biometric lock',
       );
-      if (!ok) return false;
+      if (!ok || !ref.mounted) return false;
     }
 
     await _service.setEnabled(value);
+    if (!ref.mounted) return false;
     state = state.copyWith(isEnabled: value);
     return true;
   }
 
   Future<void> refresh() => _load();
 }
-
-

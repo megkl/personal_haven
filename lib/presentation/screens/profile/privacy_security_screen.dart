@@ -1,20 +1,21 @@
 import 'package:flutter/material.dart';
 import 'package:personal_haven/core/theme/app_theme.dart';
 import 'package:personal_haven/core/constants/app_colors.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:personal_haven/providers/biometric_provider.dart';
 
-class PrivacySecurityScreen extends StatefulWidget {
+class PrivacySecurityScreen extends ConsumerStatefulWidget {
   const PrivacySecurityScreen({super.key});
 
   @override
-  State<PrivacySecurityScreen> createState() => _PrivacySecurityScreenState();
+  ConsumerState<PrivacySecurityScreen> createState() =>
+      _PrivacySecurityScreenState();
 }
 
-class _PrivacySecurityScreenState extends State<PrivacySecurityScreen> {
-  bool _biometricLock = false;
-  bool _cloudSync = true;
-
+class _PrivacySecurityScreenState extends ConsumerState<PrivacySecurityScreen> {
   @override
   Widget build(BuildContext context) {
+    final biometric = ref.watch(biometricProvider);
     return Scaffold(
       backgroundColor: Theme.of(context).scaffoldBackgroundColor,
       appBar: AppBar(
@@ -44,13 +45,15 @@ class _PrivacySecurityScreenState extends State<PrivacySecurityScreen> {
                 const SizedBox(height: 16),
                 _buildSecurityRow(
                   'Biometric Lock',
-                  'Use Face ID / Touch ID to unlock app',
+                  biometric.isAvailable
+                      ? 'Use ${biometric.label} to unlock Personal Haven'
+                      : 'Set up Face ID or fingerprint in device settings first',
                   Icons.fingerprint,
                   Switch(
-                    value: _biometricLock,
-                    onChanged: (value) {
-                      setState(() => _biometricLock = value);
-                    },
+                    value: biometric.isEnabled,
+                    onChanged: biometric.isLoading || !biometric.isAvailable
+                        ? null
+                        : _toggleBiometric,
                     activeThumbColor: AppColors.primary,
                   ),
                 ),
@@ -81,6 +84,7 @@ class _PrivacySecurityScreenState extends State<PrivacySecurityScreen> {
               ],
             ),
           ),
+
           // const SizedBox(height: 20),
           // Container(
           //   padding: const EdgeInsets.all(20),
@@ -129,8 +133,27 @@ class _PrivacySecurityScreenState extends State<PrivacySecurityScreen> {
           //     ],
           //   ),
           // ),
-        
         ],
+      ),
+    );
+  }
+
+  Future<void> _toggleBiometric(bool value) async {
+    final changed = await ref.read(biometricProvider.notifier).toggle(value);
+    if (!mounted) return;
+
+    final biometric = ref.read(biometricProvider);
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text(
+          changed
+              ? value
+                    ? '${biometric.label} lock enabled'
+                    : 'Biometric lock disabled'
+              : 'Biometric verification was not completed',
+        ),
+        behavior: SnackBarBehavior.floating,
+        backgroundColor: changed ? AppColors.primary : Colors.red,
       ),
     );
   }
@@ -170,47 +193,6 @@ class _PrivacySecurityScreenState extends State<PrivacySecurityScreen> {
         ),
         trailing,
       ],
-    );
-  }
-
-  Widget _buildActionButton(
-    String title,
-    String subtitle,
-    IconData icon,
-    VoidCallback onTap,
-  ) {
-    return InkWell(
-      onTap: onTap,
-      child: Row(
-        children: [
-          Icon(icon, color: AppColors.primary),
-          const SizedBox(width: 16),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  title,
-                  style: TextStyle(
-                    fontSize: 16,
-                    fontWeight: FontWeight.w500,
-                    color: context.colors.textPrimary,
-                  ),
-                ),
-                const SizedBox(height: 4),
-                Text(
-                  subtitle,
-                  style: TextStyle(
-                    fontSize: 12,
-                    color: context.colors.textSecondary,
-                  ),
-                ),
-              ],
-            ),
-          ),
-          Icon(Icons.chevron_right, color: context.colors.textSecondary),
-        ],
-      ),
     );
   }
 }

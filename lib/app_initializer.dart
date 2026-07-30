@@ -1,9 +1,13 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:personal_haven/core/constants/app_colors.dart';
 import 'package:personal_haven/presentation/screens/auth/login_screen.dart';
 import 'package:personal_haven/providers/auth_provider.dart';
+import 'package:personal_haven/providers/notification_provider.dart';
 import 'package:personal_haven/services/biometric_service.dart';
+import 'package:personal_haven/services/notification_service.dart';
 import 'package:personal_haven/splash_screen.dart';
 
 class AppInitializer extends ConsumerStatefulWidget {
@@ -17,6 +21,7 @@ class _AppInitializerState extends ConsumerState<AppInitializer>
     with WidgetsBindingObserver {
   bool _biometricPassed = false;
   bool _checkingBiometric = false;
+  bool _notificationPermissionChecked = false;
 
   @override
   void initState() {
@@ -61,7 +66,18 @@ class _AppInitializerState extends ConsumerState<AppInitializer>
         _biometricPassed = passed;
         _checkingBiometric = false;
       });
+      if (passed && !_notificationPermissionChecked) {
+        _notificationPermissionChecked = true;
+        unawaited(_requestFirstNotificationPermission());
+      }
     }
+  }
+
+  Future<void> _requestFirstNotificationPermission() async {
+    final granted = await NotificationService.instance
+        .requestPermissionOnFirstLaunch();
+    if (granted != true || !mounted) return;
+    await ref.read(notificationProvider.notifier).setMaster(true);
   }
 
   @override
@@ -86,9 +102,8 @@ class _AppInitializerState extends ConsumerState<AppInitializer>
         return const SplashScreen();
       },
       loading: () => const _LoadingScaffold(),
-      error: (_, _) => const Scaffold(
-        body: Center(child: Text('Error initializing app')),
-      ),
+      error: (_, _) =>
+          const Scaffold(body: Center(child: Text('Error initializing app'))),
     );
   }
 }
@@ -108,8 +123,11 @@ class _BiometricLockScreen extends StatelessWidget {
           child: Column(
             mainAxisAlignment: MainAxisAlignment.center,
             children: [
-              Icon(Icons.lock_rounded,
-                  size: 72, color: Colors.white.withValues(alpha: 0.9)),
+              Icon(
+                Icons.lock_rounded,
+                size: 72,
+                color: Colors.white.withValues(alpha: 0.9),
+              ),
               const SizedBox(height: 24),
               const Text(
                 'Personal Haven',

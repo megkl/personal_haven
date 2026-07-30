@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:personal_haven/core/theme/app_theme.dart';
+import 'package:personal_haven/presentation/widgets/voice_dictation_button.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:intl/intl.dart';
 import 'package:personal_haven/core/constants/app_colors.dart';
@@ -636,7 +637,7 @@ class _JournalScreenState extends ConsumerState<JournalScreen> {
       icon: Icons.delete_outline_rounded,
       destructive: true,
     ).then((confirmed) {
-      if (!confirmed) return;
+      if (!confirmed || !mounted) return;
       ref.read(journalProvider.notifier).deleteEntry(entry.id);
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
@@ -920,17 +921,60 @@ class _AddEditEntrySheetState extends State<_AddEditEntrySheet> {
               ),
 
               Padding(
-                padding: const EdgeInsets.fromLTRB(24, 20, 24, 4),
-                child: Align(
-                  alignment: Alignment.centerLeft,
-                  child: Text(
-                    isEditing ? '✏️ Edit Entry' : '➕ New Entry',
-                    style: TextStyle(
-                      fontSize: 22,
-                      fontWeight: FontWeight.bold,
-                      color: context.colors.textPrimary,
+                padding: const EdgeInsets.fromLTRB(24, 16, 14, 14),
+                child: Row(
+                  children: [
+                    Container(
+                      width: 48,
+                      height: 48,
+                      decoration: BoxDecoration(
+                        color: AppColors.primary.withValues(alpha: 0.14),
+                        borderRadius: BorderRadius.circular(16),
+                      ),
+                      child: Icon(
+                        isEditing
+                            ? Icons.edit_note_rounded
+                            : Icons.auto_stories_rounded,
+                        color: AppColors.primary,
+                        size: 25,
+                      ),
                     ),
-                  ),
+                    const SizedBox(width: 13),
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            isEditing
+                                ? 'Edit journal entry'
+                                : 'New journal entry',
+                            style: TextStyle(
+                              fontSize: 20,
+                              height: 1.1,
+                              fontWeight: FontWeight.w800,
+                              color: context.colors.textPrimary,
+                            ),
+                          ),
+                          const SizedBox(height: 4),
+                          Text(
+                            isEditing
+                                ? 'Shape your thoughts, in your own words.'
+                                : 'A little space for what is on your mind.',
+                            style: TextStyle(
+                              fontSize: 12.5,
+                              color: context.colors.textSecondary,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                    IconButton(
+                      tooltip: 'Close',
+                      onPressed: () => Navigator.pop(context),
+                      icon: const Icon(Icons.close_rounded),
+                      color: context.colors.textSecondary,
+                    ),
+                  ],
                 ),
               ),
 
@@ -943,12 +987,23 @@ class _AddEditEntrySheetState extends State<_AddEditEntrySheet> {
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
                       // Emoji selector
-                      Text(
-                        'How are you feeling?',
-                        style: TextStyle(
-                          fontSize: 14,
-                          fontWeight: FontWeight.w600,
-                        ),
+                      Row(
+                        children: [
+                          Icon(
+                            Icons.sentiment_satisfied_alt_rounded,
+                            size: 18,
+                            color: AppColors.primary,
+                          ),
+                          const SizedBox(width: 7),
+                          Text(
+                            'How are you feeling?',
+                            style: TextStyle(
+                              fontSize: 14,
+                              fontWeight: FontWeight.w700,
+                              color: context.colors.textPrimary,
+                            ),
+                          ),
+                        ],
                       ),
                       const SizedBox(height: 8),
                       SizedBox(
@@ -966,14 +1021,25 @@ class _AddEditEntrySheetState extends State<_AddEditEntrySheet> {
                                 });
                               },
                               child: Container(
-                                width: 44,
-                                height: 44,
+                                width: 46,
+                                height: 46,
                                 margin: const EdgeInsets.only(right: 8),
                                 decoration: BoxDecoration(
                                   color: isSelected
                                       ? AppColors.primary.withValues(alpha: 0.2)
                                       : context.colors.cardColor2,
-                                  borderRadius: BorderRadius.circular(12),
+                                  borderRadius: BorderRadius.circular(15),
+                                  boxShadow: isSelected
+                                      ? [
+                                          BoxShadow(
+                                            color: AppColors.primary.withValues(
+                                              alpha: 0.18,
+                                            ),
+                                            blurRadius: 8,
+                                            offset: const Offset(0, 3),
+                                          ),
+                                        ]
+                                      : null,
                                   border: isSelected
                                       ? Border.all(
                                           color: AppColors.primary,
@@ -997,7 +1063,13 @@ class _AddEditEntrySheetState extends State<_AddEditEntrySheet> {
                       // Title
                       TextField(
                         controller: _titleController,
-                        decoration: _inputDec('Give your entry a title *'),
+                        decoration: _inputDec('Give your entry a title *')
+                            .copyWith(
+                              suffixIcon: VoiceDictationButton(
+                                controller: _titleController,
+                                tooltip: 'Dictate journal title',
+                              ),
+                            ),
                         textCapitalization: TextCapitalization.sentences,
                       ),
                       const SizedBox(height: 12),
@@ -1030,9 +1102,19 @@ class _AddEditEntrySheetState extends State<_AddEditEntrySheet> {
                       // Content
                       TextField(
                         controller: _contentController,
-                        decoration: _inputDec(
-                          'Write your thoughts... *',
-                        ).copyWith(alignLabelWithHint: true),
+                        decoration: _inputDec('Write your thoughts... *')
+                            .copyWith(
+                              alignLabelWithHint: true,
+                              suffixIcon: VoiceDictationButton(
+                                controller: _contentController,
+                                separateParagraph: true,
+                                tooltip: 'Dictate journal entry',
+                              ),
+                              suffixIconConstraints: const BoxConstraints(
+                                minWidth: 48,
+                                minHeight: 48,
+                              ),
+                            ),
                         maxLines: 8,
                         textCapitalization: TextCapitalization.sentences,
                       ),

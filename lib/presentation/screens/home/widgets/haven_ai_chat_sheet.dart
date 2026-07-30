@@ -2145,7 +2145,9 @@ class _HavenAiChatSheetState extends ConsumerState<HavenAiChatSheet> {
                       textInputAction: TextInputAction.send,
                       onSubmitted: (_) => _send(),
                       decoration: InputDecoration(
-                        hintText: 'Ask Haven to add something...',
+                        hintText: _isListening
+                            ? 'Listening… speak naturally'
+                            : 'Type or use the mic to ask Haven...',
                         filled: true,
                         fillColor: context.colors.cardColor2,
                         contentPadding: const EdgeInsets.symmetric(
@@ -2162,8 +2164,8 @@ class _HavenAiChatSheetState extends ConsumerState<HavenAiChatSheet> {
                   const SizedBox(width: 8),
                   IconButton.filledTonal(
                     tooltip: _isListening
-                        ? 'Stop recording action'
-                        : 'Record action',
+                        ? 'Stop voice request'
+                        : 'Ask Haven by voice',
                     onPressed: _isWorking ? null : _toggleVoiceAction,
                     style: IconButton.styleFrom(
                       backgroundColor: _isListening

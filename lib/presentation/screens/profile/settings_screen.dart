@@ -198,41 +198,41 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
                   style: TextStyle(fontSize: 13, color: colors.textSecondary),
                 ),
                 const SizedBox(height: 12),
-                // Row(
-                //   children: [
-                //     Expanded(
-                //       child: OutlinedButton.icon(
-                //         onPressed: () => _sendTestNotification(context),
-                //         icon: const Icon(Icons.notifications_active_outlined),
-                //         label: const Text('Test now'),
-                //         style: OutlinedButton.styleFrom(
-                //           foregroundColor: AppColors.primary,
-                //           side: BorderSide(color: AppColors.primary),
-                //           padding: const EdgeInsets.symmetric(vertical: 12),
-                //           shape: RoundedRectangleBorder(
-                //             borderRadius: BorderRadius.circular(14),
-                //           ),
-                //         ),
-                //       ),
-                //     ),
-                //     const SizedBox(width: 10),
-                //     Expanded(
-                //       child: OutlinedButton.icon(
-                //         onPressed: () => _scheduleTestNotification(context),
-                //         icon: const Icon(Icons.schedule_outlined),
-                //         label: const Text('Test 5 sec'),
-                //         style: OutlinedButton.styleFrom(
-                //           foregroundColor: AppColors.primary,
-                //           side: BorderSide(color: AppColors.primary),
-                //           padding: const EdgeInsets.symmetric(vertical: 12),
-                //           shape: RoundedRectangleBorder(
-                //             borderRadius: BorderRadius.circular(14),
-                //           ),
-                //         ),
-                //       ),
-                //     ),
-                //   ],
-                // ),
+                Row(
+                  children: [
+                    Expanded(
+                      child: OutlinedButton.icon(
+                        onPressed: () => _sendTestNotification(context),
+                        icon: const Icon(Icons.notifications_active_outlined),
+                        label: const Text('Test now'),
+                        style: OutlinedButton.styleFrom(
+                          foregroundColor: AppColors.primary,
+                          side: const BorderSide(color: AppColors.primary),
+                          padding: const EdgeInsets.symmetric(vertical: 12),
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(14),
+                          ),
+                        ),
+                      ),
+                    ),
+                    const SizedBox(width: 10),
+                    Expanded(
+                      child: OutlinedButton.icon(
+                        onPressed: () => _scheduleTestNotification(context),
+                        icon: const Icon(Icons.schedule_outlined),
+                        label: const Text('Test schedule'),
+                        style: OutlinedButton.styleFrom(
+                          foregroundColor: AppColors.primary,
+                          side: const BorderSide(color: AppColors.primary),
+                          padding: const EdgeInsets.symmetric(vertical: 12),
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(14),
+                          ),
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
                 const SizedBox(height: 12),
                 _notificationToggle(
                   context,
@@ -399,61 +399,62 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
             ),
           ),
           const SizedBox(height: 20),
+
           // Theme mode selector
-          Container(
-            padding: const EdgeInsets.all(20),
-            decoration: BoxDecoration(
-              color: colors.cardColor,
-              borderRadius: BorderRadius.circular(16),
-            ),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  'Appearance',
-                  style: TextStyle(
-                    fontSize: 16,
-                    fontWeight: FontWeight.bold,
-                    color: colors.textPrimary,
-                  ),
-                ),
-                const SizedBox(height: 16),
-                Row(
-                  children: [
-                    _themeOption(
-                      context,
-                      label: 'Light',
-                      icon: Icons.light_mode_outlined,
-                      selected: themeMode == ThemeMode.light,
-                      onTap: () => ref
-                          .read(themeProvider.notifier)
-                          .setThemeMode(ThemeMode.light),
-                    ),
-                    const SizedBox(width: 10),
-                    _themeOption(
-                      context,
-                      label: 'Dark',
-                      icon: Icons.dark_mode_outlined,
-                      selected: themeMode == ThemeMode.dark,
-                      onTap: () => ref
-                          .read(themeProvider.notifier)
-                          .setThemeMode(ThemeMode.dark),
-                    ),
-                    const SizedBox(width: 10),
-                    _themeOption(
-                      context,
-                      label: 'System',
-                      icon: Icons.brightness_auto_outlined,
-                      selected: themeMode == ThemeMode.system,
-                      onTap: () => ref
-                          .read(themeProvider.notifier)
-                          .setThemeMode(ThemeMode.system),
-                    ),
-                  ],
-                ),
-              ],
-            ),
-          ),
+          // Container(
+          //   padding: const EdgeInsets.all(20),
+          //   decoration: BoxDecoration(
+          //     color: colors.cardColor,
+          //     borderRadius: BorderRadius.circular(16),
+          //   ),
+          //   child: Column(
+          //     crossAxisAlignment: CrossAxisAlignment.start,
+          //     children: [
+          //       Text(
+          //         'Appearance',
+          //         style: TextStyle(
+          //           fontSize: 16,
+          //           fontWeight: FontWeight.bold,
+          //           color: colors.textPrimary,
+          //         ),
+          //       ),
+          //       const SizedBox(height: 16),
+          //       Row(
+          //         children: [
+          //           _themeOption(
+          //             context,
+          //             label: 'Light',
+          //             icon: Icons.light_mode_outlined,
+          //             selected: themeMode == ThemeMode.light,
+          //             onTap: () => ref
+          //                 .read(themeProvider.notifier)
+          //                 .setThemeMode(ThemeMode.light),
+          //           ),
+          //           const SizedBox(width: 10),
+          //           _themeOption(
+          //             context,
+          //             label: 'Dark',
+          //             icon: Icons.dark_mode_outlined,
+          //             selected: themeMode == ThemeMode.dark,
+          //             onTap: () => ref
+          //                 .read(themeProvider.notifier)
+          //                 .setThemeMode(ThemeMode.dark),
+          //           ),
+          //           const SizedBox(width: 10),
+          //           _themeOption(
+          //             context,
+          //             label: 'System',
+          //             icon: Icons.brightness_auto_outlined,
+          //             selected: themeMode == ThemeMode.system,
+          //             onTap: () => ref
+          //                 .read(themeProvider.notifier)
+          //                 .setThemeMode(ThemeMode.system),
+          //           ),
+          //         ],
+          //       ),
+          //     ],
+          //   ),
+          // ),
         ],
       ),
     );
@@ -714,8 +715,8 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
       SnackBar(
         content: Text(
           granted
-              ? 'Scheduled test notification for 5 seconds from now'
-              : 'Notification or exact alarm permission was not granted',
+              ? 'Test reminder scheduled. Android may delay it slightly.'
+              : 'Could not schedule the test notification. Check device notification settings.',
         ),
         backgroundColor: granted ? AppColors.primary : Colors.red,
         behavior: SnackBarBehavior.floating,

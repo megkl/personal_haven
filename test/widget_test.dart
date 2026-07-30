@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:personal_haven/core/utils/currency_formatter.dart';
 import 'package:personal_haven/presentation/widgets/common/network_avatar.dart';
+import 'package:personal_haven/presentation/widgets/voice_dictation_button.dart';
 import 'package:personal_haven/services/notification_service.dart';
 
 void main() {
@@ -69,5 +70,29 @@ void main() {
 
     final image = tester.widget<Image>(find.byType(Image));
     expect(image.errorBuilder, isNotNull);
+  });
+
+  testWidgets('voice dictation exposes an accessible microphone control', (
+    tester,
+  ) async {
+    final controller = TextEditingController(text: 'Existing text');
+    addTearDown(controller.dispose);
+
+    await tester.pumpWidget(
+      MaterialApp(
+        home: Scaffold(
+          body: TextField(
+            controller: controller,
+            decoration: InputDecoration(
+              suffixIcon: VoiceDictationButton(controller: controller),
+            ),
+          ),
+        ),
+      ),
+    );
+
+    expect(find.byIcon(Icons.mic_none_rounded), findsOneWidget);
+    expect(find.byTooltip('Dictate with voice'), findsOneWidget);
+    expect(controller.text, 'Existing text');
   });
 }

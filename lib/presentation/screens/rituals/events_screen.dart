@@ -110,7 +110,7 @@ class _EventsScreenState extends ConsumerState<EventsScreen> {
                 ),
                 const SizedBox(width: 4),
                 IconButton(
-                  tooltip: 'Today',
+                  tooltip: 'Open full calendar',
                   visualDensity: VisualDensity.compact,
                   padding: EdgeInsets.zero,
                   constraints: const BoxConstraints.tightFor(
@@ -118,13 +118,11 @@ class _EventsScreenState extends ConsumerState<EventsScreen> {
                     height: 36,
                   ),
                   icon: Icon(
-                    Icons.today_outlined,
+                    Icons.calendar_month_outlined,
                     size: 19,
                     color: AppColors.primary,
                   ),
-                  onPressed: () => setState(() {
-                    _selectedDate = DateTime.now();
-                  }),
+                  onPressed: _openFullCalendar,
                 ),
               ],
             ),
@@ -211,6 +209,27 @@ class _EventsScreenState extends ConsumerState<EventsScreen> {
     setState(() {
       _selectedDate = _selectedDate.add(Duration(days: days));
     });
+  }
+
+  Future<void> _openFullCalendar() async {
+    final selected = await showDatePicker(
+      context: context,
+      initialDate: _selectedDate,
+      firstDate: DateTime(DateTime.now().year - 5),
+      lastDate: DateTime(DateTime.now().year + 10, 12, 31),
+      helpText: 'Choose an event date',
+      currentDate: DateTime.now(),
+      builder: (context, child) => Theme(
+        data: Theme.of(context).copyWith(
+          colorScheme: Theme.of(
+            context,
+          ).colorScheme.copyWith(primary: AppColors.primary),
+        ),
+        child: child!,
+      ),
+    );
+    if (selected == null || !mounted) return;
+    setState(() => _selectedDate = selected);
   }
 
   Widget _buildEventsSection(EventState eventState) {
