@@ -34,7 +34,7 @@ const havenAiQuickSuggestions = [
     icon: Icons.payments_outlined,
     prompt: 'Track spend',
   ),
-   HavenAiSuggestion(
+  HavenAiSuggestion(
     label: 'Plan event',
     icon: Icons.calendar_month_outlined,
     prompt: 'Plan event',
@@ -49,7 +49,26 @@ const havenAiQuickSuggestions = [
     icon: Icons.mood_outlined,
     prompt: 'Log mood',
   ),
- 
+  HavenAiSuggestion(
+    label: 'Reflect',
+    icon: Icons.psychology_alt_outlined,
+    prompt: 'Help me understand what is on my mind',
+  ),
+  HavenAiSuggestion(
+    label: 'Organize',
+    icon: Icons.account_tree_outlined,
+    prompt: 'Help me organize some scattered thoughts',
+  ),
+  HavenAiSuggestion(
+    label: 'Make a plan',
+    icon: Icons.route_outlined,
+    prompt: 'Help me make a realistic action plan',
+  ),
+  HavenAiSuggestion(
+    label: 'Get unstuck',
+    icon: Icons.spa_outlined,
+    prompt: 'I feel stuck and need a little motivation',
+  )
  
 ];
 

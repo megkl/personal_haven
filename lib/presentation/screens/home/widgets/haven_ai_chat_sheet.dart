@@ -1,8 +1,11 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:intl/intl.dart';
 import 'package:personal_haven/core/constants/app_colors.dart';
 import 'package:personal_haven/core/theme/app_theme.dart';
+import 'package:personal_haven/core/utils/assistant_command_text.dart';
 import 'package:personal_haven/core/utils/currency_formatter.dart';
 import 'package:personal_haven/data/models/journal_entry.dart';
 import 'package:personal_haven/data/models/mood_log.dart';
@@ -30,17 +33,15 @@ class HavenAiChatSheet extends ConsumerStatefulWidget {
 }
 
 class _HavenAiChatSheetState extends ConsumerState<HavenAiChatSheet> {
+  static const _welcomeText =
+      'Hi, I am Haven. I can help you make sense of what is on your mind, organize your ideas, build a realistic plan, or find your next small step. What would feel most useful right now?';
+
   final _controller = TextEditingController();
   final _scrollController = ScrollController();
   final _aiAssistantService = AiAssistantService();
   final stt.SpeechToText _speech = stt.SpeechToText();
-  final List<HavenAiChatMessage> _messages = [
-    const HavenAiChatMessage(
-      text:
-          'Hi, I am Haven. Tell me what you want to plan and I will ask for the details I need.',
-      isUser: false,
-    ),
-  ];
+  final List<HavenAiChatMessage> _messages = [];
+  bool _isLoadingHistory = true;
   bool _isWorking = false;
   bool _isListening = false;
   bool _speechReady = false;
@@ -52,6 +53,33 @@ class _HavenAiChatSheetState extends ConsumerState<HavenAiChatSheet> {
   List<String> _promptSuggestions = const [];
 
   @override
+  void initState() {
+    super.initState();
+    unawaited(_loadChatHistory());
+  }
+
+  Future<void> _loadChatHistory() async {
+    final history = await _aiAssistantService.loadRecentMessages();
+    if (!mounted) return;
+    setState(() {
+      _messages
+        ..clear()
+        ..addAll(
+          history.isEmpty
+              ? const [HavenAiChatMessage(text: _welcomeText, isUser: false)]
+              : history.map(
+                  (message) => HavenAiChatMessage(
+                    text: message.text,
+                    isUser: message.isUser,
+                  ),
+                ),
+        );
+      _isLoadingHistory = false;
+    });
+    _scrollToBottom();
+  }
+
+  @override
   void dispose() {
     _speech.stop();
     _controller.dispose();
@@ -60,7 +88,7 @@ class _HavenAiChatSheetState extends ConsumerState<HavenAiChatSheet> {
   }
 
   Future<void> _toggleVoiceAction() async {
-    if (_isWorking) return;
+    if (_isWorking || _isLoadingHistory) return;
 
     if (_isListening) {
       await _finishVoiceAction(sendIfPossible: true);
@@ -128,7 +156,7 @@ class _HavenAiChatSheetState extends ConsumerState<HavenAiChatSheet> {
 
   Future<void> _send([String? preset]) async {
     final text = (preset ?? _controller.text).trim();
-    if (text.isEmpty || _isWorking) return;
+    if (text.isEmpty || _isWorking || _isLoadingHistory) return;
 
     _controller.clear();
     setState(() {
@@ -156,13 +184,13 @@ class _HavenAiChatSheetState extends ConsumerState<HavenAiChatSheet> {
 
     final structuredJournal = _structuredJournalInput(text);
     if (structuredJournal != null) {
-      await _saveStructuredJournal(structuredJournal);
+      await _reviewStructuredJournal(structuredJournal);
       return;
     }
 
     final structuredShoppingCommand = HavenAiShoppingCommand.parse(text);
     if (structuredShoppingCommand?.hasMultipleItems == true) {
-      await _executeShoppingCommand(structuredShoppingCommand!);
+      await _reviewShoppingCommand(structuredShoppingCommand!);
       return;
     }
 
@@ -184,7 +212,7 @@ class _HavenAiChatSheetState extends ConsumerState<HavenAiChatSheet> {
 
     final shoppingCommand = HavenAiShoppingCommand.parse(text);
     if (shoppingCommand != null) {
-      await _executeShoppingCommand(shoppingCommand);
+      await _reviewShoppingCommand(shoppingCommand);
       return;
     }
 
@@ -206,15 +234,19 @@ class _HavenAiChatSheetState extends ConsumerState<HavenAiChatSheet> {
           _startGuidedFlow(_flowTypeForPlanner(command.type), title: null);
           return;
         }
-        await _executePlannerCommand(command, currencyCode);
-        _reply(command.successMessage);
+        await _startAssistantDraft(
+          _assistantDraftForPlannerCommand(command, currencyCode),
+        );
       } else {
         if (_shouldGuideAction(text, action!)) {
           _startGuidedFlow(_flowTypeForAction(action.type), title: null);
           return;
         }
-        final reply = await _executeHavenAction(action, currencyCode);
-        _reply(reply);
+        if (action.type == _HavenActionType.summary) {
+          _reply(_buildSummaryReply(currencyCode));
+          return;
+        }
+        await _startAssistantDraft(_assistantDraftForHavenAction(action));
       }
     } catch (_) {
       _reply('I could not save that just now. Please try again.');
@@ -1067,10 +1099,15 @@ class _HavenAiChatSheetState extends ConsumerState<HavenAiChatSheet> {
       default:
         final quantity = lowerSkip(input) ? '' : input.trim();
         _guidedDraft = null;
-        await ref
-            .read(shoppingListProvider.notifier)
-            .addItem(name: draft.string('itemName')!, quantity: quantity);
-        _reply('Done. I added ${draft.string('itemName')} to your list.');
+        _askToConfirmDraft(
+          _AssistantDraft(
+            intent: 'shopping',
+            fields: {
+              'itemName': draft.string('itemName'),
+              'quantity': quantity,
+            },
+          ),
+        );
     }
   }
 
@@ -1116,19 +1153,17 @@ class _HavenAiChatSheetState extends ConsumerState<HavenAiChatSheet> {
           return;
         }
         _guidedDraft = null;
-        await ref
-            .read(goalProvider.notifier)
-            .addGoal(
-              title: draft.string('title')!,
-              targetValue: draft.doubleValue('targetValue') ?? 1,
-              unit: draft.string('unit') ?? 'count',
-              targetDate: parsedDate.$1,
-              category: _PlannerCommand._category(
-                draft.string('title')!.toLowerCase(),
-                _PlannerType.goal,
-              ),
-            );
-        _reply('Done. I added the goal “${draft.string('title')}”.');
+        _askToConfirmDraft(
+          _AssistantDraft(
+            intent: 'goal',
+            fields: {
+              'title': draft.string('title'),
+              'targetValue': draft.doubleValue('targetValue'),
+              'unit': draft.string('unit') ?? 'count',
+              'targetDateText': noDeadline ? 'No deadline' : input.trim(),
+            },
+          ),
+        );
     }
   }
 
@@ -1158,6 +1193,7 @@ class _HavenAiChatSheetState extends ConsumerState<HavenAiChatSheet> {
         _guidedDraft = draft
             .put('dateTime', parsedDate.$1)
             .put('hasTime', parsedDate.$2)
+            .put('dateText', input.trim())
             .next();
         _reply(
           'Where is it?',
@@ -1168,26 +1204,17 @@ class _HavenAiChatSheetState extends ConsumerState<HavenAiChatSheet> {
         final location = lowerSkip(input)
             ? null
             : _HavenAction._capitalize(input);
-        final eventDate = draft.date('dateTime')!;
         _guidedDraft = null;
-        await ref
-            .read(eventProvider.notifier)
-            .addEvent(
-              title: draft.string('title')!,
-              eventDate: DateTime(
-                eventDate.year,
-                eventDate.month,
-                eventDate.day,
-              ),
-              startTime: draft.boolValue('hasTime') ? eventDate : null,
-              isAllDay: !draft.boolValue('hasTime'),
-              location: location,
-              category: _PlannerCommand._category(
-                draft.string('title')!.toLowerCase(),
-                _PlannerType.event,
-              ),
-            );
-        _reply('Done. I scheduled “${draft.string('title')}”.');
+        _askToConfirmDraft(
+          _AssistantDraft(
+            intent: 'event',
+            fields: {
+              'title': draft.string('title'),
+              'dateText': draft.string('dateText'),
+              'location': location,
+            },
+          ),
+        );
     }
   }
 
@@ -1208,16 +1235,14 @@ class _HavenAiChatSheetState extends ConsumerState<HavenAiChatSheet> {
       default:
         final notes = lowerSkip(input) ? null : input.trim();
         _guidedDraft = null;
-        await ref
-            .read(moodProvider.notifier)
-            .logMood(
-              draft.intValue('moodLevel') ?? 3,
-              draft.string('moodEmoji') ?? '😐',
-              moodLabel: draft.string('moodLabel') ?? 'Neutral',
-              notes: notes,
-            );
-        _reply(
-          'Logged your mood as ${(draft.string('moodLabel') ?? 'neutral').toLowerCase()} ${draft.string('moodEmoji') ?? '😐'}.',
+        _askToConfirmDraft(
+          _AssistantDraft(
+            intent: 'mood',
+            fields: {
+              'label': draft.string('moodLabel') ?? 'Neutral',
+              'notes': notes,
+            },
+          ),
         );
     }
   }
@@ -1243,15 +1268,15 @@ class _HavenAiChatSheetState extends ConsumerState<HavenAiChatSheet> {
       default:
         final calories = lowerSkip(input) ? null : int.tryParse(input.trim());
         _guidedDraft = null;
-        await ref
-            .read(foodProvider.notifier)
-            .addEntry(
-              mealType: draft.string('mealType') ?? 'snack',
-              foodName: draft.string('foodName')!,
-              calories: calories,
-            );
-        _reply(
-          'Done. I logged ${draft.string('foodName')} for ${draft.string('mealType')}.',
+        _askToConfirmDraft(
+          _AssistantDraft(
+            intent: 'food',
+            fields: {
+              'mealType': draft.string('mealType') ?? 'snack',
+              'foodName': draft.string('foodName'),
+              'calories': calories,
+            },
+          ),
         );
     }
   }
@@ -1278,18 +1303,13 @@ class _HavenAiChatSheetState extends ConsumerState<HavenAiChatSheet> {
         final content = input.trim();
         final title = draft.string('title')!;
         final category = _journalCategoryFor('$title $content');
-        final journalCategory = JournalCategories.getByName(category);
         _guidedDraft = null;
-        await ref
-            .read(journalProvider.notifier)
-            .addEntry(
-              title: title,
-              content: content,
-              category: journalCategory?.name ?? category,
-              emoji: journalCategory?.emoji,
-              tags: _HavenAction._tagsFor(content),
-            );
-        _reply('Saved “$title” under ${journalCategory?.name ?? category}.');
+        _askToConfirmDraft(
+          _AssistantDraft(
+            intent: 'journal',
+            fields: {'title': title, 'content': content, 'category': category},
+          ),
+        );
     }
   }
 
@@ -1326,19 +1346,16 @@ class _HavenAiChatSheetState extends ConsumerState<HavenAiChatSheet> {
         final type = draft.string('transactionType') ?? 'expense';
         final category = _HavenAction._transactionCategoryFor(input, type);
         _guidedDraft = null;
-        await ref
-            .read(transactionProvider.notifier)
-            .addTransaction(
-              type: type,
-              amount: draft.doubleValue('amount') ?? 0,
-              category: category,
-              description: category,
-            );
-        final formatted = CurrencyFormatter.format(
-          draft.doubleValue('amount') ?? 0,
-          ref.read(currencyProvider).value ?? CurrencyFormatter.defaultCode,
+        _askToConfirmDraft(
+          _AssistantDraft(
+            intent: 'transaction',
+            fields: {
+              'type': type,
+              'amount': draft.doubleValue('amount'),
+              'category': category,
+            },
+          ),
         );
-        _reply('Done. I logged $formatted as $type in $category.');
     }
   }
 
@@ -1368,6 +1385,13 @@ class _HavenAiChatSheetState extends ConsumerState<HavenAiChatSheet> {
       case _TaskPromptStep.priority:
         final priority = _priorityFromPrompt(input);
         if (priority == null) {
+          if (AssistantCommandText.hasNegatedPriority(input)) {
+            _reply(
+              'Got it—not high. Would medium or low work better?',
+              prompts: const ['Medium', 'Low'],
+            );
+            return;
+          }
           _reply(
             'Choose an urgency: urgent, high, medium, or low.',
             prompts: const ['Urgent', 'High', 'Medium', 'Low'],
@@ -1409,25 +1433,15 @@ class _HavenAiChatSheetState extends ConsumerState<HavenAiChatSheet> {
           hasTime: parsedTime.$2,
         );
         _taskDraft = null;
-        await ref
-            .read(taskProvider.notifier)
-            .addTask(
-              title: completedDraft.title!,
-              dueDate: completedDraft.dueDate,
-              priority: completedDraft.priority ?? 'medium',
-              category: _PlannerCommand._category(
-                completedDraft.title!.toLowerCase(),
-                _PlannerType.task,
-              ),
-            );
-
-        final when = completedDraft.dueDate == null
-            ? ''
-            : completedDraft.hasTime
-            ? ' for ${DateFormat('EEE, MMM d at h:mm a').format(completedDraft.dueDate!)}'
-            : ' for ${DateFormat('EEE, MMM d').format(completedDraft.dueDate!)}';
-        _reply(
-          'Done. I added “${completedDraft.title}” as a ${completedDraft.priority} priority task$when.',
+        _askToConfirmDraft(
+          _AssistantDraft(
+            intent: 'task',
+            fields: {
+              'title': completedDraft.title,
+              'priority': completedDraft.priority ?? 'medium',
+              'dueDateText': hasNoDeadline ? 'No deadline' : input.trim(),
+            },
+          ),
         );
         break;
     }
@@ -1443,6 +1457,7 @@ class _HavenAiChatSheetState extends ConsumerState<HavenAiChatSheet> {
 
   String? _priorityFromPrompt(String input) {
     final lower = input.toLowerCase();
+    if (AssistantCommandText.hasNegatedPriority(lower)) return null;
     if (_isLowUrgency(lower)) return 'low';
     if (lower.contains('super urgent') ||
         lower.contains('very urgent') ||
@@ -1679,81 +1694,64 @@ class _HavenAiChatSheetState extends ConsumerState<HavenAiChatSheet> {
     return (value, _PlannerCommand._unitFor(unitToken) ?? 'count');
   }
 
-  Future<void> _executePlannerCommand(
+  _AssistantDraft _assistantDraftForPlannerCommand(
     _PlannerCommand command,
     String currencyCode,
-  ) async {
-    switch (command.type) {
-      case _PlannerType.task:
-        await ref
-            .read(taskProvider.notifier)
-            .addTask(
-              title: command.title,
-              description: command.description,
-              dueDate: command.dateTime,
-              priority: command.priority ?? 'medium',
-              category: command.category ?? 'personal',
-            );
-        break;
-      case _PlannerType.goal:
-        await ref
-            .read(goalProvider.notifier)
-            .addGoal(
-              title: command.title,
-              description: command.description,
-              targetValue: command.targetValue ?? 1,
-              unit: command.unit ?? currencyCode,
-              targetDate: command.dateTime,
-              category: command.category ?? 'personal',
-            );
-        break;
-      case _PlannerType.event:
-        final eventDate = command.dateTime ?? DateTime.now();
-        await ref
-            .read(eventProvider.notifier)
-            .addEvent(
-              title: command.title,
-              eventDate: DateTime(
-                eventDate.year,
-                eventDate.month,
-                eventDate.day,
-              ),
-              startTime: command.hasTime ? eventDate : null,
-              endTime: command.endTime,
-              isAllDay: !command.hasTime,
-              location: command.location,
-              category: command.category ?? 'personal',
-            );
-        break;
-    }
+  ) {
+    final dateText = command.dateTime == null
+        ? null
+        : DateFormat(
+            command.hasTime ? 'MMMM d, yyyy at h:mm a' : 'MMMM d, yyyy',
+          ).format(command.dateTime!);
+
+    return switch (command.type) {
+      _PlannerType.task => _AssistantDraft(
+        intent: 'task',
+        fields: {
+          'title': command.title,
+          'priority': command.priority ?? 'medium',
+          'dueDateText': dateText ?? 'No deadline',
+        },
+      ),
+      _PlannerType.goal => _AssistantDraft(
+        intent: 'goal',
+        fields: {
+          'title': command.title,
+          'targetValue': command.targetValue,
+          'unit': command.unit ?? currencyCode,
+          'targetDateText': dateText,
+        },
+      ),
+      _PlannerType.event => _AssistantDraft(
+        intent: 'event',
+        fields: {
+          'title': command.title,
+          'dateText': dateText,
+          'location': command.location,
+        },
+      ),
+    };
   }
 
-  Future<void> _executeShoppingCommand(HavenAiShoppingCommand command) async {
-    if (command.hasMultipleItems) {
-      for (final item in command.items) {
-        await ref
-            .read(shoppingListProvider.notifier)
-            .addItem(
-              listTitle: command.listTitle,
-              name: item.itemName,
-              quantity: item.quantity,
-            );
-      }
-      _reply(
-        'Done. I added ${command.items.length} items to your shopping list.',
-      );
-      return;
-    }
-
-    await ref
-        .read(shoppingListProvider.notifier)
-        .addItem(
-          listTitle: command.listTitle,
-          name: command.itemName,
-          quantity: command.quantity,
-        );
-    final quantity = command.quantity.isEmpty ? '' : ' (${command.quantity})';
-    _reply('Done. I added ${command.itemName}$quantity to your shopping list.');
+  Future<void> _reviewShoppingCommand(HavenAiShoppingCommand command) async {
+    await _startAssistantDraft(
+      _AssistantDraft(
+        intent: 'shopping',
+        fields: {
+          'itemName': command.itemName,
+          'quantity': command.quantity,
+          'listTitle': command.listTitle,
+          'shoppingItems': command.items
+              .map(
+                (item) => {
+                  'itemName': item.itemName,
+                  'quantity': item.quantity,
+                },
+              )
+              .toList(growable: false),
+        },
+      ),
+    );
   }
 
   _StructuredJournalInput? _structuredJournalInput(String input) {
@@ -1861,7 +1859,7 @@ class _HavenAiChatSheetState extends ConsumerState<HavenAiChatSheet> {
         .trim();
   }
 
-  Future<void> _saveStructuredJournal(_StructuredJournalInput journal) async {
+  Future<void> _reviewStructuredJournal(_StructuredJournalInput journal) async {
     final cleaned = _cleanJournalFields(
       title: journal.title,
       content: journal.content,
@@ -1870,87 +1868,56 @@ class _HavenAiChatSheetState extends ConsumerState<HavenAiChatSheet> {
     final categoryName = cleaned.category?.trim().isNotEmpty == true
         ? cleaned.category!.trim()
         : _journalCategoryFor('${cleaned.title} ${cleaned.content}');
-    final category =
-        JournalCategories.getByName(categoryName) ??
-        JournalCategories.getByName('Notes');
-    await ref
-        .read(journalProvider.notifier)
-        .addEntry(
-          title: _HavenAction._capitalize(cleaned.title),
-          content: cleaned.content,
-          category: category?.name ?? categoryName,
-          emoji: category?.emoji,
-          tags: _HavenAction._tagsFor(cleaned.content),
-        );
-    _reply('Saved “${cleaned.title}” as a journal entry.');
+    await _startAssistantDraft(
+      _AssistantDraft(
+        intent: 'journal',
+        fields: {
+          'title': _HavenAction._capitalize(cleaned.title),
+          'content': cleaned.content,
+          'category': categoryName,
+        },
+      ),
+    );
   }
 
-  Future<String> _executeHavenAction(
-    _HavenAction action,
-    String currencyCode,
-  ) async {
-    switch (action.type) {
-      case _HavenActionType.mood:
-        final mood = action.mood ?? _MoodIntent.fromText(action.title);
-        await ref
-            .read(moodProvider.notifier)
-            .logMood(
-              mood.level,
-              mood.emoji,
-              moodLabel: mood.label,
-              notes: action.description,
-            );
-        return 'Logged your mood as ${mood.label.toLowerCase()} ${mood.emoji}.';
-      case _HavenActionType.food:
-        await ref
-            .read(foodProvider.notifier)
-            .addEntry(
-              mealType: action.mealType ?? 'snack',
-              foodName: action.title,
-              description: action.description,
-              calories: action.calories,
-              protein: action.protein,
-              carbs: action.carbs,
-              fat: action.fat,
-            );
-        return 'Done. I logged ${action.title} for ${action.mealType ?? 'snack'}.';
-      case _HavenActionType.journal:
-        final journal = _cleanJournalFields(
-          title: action.title,
-          content: action.description ?? action.title,
-          category: action.category,
-        );
-        final category =
-            journal.category ?? _journalCategoryFor(journal.content);
-        final journalCategory = JournalCategories.getByName(category);
-        await ref
-            .read(journalProvider.notifier)
-            .addEntry(
-              title: _HavenAction._capitalize(journal.title),
-              content: journal.content,
-              category: journalCategory?.name ?? category,
-              emoji: journalCategory?.emoji,
-              tags: _HavenAction._tagsFor(journal.content),
-              entryDate: action.dateTime,
-            );
-        return 'Saved that journal entry under ${journalCategory?.name ?? category}.';
-      case _HavenActionType.transaction:
-        final type = action.transactionType ?? 'expense';
-        final amount = action.amount ?? 0;
-        await ref
-            .read(transactionProvider.notifier)
-            .addTransaction(
-              type: type,
-              amount: amount,
-              category: action.category ?? 'Other',
-              description: action.description ?? action.title,
-              date: action.dateTime,
-            );
-        final formatted = CurrencyFormatter.format(amount, currencyCode);
-        return 'Done. I logged $formatted as ${type == 'income' ? 'income' : 'an expense'} in ${action.category ?? 'Other'}.';
-      case _HavenActionType.summary:
-        return _buildSummaryReply(currencyCode);
-    }
+  _AssistantDraft _assistantDraftForHavenAction(_HavenAction action) {
+    return switch (action.type) {
+      _HavenActionType.mood => _AssistantDraft(
+        intent: 'mood',
+        fields: {
+          'label': (action.mood ?? _MoodIntent.fromText(action.title)).label,
+          'notes': action.description,
+        },
+      ),
+      _HavenActionType.food => _AssistantDraft(
+        intent: 'food',
+        fields: {
+          'mealType': action.mealType ?? 'snack',
+          'foodName': action.title,
+          'calories': action.calories,
+        },
+      ),
+      _HavenActionType.journal => _AssistantDraft(
+        intent: 'journal',
+        fields: {
+          'title': action.title,
+          'content': action.description ?? action.title,
+          'category': action.category,
+        },
+      ),
+      _HavenActionType.transaction => _AssistantDraft(
+        intent: 'transaction',
+        fields: {
+          'type': action.transactionType ?? 'expense',
+          'amount': action.amount,
+          'category': action.category ?? 'Other',
+          'description': action.description ?? action.title,
+        },
+      ),
+      _HavenActionType.summary => throw StateError(
+        'Summary actions do not create drafts.',
+      ),
+    };
   }
 
   void _reply(String text, {List<String> prompts = const []}) {
@@ -2031,7 +1998,9 @@ class _HavenAiChatSheetState extends ConsumerState<HavenAiChatSheet> {
                 child: ListView.builder(
                   controller: _scrollController,
                   padding: const EdgeInsets.fromLTRB(16, 14, 16, 12),
-                  itemCount: _messages.length + (_isWorking ? 1 : 0),
+                  itemCount:
+                      _messages.length +
+                      (_isWorking || _isLoadingHistory ? 1 : 0),
                   itemBuilder: (context, index) {
                     if (index == _messages.length) {
                       return const HavenAiTypingBubble();
@@ -2062,11 +2031,11 @@ class _HavenAiChatSheetState extends ConsumerState<HavenAiChatSheet> {
             child: Column(
               children: [
                 Text(
-                  'Haven Assistant',
+                  'Ask Haven',
                   style: TextStyle(fontSize: 17, fontWeight: FontWeight.w700),
                 ),
                 Text(
-                  'Private planning companion',
+                  'Reflect • organize • grow',
                   style: TextStyle(fontSize: 11, color: AppColors.primaryDark),
                 ),
               ],
@@ -2112,7 +2081,7 @@ class _HavenAiChatSheetState extends ConsumerState<HavenAiChatSheet> {
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Text(
-                  'What can we make easier?',
+                  'A calmer place to think',
                   style: TextStyle(
                     color: Colors.white,
                     fontSize: 17,
@@ -2121,7 +2090,7 @@ class _HavenAiChatSheetState extends ConsumerState<HavenAiChatSheet> {
                 ),
                 SizedBox(height: 3),
                 Text(
-                  'Describe it naturally. I will organize the details.',
+                  'Share what is on your mind. We will find clarity and a useful next step.',
                   style: TextStyle(color: Color(0xE6FFFFFF), fontSize: 12),
                 ),
               ],
@@ -2156,6 +2125,7 @@ class _HavenAiChatSheetState extends ConsumerState<HavenAiChatSheet> {
                   Expanded(
                     child: TextField(
                       controller: _controller,
+                      enabled: !_isLoadingHistory,
                       minLines: 1,
                       maxLines: 3,
                       textInputAction: TextInputAction.send,
@@ -2163,7 +2133,7 @@ class _HavenAiChatSheetState extends ConsumerState<HavenAiChatSheet> {
                       decoration: InputDecoration(
                         hintText: _isListening
                             ? 'Listening… speak naturally'
-                            : 'Type or use the mic to ask Haven...',
+                            : 'Share a thought or ask Haven...',
                         filled: true,
                         fillColor: context.colors.cardColor2,
                         contentPadding: const EdgeInsets.symmetric(
@@ -2182,7 +2152,9 @@ class _HavenAiChatSheetState extends ConsumerState<HavenAiChatSheet> {
                     tooltip: _isListening
                         ? 'Stop voice request'
                         : 'Ask Haven by voice',
-                    onPressed: _isWorking ? null : _toggleVoiceAction,
+                    onPressed: _isWorking || _isLoadingHistory
+                        ? null
+                        : _toggleVoiceAction,
                     style: IconButton.styleFrom(
                       backgroundColor: _isListening
                           ? AppColors.primary.withValues(alpha: 0.16)
@@ -2200,7 +2172,7 @@ class _HavenAiChatSheetState extends ConsumerState<HavenAiChatSheet> {
                   const SizedBox(width: 8),
                   IconButton.filled(
                     tooltip: 'Send',
-                    onPressed: _isWorking ? null : _send,
+                    onPressed: _isWorking || _isLoadingHistory ? null : _send,
                     style: IconButton.styleFrom(
                       backgroundColor: AppColors.primary,
                       foregroundColor: Colors.white,
@@ -2212,6 +2184,15 @@ class _HavenAiChatSheetState extends ConsumerState<HavenAiChatSheet> {
                   ),
                 ],
               ),
+            ),
+            const SizedBox(height: 7),
+            Text(
+              'AI can make mistakes. Review details before saving actions.',
+              style: TextStyle(
+                color: context.colors.textSecondary,
+                fontSize: 10.5,
+              ),
+              textAlign: TextAlign.center,
             ),
           ],
         ),
@@ -2542,7 +2523,7 @@ class _PlannerCommand {
   }
 
   static String _stripCommandPrefix(String input, _PlannerType type) {
-    var title = input
+    var title = AssistantCommandText.removeConversationalPrefix(input)
         .replaceFirst(
           RegExp(
             r'^(can you\s+)?(please\s+)?(add|create|make|set|schedule|plan|track)\s+(a|an|the)?\s*',
@@ -2846,6 +2827,7 @@ class _PlannerCommand {
 
   static String _priority(String value) {
     if (_isLowUrgency(value)) return 'low';
+    if (AssistantCommandText.hasNegatedPriority(value)) return 'medium';
     if (value.contains('urgent')) return 'urgent';
     if (value.contains('high priority')) return 'high';
     if (value.contains('low priority')) return 'low';

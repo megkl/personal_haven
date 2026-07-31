@@ -1,11 +1,47 @@
+import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:cloud_functions/cloud_functions.dart';
+import 'package:firebase_auth/firebase_auth.dart';
 
 class AiAssistantService {
-  AiAssistantService({FirebaseFunctions? functions})
-    : _functions =
-          functions ?? FirebaseFunctions.instanceFor(region: 'us-central1');
+  AiAssistantService({
+    FirebaseFunctions? functions,
+    FirebaseFirestore? firestore,
+    FirebaseAuth? auth,
+  }) : _functions =
+           functions ?? FirebaseFunctions.instanceFor(region: 'us-central1'),
+       _firestore = firestore ?? FirebaseFirestore.instance,
+       _auth = auth ?? FirebaseAuth.instance;
 
   final FirebaseFunctions _functions;
+  final FirebaseFirestore _firestore;
+  final FirebaseAuth _auth;
+
+  Future<List<AiChatHistoryMessage>> loadRecentMessages({
+    int limit = 12,
+  }) async {
+    final user = _auth.currentUser;
+    if (user == null) return const [];
+
+    try {
+      final snapshot = await _firestore
+          .collection('users')
+          .doc(user.uid)
+          .collection('chats')
+          .orderBy('createdAt', descending: true)
+          .limit(limit)
+          .get();
+
+      final messages = snapshot.docs
+          .map(AiChatHistoryMessage.fromFirestore)
+          .whereType<AiChatHistoryMessage>()
+          .toList()
+          .reversed
+          .toList(growable: false);
+      return AiChatHistoryMessage.completeTurns(messages);
+    } catch (_) {
+      return const [];
+    }
+  }
 
   Future<AiAssistantResult?> parseAction(String message) async {
     try {
@@ -80,6 +116,54 @@ class AiAssistantService {
     } catch (_) {
       return null;
     }
+  }
+}
+
+class AiChatHistoryMessage {
+  const AiChatHistoryMessage({
+    required this.text,
+    required this.isUser,
+    required this.createdAt,
+  });
+
+  final String text;
+  final bool isUser;
+  final DateTime? createdAt;
+
+  static AiChatHistoryMessage? fromFirestore(
+    QueryDocumentSnapshot<Map<String, dynamic>> document,
+  ) => fromMap(document.data());
+
+  static AiChatHistoryMessage? fromMap(Map<String, dynamic> data) {
+    final role = data['role'];
+    final content = data['content'];
+    if ((role != 'user' && role != 'assistant') || content is! String) {
+      return null;
+    }
+
+    final text = content.trim();
+    if (text.isEmpty) return null;
+    final timestamp = data['createdAt'];
+    return AiChatHistoryMessage(
+      text: text,
+      isUser: role == 'user',
+      createdAt: timestamp is Timestamp ? timestamp.toDate() : null,
+    );
+  }
+
+  static List<AiChatHistoryMessage> completeTurns(
+    List<AiChatHistoryMessage> messages,
+  ) {
+    final complete = <AiChatHistoryMessage>[];
+    for (var index = 0; index < messages.length - 1; index++) {
+      final userMessage = messages[index];
+      final assistantMessage = messages[index + 1];
+      if (userMessage.isUser && !assistantMessage.isUser) {
+        complete.addAll([userMessage, assistantMessage]);
+        index++;
+      }
+    }
+    return List.unmodifiable(complete);
   }
 }
 

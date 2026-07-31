@@ -110,3 +110,28 @@ test("makes subscriptions server-only", async () => {
     expiryDate: "2099-01-01T00:00:00.000Z",
   }));
 });
+
+test("makes chat history owner-readable and server-writable only", async () => {
+  await testEnv.withSecurityRulesDisabled(async (context) => {
+    await context.firestore().doc("users/owner/chats/message-1").set({
+      role: "assistant",
+      content: "Choose one small next step.",
+      createdAt: new Date("2026-07-31T10:00:00.000Z"),
+    });
+  });
+
+  const owner = testEnv.authenticatedContext("owner").firestore();
+  const attacker = testEnv.authenticatedContext("attacker").firestore();
+  await assertSucceeds(
+      owner.doc("users/owner/chats/message-1").get(),
+  );
+  await assertFails(
+      attacker.doc("users/owner/chats/message-1").get(),
+  );
+  await assertFails(
+      owner.doc("users/owner/chats/message-2").set({
+        role: "user",
+        content: "Client-side forged message",
+      }),
+  );
+});
