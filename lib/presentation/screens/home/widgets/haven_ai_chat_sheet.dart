@@ -314,8 +314,45 @@ class _HavenAiChatSheetState extends ConsumerState<HavenAiChatSheet> {
     }
 
     final structuredShoppingCommand = HavenAiShoppingCommand.parse(text);
-    if (structuredShoppingCommand?.hasMultipleItems == true) {
-      await _reviewShoppingCommand(structuredShoppingCommand!);
+    if (structuredShoppingCommand != null) {
+      await _reviewShoppingCommand(structuredShoppingCommand);
+      return;
+    }
+
+    if (await _startAssistantDraftForRequest(text)) return;
+
+    if (_startGuidedFlowForRequest(text)) return;
+
+    final action = _HavenAction.parse(text);
+    final command = action == null ? _PlannerCommand.parse(text) : null;
+    if (command != null || action != null) {
+      try {
+        if (command != null) {
+          if (_shouldGuideTask(text, command)) {
+            _startTaskFlow();
+            return;
+          }
+          if (_shouldGuidePlannerCommand(text, command)) {
+            _startGuidedFlow(_flowTypeForPlanner(command.type), title: null);
+            return;
+          }
+          await _startAssistantDraft(
+            _assistantDraftForPlannerCommand(command, currencyCode),
+          );
+        } else {
+          if (_shouldGuideAction(text, action!)) {
+            _startGuidedFlow(_flowTypeForAction(action.type), title: null);
+            return;
+          }
+          if (action.type == _HavenActionType.summary) {
+            _reply(_buildSummaryReply(currencyCode));
+            return;
+          }
+          await _startAssistantDraft(_assistantDraftForHavenAction(action));
+        }
+      } catch (_) {
+        _reply('I could not save that just now. Please try again.');
+      }
       return;
     }
 
@@ -331,58 +368,15 @@ class _HavenAiChatSheetState extends ConsumerState<HavenAiChatSheet> {
       if (handled) return;
     }
 
-    if (await _startAssistantDraftForRequest(text)) return;
-
-    if (_startGuidedFlowForRequest(text)) return;
-
-    final shoppingCommand = HavenAiShoppingCommand.parse(text);
-    if (shoppingCommand != null) {
-      await _reviewShoppingCommand(shoppingCommand);
-      return;
-    }
-
-    final action = _HavenAction.parse(text);
-    final command = action == null ? _PlannerCommand.parse(text) : null;
-    if (command == null && action == null) {
-      final result = await _aiAssistantService.chat(
-        text,
-        conversationId: conversationId,
-      );
-      _pendingConversationInput = null;
-      if (result.persisted) {
-        if (mounted) setState(() => _isWorking = false);
-      } else {
-        _reply(result.text ?? _helpReply(text), persist: false);
-      }
-      return;
-    }
-
-    try {
-      if (command != null) {
-        if (_shouldGuideTask(text, command)) {
-          _startTaskFlow();
-          return;
-        }
-        if (_shouldGuidePlannerCommand(text, command)) {
-          _startGuidedFlow(_flowTypeForPlanner(command.type), title: null);
-          return;
-        }
-        await _startAssistantDraft(
-          _assistantDraftForPlannerCommand(command, currencyCode),
-        );
-      } else {
-        if (_shouldGuideAction(text, action!)) {
-          _startGuidedFlow(_flowTypeForAction(action.type), title: null);
-          return;
-        }
-        if (action.type == _HavenActionType.summary) {
-          _reply(_buildSummaryReply(currencyCode));
-          return;
-        }
-        await _startAssistantDraft(_assistantDraftForHavenAction(action));
-      }
-    } catch (_) {
-      _reply('I could not save that just now. Please try again.');
+    final result = await _aiAssistantService.chat(
+      text,
+      conversationId: conversationId,
+    );
+    _pendingConversationInput = null;
+    if (result.persisted) {
+      if (mounted) setState(() => _isWorking = false);
+    } else {
+      _reply(result.text ?? _helpReply(text), persist: false);
     }
   }
 
@@ -574,6 +568,7 @@ class _HavenAiChatSheetState extends ConsumerState<HavenAiChatSheet> {
       userInput: userInput,
       fields: normalized.fields,
       fallbackPrompts: normalized.suggestedPrompts,
+      useAiPrompts: normalized.useAiPrompts,
     );
   }
 
@@ -613,6 +608,7 @@ class _HavenAiChatSheetState extends ConsumerState<HavenAiChatSheet> {
         userInput: input,
         fields: draft.fields,
         fallbackPrompts: _suggestionsForField(draft.intent, changeField),
+        useAiPrompts: draft.useAiPrompts,
       );
       return;
     }
@@ -649,6 +645,7 @@ class _HavenAiChatSheetState extends ConsumerState<HavenAiChatSheet> {
           userInput: input,
           fields: draft.fields,
           fallbackPrompts: _suggestionsForField(draft.intent, nextMissing),
+          useAiPrompts: draft.useAiPrompts,
         );
       }
       return;
@@ -1635,6 +1632,7 @@ class _HavenAiChatSheetState extends ConsumerState<HavenAiChatSheet> {
       fields: _normalizedAiFields(result.intent, result.fields),
       missingFields: result.missingFields,
       suggestedPrompts: result.suggestedPrompts,
+      useAiPrompts: true,
     );
     await _startAssistantDraft(draft, reply: result.reply);
     return true;
@@ -1647,15 +1645,18 @@ class _HavenAiChatSheetState extends ConsumerState<HavenAiChatSheet> {
     required String userInput,
     required Map<String, dynamic> fields,
     required List<String> fallbackPrompts,
+    required bool useAiPrompts,
   }) async {
-    final prompts = await _smartPromptsForField(
-      intent: intent,
-      field: field,
-      question: question,
-      userInput: userInput,
-      fields: fields,
-      fallbackPrompts: fallbackPrompts,
-    );
+    final prompts = useAiPrompts
+        ? await _smartPromptsForField(
+            intent: intent,
+            field: field,
+            question: question,
+            userInput: userInput,
+            fields: fields,
+            fallbackPrompts: fallbackPrompts,
+          )
+        : fallbackPrompts;
     _reply(question, prompts: prompts);
   }
 
@@ -2714,6 +2715,7 @@ class _AssistantDraft {
   final List<String> missingFields;
   final List<String> suggestedPrompts;
   final bool awaitingConfirmation;
+  final bool useAiPrompts;
 
   const _AssistantDraft({
     required this.intent,
@@ -2722,6 +2724,7 @@ class _AssistantDraft {
     this.missingFields = const [],
     this.suggestedPrompts = const [],
     this.awaitingConfirmation = false,
+    this.useAiPrompts = false,
   });
 
   _AssistantDraft copyWith({
@@ -2731,6 +2734,7 @@ class _AssistantDraft {
     List<String>? missingFields,
     List<String>? suggestedPrompts,
     bool? awaitingConfirmation,
+    bool? useAiPrompts,
   }) {
     return _AssistantDraft(
       intent: intent ?? this.intent,
@@ -2739,6 +2743,7 @@ class _AssistantDraft {
       missingFields: missingFields ?? this.missingFields,
       suggestedPrompts: suggestedPrompts ?? this.suggestedPrompts,
       awaitingConfirmation: awaitingConfirmation ?? this.awaitingConfirmation,
+      useAiPrompts: useAiPrompts ?? this.useAiPrompts,
     );
   }
 
