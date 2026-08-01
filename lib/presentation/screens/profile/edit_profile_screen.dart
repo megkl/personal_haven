@@ -85,12 +85,81 @@ class _EditProfileScreenState extends ConsumerState<EditProfileScreen> {
     return Scaffold(
       backgroundColor: Theme.of(context).scaffoldBackgroundColor,
       appBar: AppBar(
-        title: const Text('Edit profile'),
+        toolbarHeight: 76,
+        leadingWidth: 68,
+        leading: Padding(
+          padding: const EdgeInsets.only(left: 16, top: 10, bottom: 10),
+          child: Material(
+            color: context.isDark
+                ? context.colors.cardColor2
+                : Colors.white.withValues(alpha: 0.9),
+            shape: const CircleBorder(),
+            child: InkWell(
+              customBorder: const CircleBorder(),
+              onTap: () => Navigator.maybePop(context),
+              child: Icon(
+                Icons.arrow_back_rounded,
+                size: 21,
+                color: context.colors.textPrimary,
+              ),
+            ),
+          ),
+        ),
+        titleSpacing: 8,
+        title: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Text(
+              'Edit your profile',
+              style: TextStyle(
+                color: context.colors.textPrimary,
+                fontSize: 21,
+                height: 1.05,
+                fontWeight: FontWeight.w800,
+                letterSpacing: -0.35,
+              ),
+            ),
+            const SizedBox(height: 5),
+            const Text(
+              'Make your haven feel like you',
+              style: TextStyle(
+                color: AppColors.primaryDark,
+                fontSize: 11.5,
+                height: 1,
+                fontWeight: FontWeight.w600,
+                letterSpacing: 0.1,
+              ),
+            ),
+          ],
+        ),
         centerTitle: false,
-        backgroundColor: Theme.of(context).scaffoldBackgroundColor,
+        backgroundColor: Colors.transparent,
         foregroundColor: context.colors.textPrimary,
         elevation: 0,
         surfaceTintColor: Colors.transparent,
+        flexibleSpace: DecoratedBox(
+          decoration: BoxDecoration(
+            gradient: LinearGradient(
+              begin: Alignment.topCenter,
+              end: Alignment.bottomCenter,
+              colors: [
+                AppColors.primary.withValues(
+                  alpha: context.isDark ? 0.09 : 0.12,
+                ),
+                Theme.of(context).scaffoldBackgroundColor,
+              ],
+            ),
+          ),
+        ),
+        bottom: PreferredSize(
+          preferredSize: const Size.fromHeight(1),
+          child: Container(
+            height: 1,
+            margin: const EdgeInsets.symmetric(horizontal: 20),
+            color: AppColors.primary.withValues(alpha: 0.12),
+          ),
+        ),
       ),
       body: SafeArea(
         top: false,

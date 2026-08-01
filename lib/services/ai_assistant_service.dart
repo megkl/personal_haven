@@ -1,6 +1,7 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:cloud_functions/cloud_functions.dart';
 import 'package:firebase_auth/firebase_auth.dart';
+import 'package:intl/intl.dart';
 import 'package:personal_haven/data/models/haven_chat_message.dart';
 import 'package:personal_haven/data/models/haven_conversation.dart';
 
@@ -146,9 +147,7 @@ class AiAssistantService {
       return AiAssistantResult.fromMap(Map<String, dynamic>.from(result.data));
     } on FirebaseFunctionsException catch (e) {
       if (e.code == 'resource-exhausted') {
-        throw AiAssistantLimitException(
-          e.message ?? 'AI action limit reached.',
-        );
+        throw AiAssistantLimitException(_friendlyLimitMessage(e));
       }
       return null;
     } catch (_) {
@@ -209,6 +208,9 @@ class AiAssistantService {
           persisted: false,
         );
       }
+      if (e.code == 'resource-exhausted') {
+        return AiChatResult(text: _friendlyLimitMessage(e), persisted: false);
+      }
       return AiChatResult(
         text: e.message ?? 'Haven AI could not reply just now.',
         persisted: false,
@@ -216,6 +218,41 @@ class AiAssistantService {
     } catch (_) {
       return const AiChatResult(text: null, persisted: false);
     }
+  }
+
+  static String _friendlyLimitMessage(FirebaseFunctionsException error) {
+    final details = error.details;
+    Object? resetValue;
+    Object? windowValue;
+    if (details is Map) {
+      for (final entry in details.entries) {
+        if (entry.key.toString() == 'resetAt') resetValue = entry.value;
+        if (entry.key.toString() == 'window') windowValue = entry.value;
+      }
+    }
+
+    final resetAt = DateTime.tryParse(resetValue?.toString() ?? '')?.toLocal();
+    final window = windowValue?.toString().toLowerCase();
+    final period = window == 'month' ? 'month’s' : 'week’s';
+    if (resetAt == null) {
+      return 'You’ve reached this $period Ask Haven allowance. It will reset '
+          'when your next allowance begins.';
+    }
+
+    final now = DateTime.now();
+    final today = DateTime(now.year, now.month, now.day);
+    final resetDay = DateTime(resetAt.year, resetAt.month, resetAt.day);
+    final daysAway = resetDay.difference(today).inDays;
+    final time = DateFormat('h:mm a').format(resetAt);
+    final friendlyReset = switch (daysAway) {
+      0 => 'today at $time',
+      1 => 'tomorrow at $time',
+      >= 2 && <= 7 => '${DateFormat('EEEE').format(resetAt)} at $time',
+      _ => '${DateFormat('MMMM d').format(resetAt)} at $time',
+    };
+
+    return 'You’ve reached this $period Ask Haven allowance. '
+        'It resets $friendlyReset.';
   }
 }
 
