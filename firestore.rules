@@ -2,10 +2,13 @@ rules_version = '2';
 
 service cloud.firestore {
   match /databases/{database}/documents {
-    // Data model: every private app document is under users/{uid}. The mobile
+    // Assumed data model: every private app document is under users/{uid}. The mobile
     // client owns its planning/wellness records, while premium entitlements,
     // subscriptions, AI usage, and chat history are written only by trusted
-    // Cloud Functions using the Admin SDK.
+    // Cloud Functions using the Admin SDK. Ask Haven conversations contain
+    // title (string), createdAt/updatedAt (timestamp), lastMessage (string),
+    // and messageCount (int). Their messages contain content (string), role
+    // (user|assistant), createdAt (timestamp), and status (sending|sent|failed).
     function isOwner(userId) {
       return request.auth != null && request.auth.uid == userId;
     }
@@ -230,6 +233,16 @@ service cloud.firestore {
       match /chats/{documentId} {
         allow read: if isOwner(userId);
         allow write: if false;
+      }
+
+      match /conversations/{conversationId} {
+        allow read: if isOwner(userId);
+        allow write: if false;
+
+        match /messages/{messageId} {
+          allow read: if isOwner(userId);
+          allow write: if false;
+        }
       }
 
       match /ai_usage/{documentId} {

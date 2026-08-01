@@ -2,6 +2,8 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:personal_haven/core/utils/assistant_command_text.dart';
+import 'package:personal_haven/data/models/haven_chat_message.dart';
+import 'package:personal_haven/data/models/haven_conversation.dart';
 import 'package:personal_haven/presentation/screens/home/widgets/haven_ai_suggestions.dart';
 import 'package:personal_haven/services/ai_assistant_service.dart';
 
@@ -10,12 +12,23 @@ void main() {
     tester,
   ) async {
     String? selectedPrompt;
+    final companionSuggestions = havenAiQuickSuggestions
+        .where(
+          (suggestion) => const {
+            'Reflect',
+            'Organize',
+            'Make a plan',
+            'Get unstuck',
+          }.contains(suggestion.label),
+        )
+        .toList(growable: false);
 
     await tester.pumpWidget(
       MaterialApp(
         home: Scaffold(
           body: HavenAiSuggestionRail(
             prompts: const [],
+            quickSuggestions: companionSuggestions,
             onPromptSelected: (prompt) => selectedPrompt = prompt,
           ),
         ),
@@ -25,10 +38,12 @@ void main() {
     expect(find.text('Reflect'), findsOneWidget);
     await tester.tap(find.text('Reflect'));
     expect(selectedPrompt, 'Help me understand what is on my mind');
-    expect(
-      havenAiQuickSuggestions.take(4).map((suggestion) => suggestion.label),
-      ['Reflect', 'Organize', 'Make a plan', 'Get unstuck'],
-    );
+    expect(companionSuggestions.map((suggestion) => suggestion.label), [
+      'Reflect',
+      'Organize',
+      'Make a plan',
+      'Get unstuck',
+    ]);
   });
 
   test('chat history accepts only valid user and assistant records', () {
@@ -104,5 +119,30 @@ void main() {
     );
     expect(AssistantCommandText.hasNegatedPriority('high'), isFalse);
     expect(AssistantCommandText.hasNegatedPriority('not urgent'), isFalse);
+  });
+
+  test('conversation and message records preserve live metadata', () {
+    final updatedAt = DateTime.utc(2026, 7, 31, 15, 30);
+    final conversation = HavenConversation.fromMap('conversation-1', {
+      'title': '  Plan my week  ',
+      'createdAt': Timestamp.fromDate(updatedAt),
+      'updatedAt': Timestamp.fromDate(updatedAt),
+      'lastMessage': 'Start with Monday.',
+      'messageCount': 2,
+    });
+    final message = HavenChatMessage.fromMap('message-1', {
+      'content': '  Start with Monday. ',
+      'role': 'assistant',
+      'createdAt': Timestamp.fromDate(updatedAt),
+      'status': 'failed',
+    });
+
+    expect(conversation.title, 'Plan my week');
+    expect(conversation.messageCount, 2);
+    expect(conversation.updatedAt?.toUtc(), updatedAt);
+    expect(message.content, 'Start with Monday.');
+    expect(message.isUser, isFalse);
+    expect(message.status, HavenMessageStatus.failed);
+    expect(message.createdAt?.toUtc(), updatedAt);
   });
 }

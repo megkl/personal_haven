@@ -14,6 +14,10 @@ const {GoogleAuth} = require("google-auth-library");
 const crypto = require("node:crypto");
 const admin = require("firebase-admin");
 const OpenAI = require("openai");
+const {
+  aiOperationTokenReservations,
+  aiPlanLimits,
+} = require("./ai-usage-config");
 const {isLifetimePremiumAccount} = require("./entitlements");
 const {requiredString} = require("./request-fields");
 
@@ -23,14 +27,6 @@ const aiApiKey = defineSecret("AI_API_KEY");
 const androidPackageName = "com.megnifylabs.personal_haven";
 const aiModel = "gpt-4o-mini";
 const aiEndpoint = "https://api.openai.com/v1/chat/completions";
-
-const aiPlanLimits = {
-  free: {limit: 20, window: "week"},
-  weekly: {limit: 30, window: "week"},
-  monthly: {limit: 300, window: "month"},
-  yearly: {limit: 400, window: "month"},
-  override: {limit: 300, window: "month"},
-};
 
 const storeProducts = {
   personal_haven_weekly: {
@@ -148,6 +144,39 @@ const havenAiSystemPrompt = [
   "Be warm, grounded, practical, and respectful of the user's autonomy.",
 ].join(" ");
 
+/**
+ * Returns a user-scoped Haven conversation reference.
+ * @param {string} userId Firebase Auth user ID.
+ * @param {string} conversationId Firestore conversation document ID.
+ * @return {FirebaseFirestore.DocumentReference}
+ */
+function havenConversationRef(userId, conversationId) {
+  if (!conversationId ||
+      typeof conversationId !== "string" ||
+      !/^[A-Za-z0-9_-]{1,200}$/.test(conversationId)) {
+    throw new HttpsError(
+        "invalid-argument",
+        "A valid conversation ID is required.",
+    );
+  }
+  return admin.firestore()
+      .collection("users")
+      .doc(userId)
+      .collection("conversations")
+      .doc(conversationId);
+}
+
+/**
+ * Creates a short, readable title from the first user message.
+ * @param {string} message User message.
+ * @return {string}
+ */
+function havenConversationTitle(message) {
+  const normalized = message.replace(/\s+/g, " ").trim();
+  if (normalized.length <= 48) return normalized;
+  return `${normalized.slice(0, 45)}...`;
+}
+
 // For cost control, you can set the maximum number of containers that can be
 // running at the same time. This helps mitigate the impact of unexpected
 // traffic spikes by instead downgrading performance. This limit is a
@@ -159,6 +188,221 @@ const havenAiSystemPrompt = [
 // In the v1 API, each function can only serve one request per container, so
 // this will be the maximum concurrent request count.
 setGlobalOptions({maxInstances: 10});
+
+exports.createHavenConversation = onCall(
+    {
+      region: "us-central1",
+      enforceAppCheck: true,
+    },
+    async (request) => {
+      if (!request.auth) {
+        throw new HttpsError("unauthenticated", "Please sign in first.");
+      }
+
+      const db = admin.firestore();
+      const conversationsRef = db
+          .collection("users")
+          .doc(request.auth.uid)
+          .collection("conversations");
+      const importLegacy = request.data && request.data.importLegacy === true;
+
+      if (importLegacy) {
+        const existing = await conversationsRef
+            .orderBy("updatedAt", "desc")
+            .limit(1)
+            .get();
+        if (!existing.empty) {
+          return {conversationId: existing.docs[0].id};
+        }
+
+        const legacyMessages = await db
+            .collection("users")
+            .doc(request.auth.uid)
+            .collection("chats")
+            .orderBy("createdAt", "asc")
+            .limit(100)
+            .get();
+        if (!legacyMessages.empty) {
+          const legacyRef = conversationsRef.doc("legacy");
+          const validMessages = legacyMessages.docs.filter((document) => {
+            const data = document.data();
+            return (data.role === "user" || data.role === "assistant") &&
+              typeof data.content === "string" &&
+              data.content.trim() !== "";
+          });
+          const firstData = validMessages.length > 0 ?
+            validMessages[0].data() : {};
+          const firstTime = firstData.createdAt ||
+            admin.firestore.Timestamp.now();
+          const lastData = validMessages.length > 0 ?
+            validMessages[validMessages.length - 1].data() : {};
+          const lastTime = lastData.createdAt || firstTime;
+          const batch = db.batch();
+          batch.set(legacyRef, {
+            title: "Previous Haven chat",
+            createdAt: firstTime,
+            updatedAt: lastTime,
+            lastMessage: (lastData.content || "").slice(0, 240),
+            messageCount: validMessages.length,
+          });
+          for (const document of validMessages) {
+            const data = document.data();
+            batch.set(legacyRef.collection("messages").doc(document.id), {
+              role: data.role,
+              content: data.content.trim().slice(0, 4000),
+              createdAt: data.createdAt || firstTime,
+              status: "sent",
+            });
+          }
+          await batch.commit();
+          return {conversationId: legacyRef.id};
+        }
+      }
+
+      const conversationLimitSnapshot = await conversationsRef
+          .limit(100)
+          .get();
+      if (conversationLimitSnapshot.size >= 100) {
+        throw new HttpsError(
+            "resource-exhausted",
+            "You have reached the conversation limit. Delete an older " +
+              "conversation before creating another.",
+        );
+      }
+
+      const conversationRef = conversationsRef.doc();
+      const now = admin.firestore.Timestamp.now();
+      await conversationRef.set({
+        title: "New conversation",
+        createdAt: now,
+        updatedAt: now,
+        lastMessage: "",
+        messageCount: 0,
+      });
+      return {conversationId: conversationRef.id};
+    },
+);
+
+exports.renameHavenConversation = onCall(
+    {
+      region: "us-central1",
+      enforceAppCheck: true,
+    },
+    async (request) => {
+      if (!request.auth) {
+        throw new HttpsError("unauthenticated", "Please sign in first.");
+      }
+      const data = request.data || {};
+      const title = typeof data.title === "string" ?
+        data.title.replace(/\s+/g, " ").trim() : "";
+      if (!title || title.length > 80) {
+        throw new HttpsError(
+            "invalid-argument",
+            "The title must be between 1 and 80 characters.",
+        );
+      }
+      const conversationRef = havenConversationRef(
+          request.auth.uid,
+          data.conversationId,
+      );
+      if (!(await conversationRef.get()).exists) {
+        throw new HttpsError("not-found", "Conversation not found.");
+      }
+      await conversationRef.update({
+        title,
+        updatedAt: admin.firestore.Timestamp.now(),
+      });
+      return {success: true};
+    },
+);
+
+exports.appendHavenExchange = onCall(
+    {
+      region: "us-central1",
+      enforceAppCheck: true,
+    },
+    async (request) => {
+      if (!request.auth) {
+        throw new HttpsError("unauthenticated", "Please sign in first.");
+      }
+      const data = request.data || {};
+      const userMessage = typeof data.userMessage === "string" ?
+        data.userMessage.trim() : "";
+      const assistantMessage = typeof data.assistantMessage === "string" ?
+        data.assistantMessage.trim() : "";
+      if (!userMessage || userMessage.length > 4000 ||
+          !assistantMessage || assistantMessage.length > 4000) {
+        throw new HttpsError(
+            "invalid-argument",
+            "Both conversation messages are required.",
+        );
+      }
+
+      const conversationRef = havenConversationRef(
+          request.auth.uid,
+          data.conversationId,
+      );
+      const conversationSnapshot = await conversationRef.get();
+      if (!conversationSnapshot.exists) {
+        throw new HttpsError("not-found", "Conversation not found.");
+      }
+
+      const now = admin.firestore.Timestamp.now();
+      const batch = admin.firestore().batch();
+      batch.set(conversationRef.collection("messages").doc(), {
+        role: "user",
+        content: userMessage,
+        createdAt: now,
+        status: "sent",
+      });
+      batch.set(conversationRef.collection("messages").doc(), {
+        role: "assistant",
+        content: assistantMessage,
+        createdAt: admin.firestore.Timestamp.fromMillis(now.toMillis() + 1),
+        status: "sent",
+      });
+      const conversationData = conversationSnapshot.data() || {};
+      if ((conversationData.messageCount || 0) >= 1000) {
+        throw new HttpsError(
+            "resource-exhausted",
+            "This conversation is full. Start a new conversation to continue.",
+        );
+      }
+      const currentTitle = conversationData.title;
+      batch.update(conversationRef, {
+        title: !currentTitle || currentTitle === "New conversation" ?
+          havenConversationTitle(userMessage) : currentTitle,
+        updatedAt: now,
+        lastMessage: assistantMessage.slice(0, 240),
+        messageCount: admin.firestore.FieldValue.increment(2),
+      });
+      await batch.commit();
+      return {success: true};
+    },
+);
+
+exports.deleteHavenConversation = onCall(
+    {
+      region: "us-central1",
+      enforceAppCheck: true,
+      timeoutSeconds: 60,
+    },
+    async (request) => {
+      if (!request.auth) {
+        throw new HttpsError("unauthenticated", "Please sign in first.");
+      }
+      const data = request.data || {};
+      const conversationRef = havenConversationRef(
+          request.auth.uid,
+          data.conversationId,
+      );
+      if (!(await conversationRef.get()).exists) {
+        return {success: true};
+      }
+      await admin.firestore().recursiveDelete(conversationRef);
+      return {success: true};
+    },
+);
 
 exports.parseAssistantAction = onCall(
     {
@@ -177,7 +421,10 @@ exports.parseAssistantAction = onCall(
       }
       let usage;
       try {
-        usage = await reserveAssistantUsage(request.auth);
+        usage = await reserveAssistantUsage(
+            request.auth,
+            "parseAction",
+        );
       } catch (error) {
         if (error instanceof HttpsError) throw error;
         console.error("AI usage reservation failed", {
@@ -197,6 +444,7 @@ exports.parseAssistantAction = onCall(
           body: JSON.stringify({
             model: aiModel,
             temperature: 0.1,
+            max_tokens: 500,
             response_format: {type: "json_object"},
             messages: [
               {role: "system", content: assistantSystemPrompt},
@@ -281,6 +529,17 @@ exports.generateAssistantPrompts = onCall(
       });
 
       try {
+        await reserveAssistantUsage(request.auth, "promptSuggestions");
+      } catch (error) {
+        if (error instanceof HttpsError) throw error;
+        console.error("AI prompt usage reservation failed", {
+          uid: request.auth.uid,
+          message: error.message,
+        });
+        throw new HttpsError("internal", "AI usage check failed.");
+      }
+
+      try {
         const response = await fetch(aiEndpoint, {
           method: "POST",
           headers: {
@@ -290,6 +549,7 @@ exports.generateAssistantPrompts = onCall(
           body: JSON.stringify({
             model: aiModel,
             temperature: 0.4,
+            max_tokens: 250,
             response_format: {type: "json_object"},
             messages: [
               {role: "system", content: assistantPromptSuggestionSystemPrompt},
@@ -343,6 +603,7 @@ exports.chatWithHavenAI = onCall(
 
       const userId = request.auth.uid;
       const message = request.data && request.data.message;
+      const conversationId = request.data && request.data.conversationId;
 
       if (!message || typeof message !== "string") {
         throw new HttpsError("invalid-argument", "Message is required.");
@@ -358,9 +619,29 @@ exports.chatWithHavenAI = onCall(
           .doc(userId)
           .collection("chats");
 
-      const historySnap = await chatsRef
+      let conversationRef = null;
+      let messagesRef = chatsRef;
+      let conversationSnapshot = null;
+      if (conversationId !== undefined && conversationId !== null) {
+        conversationRef = havenConversationRef(userId, conversationId);
+        conversationSnapshot = await conversationRef.get();
+        if (!conversationSnapshot.exists) {
+          throw new HttpsError("not-found", "Conversation not found.");
+        }
+        const conversationData = conversationSnapshot.data() || {};
+        if ((conversationData.messageCount || 0) >= 1000) {
+          throw new HttpsError(
+              "resource-exhausted",
+              "This conversation is full. Start a new conversation to " +
+                "continue.",
+          );
+        }
+        messagesRef = conversationRef.collection("messages");
+      }
+
+      const historySnap = await messagesRef
           .orderBy("createdAt", "desc")
-          .limit(12)
+          .limit(10)
           .get();
       const history = historySnap.docs
           .map((doc) => doc.data())
@@ -368,7 +649,8 @@ exports.chatWithHavenAI = onCall(
           .filter((entry) => {
             return (entry.role === "user" || entry.role === "assistant") &&
               typeof entry.content === "string" &&
-              entry.content.trim() !== "";
+              entry.content.trim() !== "" &&
+              entry.status !== "failed";
           })
           .map((entry) => ({
             role: entry.role,
@@ -387,14 +669,26 @@ exports.chatWithHavenAI = onCall(
       }
 
       try {
+        await reserveAssistantUsage(request.auth, "companionChat");
+      } catch (error) {
+        if (error instanceof HttpsError) throw error;
+        console.error("Haven AI usage reservation failed", {
+          uid: request.auth.uid,
+          message: error.message,
+        });
+        throw new HttpsError("internal", "AI usage check failed.");
+      }
+
+      try {
         const openai = new OpenAI({apiKey: aiApiKey.value()});
         const response = await openai.responses.create({
-          model: "gpt-4.1-mini",
+          model: aiModel,
           input: [
             {role: "system", content: havenAiSystemPrompt},
             ...completeHistory,
             {role: "user", content: trimmedMessage},
           ],
+          max_output_tokens: 600,
         });
 
         const aiText = response.output_text ||
@@ -403,26 +697,59 @@ exports.chatWithHavenAI = onCall(
 
         const createdAt = admin.firestore.Timestamp.now();
         const batch = db.batch();
-        batch.set(chatsRef.doc(), {
+        const userMessageRef = messagesRef.doc();
+        const assistantMessageRef = messagesRef.doc();
+        batch.set(userMessageRef, {
           role: "user",
           content: trimmedMessage,
           createdAt,
+          ...(conversationRef ? {status: "sent"} : {}),
         });
-        batch.set(chatsRef.doc(), {
+        batch.set(assistantMessageRef, {
           role: "assistant",
           content: aiText,
           createdAt: admin.firestore.Timestamp.fromMillis(
               createdAt.toMillis() + 1,
           ),
+          ...(conversationRef ? {status: "sent"} : {}),
         });
+        if (conversationRef) {
+          const conversationData = conversationSnapshot.data() || {};
+          const currentTitle = conversationData.title;
+          batch.update(conversationRef, {
+            title: !currentTitle || currentTitle === "New conversation" ?
+              havenConversationTitle(trimmedMessage) : currentTitle,
+            updatedAt: createdAt,
+            lastMessage: aiText.slice(0, 240),
+            messageCount: admin.firestore.FieldValue.increment(2),
+          });
+        }
         await batch.commit();
 
-        return {reply: aiText};
+        return {
+          reply: aiText,
+          userMessageId: userMessageRef.id,
+          assistantMessageId: assistantMessageRef.id,
+        };
       } catch (error) {
         console.error("Haven AI chat request failed", {
           uid: userId,
           message: error.message,
         });
+        if (conversationRef) {
+          const failedAt = admin.firestore.Timestamp.now();
+          await messagesRef.add({
+            role: "user",
+            content: trimmedMessage,
+            createdAt: failedAt,
+            status: "failed",
+          });
+          await conversationRef.update({
+            updatedAt: failedAt,
+            lastMessage: trimmedMessage.slice(0, 240),
+            messageCount: admin.firestore.FieldValue.increment(1),
+          });
+        }
         if (error && error.status === 429) {
           throw new HttpsError(
               "resource-exhausted",
@@ -505,15 +832,20 @@ exports.verifyStorePurchase = onCall(
 );
 
 /**
- * Reserves one AI assistant action before any paid model request is made.
+ * Reserves a bounded AI request and token allowance before a paid model call.
  * @param {object} auth Callable Firebase Auth context.
+ * @param {string} operation AI operation key.
  * @return {Promise<object>} Usage metadata for the client.
  */
-async function reserveAssistantUsage(auth) {
+async function reserveAssistantUsage(auth, operation) {
   const db = admin.firestore();
   const uid = auth.uid;
   const plan = await activeSubscriptionPlan(auth);
   const limit = aiPlanLimits[plan] || aiPlanLimits.free;
+  const tokenReservation = aiOperationTokenReservations[operation];
+  if (!tokenReservation) {
+    throw new Error(`Unknown AI operation: ${operation}`);
+  }
   const period = usagePeriod(limit.window);
   const usageRef = db
       .collection("users")
@@ -523,30 +855,39 @@ async function reserveAssistantUsage(auth) {
 
   return db.runTransaction(async (transaction) => {
     const snap = await transaction.get(usageRef);
-    const current = snap.exists ? Number(snap.data().count || 0) : 0;
-    if (current >= limit.limit) {
+    const data = snap.exists ? snap.data() : {};
+    const currentRequests = Number(
+        data.requestCount === undefined ? data.count || 0 : data.requestCount,
+    );
+    const currentTokens = Number(data.tokenBudgetUsed || 0);
+    const nextRequests = currentRequests + 1;
+    const nextTokens = currentTokens + tokenReservation;
+    if (nextRequests > limit.requestLimit || nextTokens > limit.tokenLimit) {
       throw new HttpsError(
           "resource-exhausted",
-          `AI action limit reached. Your ${limit.window}ly limit is ` +
-            `${limit.limit}. It resets on ${period.resetAt}.`,
+          `Ask Haven AI allowance reached for this ${limit.window}. ` +
+            `It resets on ${period.resetAt}.`,
           {
             plan,
-            limit: limit.limit,
-            used: current,
-            remaining: 0,
+            requestLimit: limit.requestLimit,
+            requestCount: currentRequests,
+            tokenLimit: limit.tokenLimit,
+            tokenBudgetUsed: currentTokens,
             window: limit.window,
             resetAt: period.resetAt,
           },
       );
     }
 
-    const next = current + 1;
     transaction.set(
         usageRef,
         {
           plan,
-          count: next,
-          limit: limit.limit,
+          requestCount: nextRequests,
+          requestLimit: limit.requestLimit,
+          tokenBudgetUsed: nextTokens,
+          tokenLimit: limit.tokenLimit,
+          lastOperation: operation,
           window: limit.window,
           periodKey: period.key,
           resetAt: period.resetAt,
@@ -557,9 +898,12 @@ async function reserveAssistantUsage(auth) {
 
     return {
       plan,
-      limit: limit.limit,
-      used: next,
-      remaining: Math.max(limit.limit - next, 0),
+      requestLimit: limit.requestLimit,
+      requestCount: nextRequests,
+      requestsRemaining: Math.max(limit.requestLimit - nextRequests, 0),
+      tokenLimit: limit.tokenLimit,
+      tokenBudgetUsed: nextTokens,
+      tokenBudgetRemaining: Math.max(limit.tokenLimit - nextTokens, 0),
       window: limit.window,
       resetAt: period.resetAt,
     };

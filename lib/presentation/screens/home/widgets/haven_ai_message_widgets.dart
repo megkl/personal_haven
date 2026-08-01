@@ -1,12 +1,21 @@
 import 'package:flutter/material.dart';
+import 'package:intl/intl.dart';
 import 'package:personal_haven/core/constants/app_colors.dart';
 import 'package:personal_haven/core/theme/app_theme.dart';
+import 'package:personal_haven/data/models/haven_chat_message.dart';
 
 class HavenAiChatMessage {
   final String text;
   final bool isUser;
+  final DateTime? createdAt;
+  final HavenMessageStatus status;
 
-  const HavenAiChatMessage({required this.text, required this.isUser});
+  const HavenAiChatMessage({
+    required this.text,
+    required this.isUser,
+    this.createdAt,
+    this.status = HavenMessageStatus.sent,
+  });
 }
 
 class HavenAiMessageBubble extends StatelessWidget {
@@ -33,13 +42,53 @@ class HavenAiMessageBubble extends StatelessWidget {
             bottomRight: Radius.circular(message.isUser ? 4 : 16),
           ),
         ),
-        child: Text(
-          message.text,
-          style: TextStyle(
-            color: message.isUser ? Colors.white : context.colors.textPrimary,
-            fontSize: 13,
-            height: 1.35,
-          ),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(
+              message.text,
+              style: TextStyle(
+                color: message.isUser
+                    ? Colors.white
+                    : context.colors.textPrimary,
+                fontSize: 13,
+                height: 1.35,
+              ),
+            ),
+            if (message.createdAt != null || message.isUser) ...[
+              const SizedBox(height: 5),
+              Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  if (message.createdAt != null)
+                    Text(
+                      DateFormat('h:mm a').format(message.createdAt!),
+                      style: TextStyle(
+                        color: message.isUser
+                            ? Colors.white70
+                            : context.colors.textSecondary,
+                        fontSize: 9.5,
+                      ),
+                    ),
+                  if (message.isUser) ...[
+                    if (message.createdAt != null) const SizedBox(width: 5),
+                    Icon(
+                      switch (message.status) {
+                        HavenMessageStatus.sending => Icons.schedule_rounded,
+                        HavenMessageStatus.failed =>
+                          Icons.error_outline_rounded,
+                        HavenMessageStatus.sent => Icons.done_rounded,
+                      },
+                      size: 12,
+                      color: message.status == HavenMessageStatus.failed
+                          ? const Color(0xFFFFD3D3)
+                          : Colors.white70,
+                    ),
+                  ],
+                ],
+              ),
+            ],
+          ],
         ),
       ),
     );

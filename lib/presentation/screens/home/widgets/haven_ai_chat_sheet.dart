@@ -8,6 +8,8 @@ import 'package:personal_haven/core/theme/app_theme.dart';
 import 'package:personal_haven/core/utils/assistant_command_text.dart';
 import 'package:personal_haven/core/utils/currency_formatter.dart';
 import 'package:personal_haven/data/models/journal_entry.dart';
+import 'package:personal_haven/data/models/haven_chat_message.dart';
+import 'package:personal_haven/data/models/haven_conversation.dart';
 import 'package:personal_haven/data/models/mood_log.dart';
 import 'package:personal_haven/data/models/transaction.dart';
 import 'package:personal_haven/providers/budget_provider.dart';
@@ -41,6 +43,12 @@ class _HavenAiChatSheetState extends ConsumerState<HavenAiChatSheet> {
   final _aiAssistantService = AiAssistantService();
   final stt.SpeechToText _speech = stt.SpeechToText();
   final List<HavenAiChatMessage> _messages = [];
+  StreamSubscription<List<HavenConversation>>? _conversationSubscription;
+  StreamSubscription<List<HavenChatMessage>>? _messageSubscription;
+  List<HavenConversation> _conversations = const [];
+  String? _conversationId;
+  bool _isCreatingConversation = false;
+  bool _didAttemptLegacyImport = false;
   bool _isLoadingHistory = true;
   bool _isWorking = false;
   bool _isListening = false;
@@ -51,36 +59,140 @@ class _HavenAiChatSheetState extends ConsumerState<HavenAiChatSheet> {
   _GuidedTaskDraft? _taskDraft;
   _GuidedActionDraft? _guidedDraft;
   List<String> _promptSuggestions = const [];
+  String? _pendingConversationInput;
 
   @override
   void initState() {
     super.initState();
-    unawaited(_loadChatHistory());
+    _watchConversations();
   }
 
-  Future<void> _loadChatHistory() async {
-    final history = await _aiAssistantService.loadRecentMessages();
-    if (!mounted) return;
-    setState(() {
-      _messages
-        ..clear()
-        ..addAll(
-          history.isEmpty
-              ? const [HavenAiChatMessage(text: _welcomeText, isUser: false)]
-              : history.map(
-                  (message) => HavenAiChatMessage(
-                    text: message.text,
-                    isUser: message.isUser,
-                  ),
-                ),
+  void _watchConversations() {
+    _conversationSubscription = _aiAssistantService.watchConversations().listen(
+      (conversations) {
+        if (!mounted) return;
+        setState(() => _conversations = conversations);
+        if (conversations.isEmpty) {
+          final shouldImportLegacy = !_didAttemptLegacyImport;
+          _didAttemptLegacyImport = true;
+          unawaited(_createConversation(importLegacy: shouldImportLegacy));
+          return;
+        }
+        final currentStillExists = conversations.any(
+          (conversation) => conversation.id == _conversationId,
         );
-      _isLoadingHistory = false;
-    });
-    _scrollToBottom();
+        if (!currentStillExists) {
+          _selectConversation(conversations.first.id);
+        }
+      },
+      onError: (_) {
+        if (!mounted) return;
+        setState(() {
+          _isLoadingHistory = false;
+          _messages
+            ..clear()
+            ..add(
+              const HavenAiChatMessage(
+                text: 'I could not load your conversations just now.',
+                isUser: false,
+              ),
+            );
+        });
+      },
+    );
+  }
+
+  Future<void> _createConversation({bool importLegacy = false}) async {
+    if (_isCreatingConversation) return;
+    _isCreatingConversation = true;
+    try {
+      final id = await _aiAssistantService.createConversation(
+        importLegacy: importLegacy,
+      );
+      if (mounted) _selectConversation(id);
+    } catch (_) {
+      if (mounted) {
+        _reply('I could not start a new conversation. Please try again.');
+      }
+    } finally {
+      _isCreatingConversation = false;
+    }
+  }
+
+  void _selectConversation(String conversationId) {
+    if (_conversationId == conversationId && _messageSubscription != null) {
+      return;
+    }
+    final previousSubscription = _messageSubscription;
+    if (previousSubscription != null) {
+      unawaited(previousSubscription.cancel());
+    }
+    _conversationId = conversationId;
+    _assistantDraft = null;
+    _taskDraft = null;
+    _guidedDraft = null;
+    _pendingConversationInput = null;
+    _promptSuggestions = const [];
+    if (mounted) {
+      setState(() {
+        _isLoadingHistory = true;
+        _isWorking = false;
+        _messages.clear();
+      });
+    }
+    _messageSubscription = _aiAssistantService
+        .watchMessages(conversationId)
+        .listen(
+          (messages) {
+            if (!mounted || _conversationId != conversationId) return;
+            setState(() {
+              _messages
+                ..clear()
+                ..addAll(
+                  messages.isEmpty
+                      ? const [
+                          HavenAiChatMessage(text: _welcomeText, isUser: false),
+                        ]
+                      : messages.map(
+                          (message) => HavenAiChatMessage(
+                            text: message.content,
+                            isUser: message.isUser,
+                            createdAt: message.createdAt,
+                            status: message.status,
+                          ),
+                        ),
+                );
+              _isLoadingHistory = false;
+            });
+            _scrollToBottom();
+          },
+          onError: (_) {
+            if (!mounted || _conversationId != conversationId) return;
+            setState(() {
+              _isLoadingHistory = false;
+              _messages
+                ..clear()
+                ..add(
+                  const HavenAiChatMessage(
+                    text: 'I could not load this conversation.',
+                    isUser: false,
+                  ),
+                );
+            });
+          },
+        );
   }
 
   @override
   void dispose() {
+    final conversationSubscription = _conversationSubscription;
+    final messageSubscription = _messageSubscription;
+    if (conversationSubscription != null) {
+      unawaited(conversationSubscription.cancel());
+    }
+    if (messageSubscription != null) {
+      unawaited(messageSubscription.cancel());
+    }
     _speech.stop();
     _controller.dispose();
     _scrollController.dispose();
@@ -157,12 +269,25 @@ class _HavenAiChatSheetState extends ConsumerState<HavenAiChatSheet> {
   Future<void> _send([String? preset]) async {
     final text = (preset ?? _controller.text).trim();
     if (text.isEmpty || _isWorking || _isLoadingHistory) return;
+    final conversationId = _conversationId;
+    if (conversationId == null) {
+      await _createConversation();
+      return;
+    }
 
     _controller.clear();
     setState(() {
-      _messages.add(HavenAiChatMessage(text: text, isUser: true));
+      _messages.add(
+        HavenAiChatMessage(
+          text: text,
+          isUser: true,
+          createdAt: DateTime.now(),
+          status: HavenMessageStatus.sending,
+        ),
+      );
       _promptSuggestions = const [];
       _isWorking = true;
+      _pendingConversationInput = text;
     });
     _scrollToBottom();
 
@@ -219,8 +344,16 @@ class _HavenAiChatSheetState extends ConsumerState<HavenAiChatSheet> {
     final action = _HavenAction.parse(text);
     final command = action == null ? _PlannerCommand.parse(text) : null;
     if (command == null && action == null) {
-      final reply = await _aiAssistantService.chat(text);
-      _reply(reply ?? _helpReply(text));
+      final result = await _aiAssistantService.chat(
+        text,
+        conversationId: conversationId,
+      );
+      _pendingConversationInput = null;
+      if (result.persisted) {
+        if (mounted) setState(() => _isWorking = false);
+      } else {
+        _reply(result.text ?? _helpReply(text), persist: false);
+      }
       return;
     }
 
@@ -1920,14 +2053,62 @@ class _HavenAiChatSheetState extends ConsumerState<HavenAiChatSheet> {
     };
   }
 
-  void _reply(String text, {List<String> prompts = const []}) {
+  void _reply(
+    String text, {
+    List<String> prompts = const [],
+    bool persist = true,
+  }) {
     if (!mounted) return;
+    final userMessage = _pendingConversationInput;
+    final conversationId = _conversationId;
     setState(() {
       _messages.add(HavenAiChatMessage(text: text, isUser: false));
       _promptSuggestions = prompts;
       _isWorking = false;
+      _pendingConversationInput = null;
     });
+    if (persist && userMessage != null && conversationId != null) {
+      unawaited(
+        _persistLocalExchange(
+          conversationId: conversationId,
+          userMessage: userMessage,
+          assistantMessage: text,
+        ),
+      );
+    }
     _scrollToBottom();
+  }
+
+  Future<void> _persistLocalExchange({
+    required String conversationId,
+    required String userMessage,
+    required String assistantMessage,
+  }) async {
+    try {
+      await _aiAssistantService.saveLocalExchange(
+        conversationId: conversationId,
+        userMessage: userMessage,
+        assistantMessage: assistantMessage,
+      );
+    } catch (_) {
+      if (!mounted || _conversationId != conversationId) return;
+      final index = _messages.lastIndexWhere(
+        (message) =>
+            message.isUser &&
+            message.text == userMessage &&
+            message.status == HavenMessageStatus.sending,
+      );
+      if (index == -1) return;
+      final failedMessage = _messages[index];
+      setState(() {
+        _messages[index] = HavenAiChatMessage(
+          text: failedMessage.text,
+          isUser: true,
+          createdAt: failedMessage.createdAt,
+          status: HavenMessageStatus.failed,
+        );
+      });
+    }
   }
 
   String _helpReply(String input) {
@@ -1985,63 +2166,289 @@ class _HavenAiChatSheetState extends ConsumerState<HavenAiChatSheet> {
       padding: EdgeInsets.only(bottom: bottomInset),
       child: FractionallySizedBox(
         heightFactor: 0.92,
-        child: DecoratedBox(
-          decoration: BoxDecoration(
-            color: context.colors.cardColor,
-            borderRadius: const BorderRadius.vertical(top: Radius.circular(28)),
-          ),
-          child: Column(
-            children: [
-              _buildHeader(),
-              _buildHero(),
-              Expanded(
-                child: ListView.builder(
-                  controller: _scrollController,
-                  padding: const EdgeInsets.fromLTRB(16, 14, 16, 12),
-                  itemCount:
-                      _messages.length +
-                      (_isWorking || _isLoadingHistory ? 1 : 0),
-                  itemBuilder: (context, index) {
-                    if (index == _messages.length) {
-                      return const HavenAiTypingBubble();
-                    }
-                    return HavenAiMessageBubble(message: _messages[index]);
-                  },
+        child: ClipRRect(
+          borderRadius: const BorderRadius.vertical(top: Radius.circular(28)),
+          child: Scaffold(
+            backgroundColor: context.colors.cardColor,
+            drawer: _buildConversationDrawer(),
+            body: Column(
+              children: [
+                _buildHeader(),
+                _buildHero(),
+                Expanded(
+                  child: ListView.builder(
+                    controller: _scrollController,
+                    padding: const EdgeInsets.fromLTRB(16, 14, 16, 12),
+                    itemCount:
+                        _messages.length +
+                        (_isWorking || _isLoadingHistory ? 1 : 0),
+                    itemBuilder: (context, index) {
+                      if (index == _messages.length) {
+                        return const HavenAiTypingBubble();
+                      }
+                      return HavenAiMessageBubble(message: _messages[index]);
+                    },
+                  ),
                 ),
-              ),
-              _buildComposer(),
-            ],
+                _buildComposer(),
+              ],
+            ),
           ),
         ),
       ),
     );
   }
 
+  Widget _buildConversationDrawer() {
+    return Drawer(
+      backgroundColor: context.colors.cardColor,
+      child: SafeArea(
+        child: Column(
+          children: [
+            Padding(
+              padding: const EdgeInsets.fromLTRB(16, 12, 12, 8),
+              child: Row(
+                children: [
+                  const Expanded(
+                    child: Text(
+                      'Your conversations',
+                      style: TextStyle(
+                        fontSize: 18,
+                        fontWeight: FontWeight.w700,
+                      ),
+                    ),
+                  ),
+                  IconButton(
+                    tooltip: 'Close history',
+                    onPressed: () => Navigator.pop(context),
+                    icon: const Icon(Icons.close_rounded),
+                  ),
+                ],
+              ),
+            ),
+            Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 12),
+              child: FilledButton.icon(
+                onPressed: _isCreatingConversation
+                    ? null
+                    : () {
+                        Navigator.pop(context);
+                        unawaited(_createConversation());
+                      },
+                style: FilledButton.styleFrom(
+                  minimumSize: const Size.fromHeight(46),
+                  backgroundColor: AppColors.primary,
+                ),
+                icon: const Icon(Icons.add_rounded),
+                label: const Text('New conversation'),
+              ),
+            ),
+            const SizedBox(height: 8),
+            Expanded(
+              child: _conversations.isEmpty
+                  ? Center(
+                      child: Text(
+                        'Your conversations will appear here.',
+                        style: TextStyle(color: context.colors.textSecondary),
+                      ),
+                    )
+                  : ListView.builder(
+                      padding: const EdgeInsets.fromLTRB(8, 4, 8, 16),
+                      itemCount: _conversations.length,
+                      itemBuilder: (drawerContext, index) {
+                        final conversation = _conversations[index];
+                        final selected = conversation.id == _conversationId;
+                        return Card(
+                          elevation: 0,
+                          color: selected
+                              ? AppColors.primary.withValues(alpha: 0.11)
+                              : Colors.transparent,
+                          child: ListTile(
+                            selected: selected,
+                            leading: Icon(
+                              Icons.chat_bubble_outline_rounded,
+                              color: selected
+                                  ? AppColors.primaryDark
+                                  : context.colors.textSecondary,
+                            ),
+                            title: Text(
+                              conversation.title,
+                              maxLines: 1,
+                              overflow: TextOverflow.ellipsis,
+                            ),
+                            subtitle: Text(
+                              _conversationSubtitle(conversation),
+                              maxLines: 1,
+                              overflow: TextOverflow.ellipsis,
+                            ),
+                            onTap: () {
+                              Navigator.pop(drawerContext);
+                              _selectConversation(conversation.id);
+                            },
+                            trailing: PopupMenuButton<_ConversationMenuAction>(
+                              tooltip: 'Conversation options',
+                              onSelected: (action) {
+                                switch (action) {
+                                  case _ConversationMenuAction.rename:
+                                    unawaited(
+                                      _renameConversation(conversation),
+                                    );
+                                    break;
+                                  case _ConversationMenuAction.delete:
+                                    unawaited(
+                                      _deleteConversation(conversation),
+                                    );
+                                    break;
+                                }
+                              },
+                              itemBuilder: (_) => const [
+                                PopupMenuItem(
+                                  value: _ConversationMenuAction.rename,
+                                  child: ListTile(
+                                    contentPadding: EdgeInsets.zero,
+                                    leading: Icon(Icons.edit_outlined),
+                                    title: Text('Rename'),
+                                  ),
+                                ),
+                                PopupMenuItem(
+                                  value: _ConversationMenuAction.delete,
+                                  child: ListTile(
+                                    contentPadding: EdgeInsets.zero,
+                                    leading: Icon(Icons.delete_outline_rounded),
+                                    title: Text('Delete'),
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
+                        );
+                      },
+                    ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  String _conversationSubtitle(HavenConversation conversation) {
+    final lastMessage = conversation.lastMessage?.trim();
+    if (lastMessage?.isNotEmpty == true) return lastMessage!;
+    final updatedAt = conversation.updatedAt;
+    if (updatedAt != null) {
+      return DateFormat('MMM d, h:mm a').format(updatedAt);
+    }
+    return conversation.messageCount == 0 ? 'Start a new thought' : 'Ask Haven';
+  }
+
+  Future<void> _renameConversation(HavenConversation conversation) async {
+    final controller = TextEditingController(text: conversation.title);
+    final title = await showDialog<String>(
+      context: context,
+      builder: (dialogContext) => AlertDialog(
+        title: const Text('Rename conversation'),
+        content: TextField(
+          controller: controller,
+          autofocus: true,
+          maxLength: 80,
+          textCapitalization: TextCapitalization.sentences,
+          decoration: const InputDecoration(labelText: 'Conversation title'),
+          onSubmitted: (value) => Navigator.pop(dialogContext, value.trim()),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(dialogContext),
+            child: const Text('Cancel'),
+          ),
+          FilledButton(
+            onPressed: () =>
+                Navigator.pop(dialogContext, controller.text.trim()),
+            child: const Text('Save'),
+          ),
+        ],
+      ),
+    );
+    controller.dispose();
+    if (title == null || title.isEmpty || title == conversation.title) return;
+    try {
+      await _aiAssistantService.renameConversation(conversation.id, title);
+    } catch (_) {
+      _reply('I could not rename that conversation. Please try again.');
+    }
+  }
+
+  Future<void> _deleteConversation(HavenConversation conversation) async {
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (dialogContext) => AlertDialog(
+        title: const Text('Delete conversation?'),
+        content: Text(
+          '“${conversation.title}” and its messages will be permanently deleted.',
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(dialogContext, false),
+            child: const Text('Keep it'),
+          ),
+          FilledButton(
+            onPressed: () => Navigator.pop(dialogContext, true),
+            style: FilledButton.styleFrom(backgroundColor: Colors.redAccent),
+            child: const Text('Delete'),
+          ),
+        ],
+      ),
+    );
+    if (confirmed != true) return;
+    try {
+      await _aiAssistantService.deleteConversation(conversation.id);
+    } catch (_) {
+      _reply('I could not delete that conversation. Please try again.');
+    }
+  }
+
   Widget _buildHeader() {
+    String? selectedTitle;
+    for (final conversation in _conversations) {
+      if (conversation.id == _conversationId) {
+        selectedTitle = conversation.title;
+        break;
+      }
+    }
     return Padding(
       padding: const EdgeInsets.fromLTRB(12, 10, 12, 6),
       child: Row(
         children: [
+          Builder(
+            builder: (headerContext) => IconButton(
+              tooltip: 'Conversation history',
+              onPressed: () => Scaffold.of(headerContext).openDrawer(),
+              icon: const Icon(Icons.menu_rounded),
+            ),
+          ),
+          Expanded(
+            child: Column(
+              children: [
+                const Text(
+                  'Ask Haven',
+                  style: TextStyle(fontSize: 17, fontWeight: FontWeight.w700),
+                ),
+                Text(
+                  selectedTitle ?? 'Reflect • organize • grow',
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: const TextStyle(
+                    fontSize: 11,
+                    color: AppColors.primaryDark,
+                  ),
+                ),
+              ],
+            ),
+          ),
           IconButton(
             tooltip: 'Close assistant',
             onPressed: () => Navigator.pop(context),
             icon: const Icon(Icons.keyboard_arrow_down_rounded),
           ),
-          const Expanded(
-            child: Column(
-              children: [
-                Text(
-                  'Ask Haven',
-                  style: TextStyle(fontSize: 17, fontWeight: FontWeight.w700),
-                ),
-                Text(
-                  'Reflect • organize • grow',
-                  style: TextStyle(fontSize: 11, color: AppColors.primaryDark),
-                ),
-              ],
-            ),
-          ),
-          const SizedBox(width: 48),
         ],
       ),
     );
@@ -2202,6 +2609,8 @@ class _HavenAiChatSheetState extends ConsumerState<HavenAiChatSheet> {
 }
 
 enum _PlannerType { task, goal, event }
+
+enum _ConversationMenuAction { rename, delete }
 
 enum _TaskPromptStep { title, priority, time }
 

@@ -770,7 +770,7 @@ class _FeaturesList extends StatelessWidget {
   const _FeaturesList();
 
   final _features = const [
-    ('📓', 'Ask Haven Chat Assistant'),
+    ('✨', 'Ask Haven AI companion — reflect, organize & plan'),
     ('📓', 'Unlimited Journal Entries'),
     ('😊', 'Mood Tracking & Insights'),
     ('🎯', 'Goal Setting & Progress'),
@@ -819,6 +819,14 @@ class _FeaturesList extends StatelessWidget {
                   ),
                 ],
               ),
+            ),
+          ),
+          Text(
+            'Ask Haven AI usage is included within your plan allowance.',
+            style: TextStyle(
+              fontSize: 12,
+              height: 1.4,
+              color: context.colors.textSecondary,
             ),
           ),
         ],

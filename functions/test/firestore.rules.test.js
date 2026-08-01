@@ -135,3 +135,42 @@ test("makes chat history owner-readable and server-writable only", async () => {
       }),
   );
 });
+
+test("protects Haven conversations and nested messages", async () => {
+  await testEnv.withSecurityRulesDisabled(async (context) => {
+    const db = context.firestore();
+    await db.doc("users/owner/conversations/conversation-1").set({
+      title: "Plan my week",
+      createdAt: new Date("2026-07-31T10:00:00.000Z"),
+      updatedAt: new Date("2026-07-31T10:01:00.000Z"),
+      lastMessage: "Let us start with Monday.",
+      messageCount: 2,
+    });
+    await db.doc(
+        "users/owner/conversations/conversation-1/messages/message-1",
+    ).set({
+      role: "assistant",
+      content: "Let us start with Monday.",
+      createdAt: new Date("2026-07-31T10:01:00.000Z"),
+      status: "sent",
+    });
+  });
+
+  const owner = testEnv.authenticatedContext("owner").firestore();
+  const attacker = testEnv.authenticatedContext("attacker").firestore();
+  const conversation = "users/owner/conversations/conversation-1";
+  const message = `${conversation}/messages/message-1`;
+
+  await assertSucceeds(owner.doc(conversation).get());
+  await assertSucceeds(owner.doc(message).get());
+  await assertFails(attacker.doc(conversation).get());
+  await assertFails(attacker.doc(message).get());
+  await assertFails(owner.doc(conversation).update({title: "Forged title"}));
+  await assertFails(owner.doc(message).set({
+    role: "assistant",
+    content: "Forged reply",
+    createdAt: new Date(),
+    status: "sent",
+  }));
+  await assertFails(owner.doc(conversation).delete());
+});
