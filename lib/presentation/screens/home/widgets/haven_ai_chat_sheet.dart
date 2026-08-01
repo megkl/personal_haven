@@ -907,6 +907,10 @@ class _HavenAiChatSheetState extends ConsumerState<HavenAiChatSheet> {
 
   String _shoppingConfirmationText(Map<String, dynamic> fields) {
     final shoppingItems = _shoppingItemsFromFields(fields);
+    final requestedListTitle = fields['listTitle']?.toString().trim();
+    final target = requestedListTitle == null || requestedListTitle.isEmpty
+        ? 'your shopping list'
+        : '“$requestedListTitle”';
     if (shoppingItems.length > 1) {
       final preview = shoppingItems
           .take(3)
@@ -918,14 +922,14 @@ class _HavenAiChatSheetState extends ConsumerState<HavenAiChatSheet> {
       final more = shoppingItems.length > 3
           ? ', and ${shoppingItems.length - 3} more'
           : '';
-      return 'I’ll add $preview$more to your shopping list. Save it?';
+      return 'I’ll add $preview$more to $target. Save it?';
     }
 
     final quantity =
         fields['quantity'] == null || fields['quantity'].toString().isEmpty
         ? ''
         : ' (${fields['quantity']})';
-    return 'I’ll add ${fields['itemName']}$quantity to your shopping list. Save it?';
+    return 'I’ll add ${fields['itemName']}$quantity to $target. Save it?';
   }
 
   String _dateSuffix(Object? value) {

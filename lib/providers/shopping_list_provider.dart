@@ -101,10 +101,17 @@ class ShoppingListNotifier extends Notifier<ShoppingListState> {
     required String name,
     String quantity = '',
   }) async {
-    ShoppingList? target = listId == null
-        ? _listByTitle(listTitle) ?? state.selectedList
-        : _listById(listId);
-    target ??= await createList(listTitle ?? 'Shopping list');
+    final requestedTitle = listTitle?.trim();
+    ShoppingList? target;
+    if (listId != null) {
+      target = _listById(listId);
+    } else if (requestedTitle != null && requestedTitle.isNotEmpty) {
+      target = _listByTitle(requestedTitle);
+      target ??= await createList(requestedTitle);
+    } else {
+      target = state.selectedList;
+    }
+    target ??= await createList('Shopping list');
     final updated = await _repo.addItem(
       list: target,
       name: name,

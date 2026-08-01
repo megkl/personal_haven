@@ -5,6 +5,7 @@ import 'package:personal_haven/core/utils/assistant_command_text.dart';
 import 'package:personal_haven/data/models/haven_chat_message.dart';
 import 'package:personal_haven/data/models/haven_conversation.dart';
 import 'package:personal_haven/presentation/screens/home/widgets/haven_ai_suggestions.dart';
+import 'package:personal_haven/presentation/screens/home/widgets/haven_ai_shopping_command.dart';
 import 'package:personal_haven/services/ai_assistant_service.dart';
 
 void main() {
@@ -119,6 +120,35 @@ void main() {
     );
     expect(AssistantCommandText.hasNegatedPriority('high'), isFalse);
     expect(AssistantCommandText.hasNegatedPriority('not urgent'), isFalse);
+  });
+
+  test('named shopping list command separates its title and products', () {
+    final command = HavenAiShoppingCommand.parse(
+      'Create a shopping list named, August Month shopping list, with this '
+      'items, rice 1kg, flour 2kg. Cooking oil 500g',
+    );
+
+    expect(command, isNotNull);
+    expect(command!.listTitle, 'August Month shopping list');
+    expect(command.items, hasLength(3));
+    expect(
+      command.items.map((item) => '${item.itemName}|${item.quantity}').toList(),
+      ['Rice|1kg', 'Flour|2kg', 'Cooking oil|500g'],
+    );
+  });
+
+  test('named list supports add with the following items', () {
+    final command = HavenAiShoppingCommand.parse(
+      'Add a shopping list named August with the following items, rice 2kg, '
+      'flour 2kg, bread 1 piece, chocolate 400g bar',
+    );
+
+    expect(command, isNotNull);
+    expect(command!.listTitle, 'August');
+    expect(
+      command.items.map((item) => '${item.itemName}|${item.quantity}').toList(),
+      ['Rice|2kg', 'Flour|2kg', 'Bread|1 piece', 'Chocolate bar|400g'],
+    );
   });
 
   test('conversation and message records preserve live metadata', () {

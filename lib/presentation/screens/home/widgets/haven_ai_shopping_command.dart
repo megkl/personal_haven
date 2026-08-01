@@ -28,6 +28,23 @@ class HavenAiShoppingCommand {
         !lower.startsWith('put ')) {
       return null;
     }
+
+    final namedListMatch = RegExp(
+      r'^(?:please\s+)?(?:create|make|start|add)\s+(?:a\s+)?(?:shopping|grocery)\s+list\s+(?:named|called|titled)\s*[:,\-]?\s*(.+?)\s*[,;.]?\s+(?:with|containing)\s+(?:(?:these|this|the)\s+|the\s+following\s+)?items?\s*[:,\-]?\s*(.+)$',
+      caseSensitive: false,
+    ).firstMatch(text);
+    if (namedListMatch != null) {
+      final listTitle = _cleanListTitle(namedListMatch.group(1)!);
+      final items = parseItems(namedListMatch.group(2)!);
+      if (listTitle.isNotEmpty && items.isNotEmpty) {
+        return HavenAiShoppingCommand(
+          itemName: items.first.itemName,
+          quantity: items.first.quantity,
+          listTitle: listTitle,
+          items: items,
+        );
+      }
+    }
     if ((lower.startsWith('add ') || lower.startsWith('put ')) &&
         !mentionsShopping) {
       return null;
@@ -103,6 +120,7 @@ class HavenAiShoppingCommand {
 
   static List<HavenAiShoppingItem> parseItems(String input) {
     var text = input
+        .replaceAll(RegExp(r'\.\s+(?=[A-Za-z])'), ', ')
         .replaceAll(
           RegExp(
             r'\b(shopping|grocery|groceries|list)\b',
@@ -130,6 +148,13 @@ class HavenAiShoppingCommand {
       '',
     );
 
+    final lower = text.toLowerCase().trim();
+    if (RegExp(
+      r'^(?:named|called|titled|with\s+(?:these|this|the)\s+items?)$',
+    ).hasMatch(lower)) {
+      return null;
+    }
+
     final quantityMatch = RegExp(
       r'(?:\s+|-)(\d+(?:[./]\d+)?\s*(?:ct|gal|g|kg|ml|l|litres?|liters?|litre|liter|ltr|ltre|lt|lbs?|packs?|bottles?|loaves?|bags?|pieces?|pcs?)?|litres?|liters?|litre|liter|ltr|ltre|kg|g|packs?|bottles?|loaves?|bags?|one|two|three|four|five|six|seven|eight|nine|ten)(?:\s+of\s+them)?$',
       caseSensitive: false,
@@ -137,6 +162,19 @@ class HavenAiShoppingCommand {
     var quantity = quantityMatch?.group(1)?.trim() ?? '';
     if (quantity.isNotEmpty) {
       text = text.substring(0, quantityMatch!.start).trim();
+    }
+
+    if (quantity.isEmpty) {
+      final embeddedQuantity = RegExp(
+        r'\b(\d+(?:[./]\d+)?\s*(?:g|kg|mg|ml|l|litres?|liters?|litre|liter|ltr|ltre|lt|lbs?))\s+(.+)$',
+        caseSensitive: false,
+      ).firstMatch(text);
+      if (embeddedQuantity != null && embeddedQuantity.start > 0) {
+        quantity = embeddedQuantity.group(1)!.trim();
+        text =
+            '${text.substring(0, embeddedQuantity.start).trim()} '
+            '${embeddedQuantity.group(2)!.trim()}';
+      }
     }
 
     final leadingQuantity = RegExp(
@@ -161,6 +199,13 @@ class HavenAiShoppingCommand {
       return 'Shopping list';
     }
     return null;
+  }
+
+  static String _cleanListTitle(String input) {
+    return input
+        .replaceAll(RegExp(r'^[,:;\-\s]+|[,:;\-\s]+$'), '')
+        .replaceAll(RegExp(r'\s+'), ' ')
+        .trim();
   }
 
   static String _capitalize(String input) {
