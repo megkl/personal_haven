@@ -9,6 +9,7 @@
 
 const {setGlobalOptions} = require("firebase-functions");
 const {onCall, HttpsError} = require("firebase-functions/v2/https");
+const {onMessagePublished} = require("firebase-functions/v2/pubsub");
 const {defineSecret} = require("firebase-functions/params");
 const {GoogleAuth} = require("google-auth-library");
 const crypto = require("node:crypto");
@@ -20,11 +21,17 @@ const {
 } = require("./ai-usage-config");
 const {isLifetimePremiumAccount} = require("./entitlements");
 const {requiredString} = require("./request-fields");
+const {
+  appStatusForPlayState,
+  isEntitledPlaySubscription,
+  parsePlayRtdnPayload,
+} = require("./play-rtdn");
 
 admin.initializeApp();
 
 const aiApiKey = defineSecret("AI_API_KEY");
 const androidPackageName = "com.megnifylabs.personal_haven";
+const playRtdnTopic = "play-subscription-notifications";
 const aiModel = "gpt-4o-mini";
 const aiEndpoint = "https://api.openai.com/v1/chat/completions";
 
@@ -851,6 +858,120 @@ exports.verifyStorePurchase = onCall(
     },
 );
 
+exports.handlePlaySubscriptionNotification = onMessagePublished(
+    {
+      topic: playRtdnTopic,
+      region: "us-central1",
+      retry: true,
+      maxInstances: 5,
+    },
+    async (event) => {
+      const message = event.data.message;
+      const messageId = message.messageId || event.id;
+      const eventId = crypto
+          .createHash("sha256")
+          .update(String(messageId))
+          .digest("hex");
+      const eventRef = admin.firestore()
+          .collection("play_rtdn_events")
+          .doc(eventId);
+      if ((await eventRef.get()).exists) {
+        console.info("Ignoring duplicate Google Play RTDN", {messageId});
+        return;
+      }
+
+      const notification = parsePlayRtdnPayload(
+          message.json,
+          androidPackageName,
+      );
+      if (notification.kind === "test") {
+        await eventRef.set({
+          messageId,
+          kind: "test",
+          packageName: androidPackageName,
+          processedAt: admin.firestore.FieldValue.serverTimestamp(),
+        });
+        console.info("Google Play RTDN test notification received", {
+          messageId,
+        });
+        return;
+      }
+      if (notification.kind === "ignored") {
+        await eventRef.set({
+          messageId,
+          kind: "ignored",
+          packageName: androidPackageName,
+          processedAt: admin.firestore.FieldValue.serverTimestamp(),
+        });
+        return;
+      }
+
+      const {purchase} = await fetchGooglePlaySubscription(
+          notification.purchaseToken,
+      );
+      const claim = await findGooglePlayPurchaseClaim(
+          notification.purchaseToken,
+          purchase.linkedPurchaseToken,
+      );
+      if (!claim) {
+        // The initial purchase callback may still be creating its claim.
+        // Retrying lets RTDN safely recover from that race.
+        throw new Error("No Personal Haven user owns this Play purchase yet.");
+      }
+
+      const lineItem = selectSupportedPlayLineItem(
+          purchase,
+          notification.productId,
+      );
+      const productId = lineItem && lineItem.productId;
+      const product = storeProducts[productId];
+      const expiryDate = parseDateValue(lineItem && lineItem.expiryTime);
+      const isEntitled = isEntitledPlaySubscription(
+          purchase.subscriptionState,
+          expiryDate,
+      );
+
+      if (isEntitled) {
+        assertGooglePlayAccountOwner(purchase, claim.data.uid);
+        await writeVerifiedSubscription({
+          uid: claim.data.uid,
+          product,
+          productId,
+          transactionRef: notification.purchaseToken,
+          expiryDate,
+          store: "google_play",
+        });
+      } else {
+        await updateInactiveGooglePlaySubscription({
+          uid: claim.data.uid,
+          purchaseToken: notification.purchaseToken,
+          linkedPurchaseToken: purchase.linkedPurchaseToken,
+          productId,
+          expiryDate,
+          storeState: purchase.subscriptionState,
+        });
+      }
+
+      await eventRef.set({
+        messageId,
+        kind: "subscription",
+        packageName: androidPackageName,
+        notificationType: notification.notificationType,
+        productId,
+        subscriptionState: purchase.subscriptionState || null,
+        entitled: isEntitled,
+        processedAt: admin.firestore.FieldValue.serverTimestamp(),
+      });
+      console.info("Google Play RTDN processed", {
+        messageId,
+        uid: claim.data.uid,
+        productId,
+        subscriptionState: purchase.subscriptionState,
+        entitled: isEntitled,
+      });
+    },
+);
+
 /**
  * Reserves a bounded AI request and token allowance before a paid model call.
  * @param {object} auth Callable Firebase Auth context.
@@ -1052,22 +1173,10 @@ async function verifyAppleReceipt(options) {
  * @return {Promise<object>} Normalized verification result.
  */
 async function verifyGooglePlayPurchase(options) {
-  const packageName = androidPackageName;
-
-  const auth = new GoogleAuth({
-    scopes: ["https://www.googleapis.com/auth/androidpublisher"],
-  });
-  const client = await auth.getClient();
-  const encodedPackage = encodeURIComponent(packageName);
-  const encodedToken = encodeURIComponent(options.receipt);
   let purchase;
+  let client;
   try {
-    const response = await client.request({
-      url: "https://androidpublisher.googleapis.com/androidpublisher/v3/" +
-        `applications/${encodedPackage}/purchases/subscriptionsv2/` +
-        `tokens/${encodedToken}`,
-    });
-    purchase = response.data;
+    ({purchase, client} = await fetchGooglePlaySubscription(options.receipt));
   } catch (error) {
     console.error("Google Play subscription verification failed", {
       status: error.response ? error.response.status : null,
@@ -1122,7 +1231,9 @@ async function verifyGooglePlayPurchase(options) {
     expiryDate,
     transactionRef: options.receipt,
     acknowledge: needsAcknowledgement ? async () => {
+      const encodedPackage = encodeURIComponent(androidPackageName);
       const encodedProduct = encodeURIComponent(options.productId);
+      const encodedToken = encodeURIComponent(options.receipt);
       await client.request({
         method: "POST",
         url: "https://androidpublisher.googleapis.com/androidpublisher/v3/" +
@@ -1132,6 +1243,181 @@ async function verifyGooglePlayPurchase(options) {
       });
     } : null,
   };
+}
+
+/**
+ * Fetches the authoritative current subscription from Google Play.
+ * @param {string} purchaseToken Google Play purchase token.
+ * @return {Promise<{purchase: object, client: object}>} API result and client.
+ */
+async function fetchGooglePlaySubscription(purchaseToken) {
+  const auth = new GoogleAuth({
+    scopes: ["https://www.googleapis.com/auth/androidpublisher"],
+  });
+  const client = await auth.getClient();
+  const encodedPackage = encodeURIComponent(androidPackageName);
+  const encodedToken = encodeURIComponent(purchaseToken);
+  const response = await client.request({
+    url: "https://androidpublisher.googleapis.com/androidpublisher/v3/" +
+      `applications/${encodedPackage}/purchases/subscriptionsv2/` +
+      `tokens/${encodedToken}`,
+  });
+  return {purchase: response.data, client};
+}
+
+/**
+ * @param {string} purchaseToken Google Play purchase token.
+ * @return {string} Firestore claim document ID.
+ */
+function googlePlayClaimId(purchaseToken) {
+  return crypto
+      .createHash("sha256")
+      .update(`google_play:${purchaseToken}`)
+      .digest("hex");
+}
+
+/**
+ * Resolves the Firebase user that previously verified a Play purchase.
+ * Linked tokens cover replacement flows such as upgrades and downgrades.
+ * @param {string} purchaseToken Current purchase token.
+ * @param {string|undefined} linkedPurchaseToken Previous purchase token.
+ * @return {Promise<?{ref: object, data: object}>} Existing purchase claim.
+ */
+async function findGooglePlayPurchaseClaim(
+    purchaseToken,
+    linkedPurchaseToken,
+) {
+  const db = admin.firestore();
+  const tokens = [purchaseToken, linkedPurchaseToken]
+      .filter((token, index, values) => {
+        return typeof token === "string" &&
+          token.length > 0 &&
+          values.indexOf(token) === index;
+      });
+  for (const token of tokens) {
+    const ref = db.collection("store_purchase_claims")
+        .doc(googlePlayClaimId(token));
+    const snapshot = await ref.get();
+    if (snapshot.exists) return {ref, data: snapshot.data()};
+  }
+  return null;
+}
+
+/**
+ * Selects a configured Personal Haven product from the Play response.
+ * @param {object} purchase Google Play subscription resource.
+ * @param {?string} notifiedProduct Product in the RTDN payload.
+ * @return {object} Supported Google Play line item.
+ */
+function selectSupportedPlayLineItem(
+    purchase,
+    notifiedProduct,
+) {
+  const lineItems = Array.isArray(purchase.lineItems) ?
+    purchase.lineItems : [];
+  const supportedItems = lineItems.filter(
+      (item) => storeProducts[item.productId],
+  );
+  const preferred = typeof notifiedProduct === "string" ?
+    supportedItems.find((item) => item.productId === notifiedProduct) :
+    null;
+  // Current RTDN payloads normally omit the product ID. For a replacement
+  // purchase, subscriptionsv2 can return more than one line item; the item
+  // with the latest expiry is the current entitlement.
+  const supported = preferred || supportedItems.sort((a, b) => {
+    const aExpiry = parseDateValue(a.expiryTime);
+    const bExpiry = parseDateValue(b.expiryTime);
+    return (bExpiry ? bExpiry.getTime() : 0) -
+      (aExpiry ? aExpiry.getTime() : 0);
+  })[0];
+  if (!supported) {
+    throw new Error("Google Play RTDN contains no supported product.");
+  }
+  return supported;
+}
+
+/**
+ * Prevents a token linked to one Firebase user from granting another access.
+ * @param {object} purchase Google Play subscription resource.
+ * @param {string} uid Firebase Auth user ID.
+ */
+function assertGooglePlayAccountOwner(purchase, uid) {
+  const expectedAccountId = crypto
+      .createHash("sha256")
+      .update(uid)
+      .digest("hex");
+  const accountId = purchase.externalAccountIdentifiers &&
+    purchase.externalAccountIdentifiers.obfuscatedExternalAccountId;
+  if (accountId && accountId !== expectedAccountId) {
+    throw new Error("Google Play purchase account identifier mismatch.");
+  }
+}
+
+/**
+ * Applies an inactive Play state and recomputes the user's premium flag.
+ * @param {object} options Inactive subscription details.
+ * @return {Promise<void>}
+ */
+async function updateInactiveGooglePlaySubscription(options) {
+  const db = admin.firestore();
+  const subscriptionsRef = db.collection("users")
+      .doc(options.uid)
+      .collection("subscriptions");
+  const tokens = [options.purchaseToken, options.linkedPurchaseToken]
+      .filter((token, index, values) => {
+        return typeof token === "string" &&
+          token.length > 0 &&
+          values.indexOf(token) === index;
+      });
+  const snapshots = await Promise.all(tokens.map((token) => {
+    return subscriptionsRef.where("transactionRef", "==", token).get();
+  }));
+  const documents = new Map();
+  snapshots.forEach((snapshot) => snapshot.docs.forEach((doc) => {
+    documents.set(doc.id, doc);
+  }));
+
+  const update = {
+    status: appStatusForPlayState(options.storeState),
+    storeState: options.storeState || null,
+    productId: options.productId,
+    verifiedAt: new Date().toISOString(),
+  };
+  if (options.expiryDate) {
+    update.expiryDate = options.expiryDate.toISOString();
+  }
+  const batch = db.batch();
+  documents.forEach((doc) => batch.set(doc.ref, update, {merge: true}));
+  await batch.commit();
+  await syncPremiumFromSubscriptions(options.uid);
+}
+
+/**
+ * Recomputes the denormalized profile flag from server-owned entitlements.
+ * @param {string} uid Firebase Auth user ID.
+ * @return {Promise<void>}
+ */
+async function syncPremiumFromSubscriptions(uid) {
+  const db = admin.firestore();
+  const userRef = db.collection("users").doc(uid);
+  const active = await userRef.collection("subscriptions")
+      .where("status", "==", "active")
+      .get();
+  const now = new Date();
+  const hasActiveSubscription = active.docs.some((doc) => {
+    const expiryDate = parseDateValue(doc.data().expiryDate);
+    return expiryDate && expiryDate > now;
+  });
+  const authUser = await admin.auth().getUser(uid);
+  const isLifetimePremium = isLifetimePremiumAccount({
+    token: {
+      email: authUser.email,
+      email_verified: authUser.emailVerified,
+    },
+  });
+  await userRef.set({
+    isPremium: isLifetimePremium || hasActiveSubscription,
+  }, {merge: true});
 }
 
 /**
