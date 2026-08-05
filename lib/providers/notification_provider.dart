@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:personal_haven/services/notification_service.dart';
 import 'package:riverpod_annotation/riverpod_annotation.dart';
 import 'package:shared_preferences/shared_preferences.dart';
@@ -134,7 +136,7 @@ class NotificationPrefs {
   }
 }
 
-@riverpod
+@Riverpod(keepAlive: true)
 class NotificationNotifier extends _$NotificationNotifier {
   static const _prefix = 'notif_';
   Future<void>? _loading;
@@ -182,7 +184,14 @@ class NotificationNotifier extends _$NotificationNotifier {
     if (!ref.mounted) return false;
 
     if (value) {
-      final granted = await NotificationService.instance.requestPermission();
+      var granted = false;
+      try {
+        granted = await NotificationService.instance.requestPermission();
+      } catch (_) {
+        // Some devices reject a duplicate native permission request while the
+        // first-launch request is finishing. Trust the current OS state then.
+        granted = await NotificationService.instance.notificationsEnabled();
+      }
       if (!granted || !ref.mounted) {
         state = state.copyWith(masterEnabled: false);
         await _save('masterEnabled', false);
@@ -192,11 +201,11 @@ class NotificationNotifier extends _$NotificationNotifier {
       state = state.copyWith(masterEnabled: true);
       await _save('masterEnabled', true);
       if (!ref.mounted) return false;
-      await _rescheduleAll();
+      unawaited(_rescheduleAllSafely());
     } else {
       state = state.copyWith(masterEnabled: false);
       await _save('masterEnabled', false);
-      await NotificationService.instance.cancelAll();
+      unawaited(_cancelAllSafely());
     }
     return true;
   }
@@ -346,6 +355,23 @@ class NotificationNotifier extends _$NotificationNotifier {
       );
     } else {
       await svc.cancelWeeklyMoodSummary();
+    }
+  }
+
+  Future<void> _rescheduleAllSafely() async {
+    try {
+      await _rescheduleAll();
+    } catch (_) {
+      // The preference remains enabled even if an OEM temporarily blocks
+      // background scheduling. A later app open will retry the schedules.
+    }
+  }
+
+  Future<void> _cancelAllSafely() async {
+    try {
+      await NotificationService.instance.cancelAll();
+    } catch (_) {
+      // The saved master preference still prevents new notifications.
     }
   }
 }

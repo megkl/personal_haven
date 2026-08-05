@@ -837,6 +837,12 @@ exports.verifyStorePurchase = onCall(
       if (verification.acknowledge) {
         await verification.acknowledge();
       }
+      console.info("Store subscription verified", {
+        uid,
+        productId,
+        store: verification.store,
+        expiryDate: expiryDate.toISOString(),
+      });
 
       return {
         ok: true,
@@ -1134,9 +1140,8 @@ async function verifyGooglePlayPurchase(options) {
  */
 async function writeVerifiedSubscription(options) {
   const db = admin.firestore();
-  const subscriptionsRef = db.collection("users")
-      .doc(options.uid)
-      .collection("subscriptions");
+  const userRef = db.collection("users").doc(options.uid);
+  const subscriptionsRef = userRef.collection("subscriptions");
   const transactionRef = options.transactionRef ||
     `${options.store}:${options.productId}`;
   const claimId = crypto
@@ -1164,13 +1169,41 @@ async function writeVerifiedSubscription(options) {
 
     if (!duplicate.empty) {
       const doc = duplicate.docs[0];
+      const now = new Date();
+      const subscription = {
+        ...doc.data(),
+        id: doc.id,
+        userId: options.uid,
+        plan: options.product.plan,
+        status: "active",
+        expiryDate: options.expiryDate.toISOString(),
+        paymentMethod: "store",
+        transactionRef,
+        amountPaid: options.product.amountPaid,
+        currency: "KES",
+        isTrialUsed: true,
+        store: options.store,
+        productId: options.productId,
+        verifiedAt: now.toISOString(),
+      };
+
+      // Google Play normally keeps the same purchase token when a
+      // subscription renews. Refresh the existing document instead of
+      // returning its old (and possibly expired) expiry date.
+      active.docs
+          .filter((activeDoc) => activeDoc.id !== doc.id)
+          .forEach((activeDoc) => {
+            transaction.update(activeDoc.ref, {status: "expired"});
+          });
+      transaction.set(doc.ref, subscription, {merge: true});
+      transaction.set(userRef, {isPremium: true}, {merge: true});
       transaction.set(claimRef, {
         uid: options.uid,
         store: options.store,
         productId: options.productId,
         claimedAt: admin.firestore.FieldValue.serverTimestamp(),
       }, {merge: true});
-      return {...doc.data(), id: doc.id};
+      return subscription;
     }
 
     const now = new Date();
@@ -1196,6 +1229,7 @@ async function writeVerifiedSubscription(options) {
       verifiedAt: now.toISOString(),
     };
     transaction.set(subRef, subscription);
+    transaction.set(userRef, {isPremium: true}, {merge: true});
     transaction.set(claimRef, {
       uid: options.uid,
       store: options.store,

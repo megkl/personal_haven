@@ -39,8 +39,15 @@ class _AppInitializerState extends ConsumerState<AppInitializer>
   /// Re-prompt when app comes back to foreground
   @override
   void didChangeAppLifecycleState(AppLifecycleState state) {
-    if (state == AppLifecycleState.resumed && !_biometricPassed) {
-      _runBiometricCheck();
+    if (state == AppLifecycleState.resumed) {
+      if (!_biometricPassed) {
+        _runBiometricCheck();
+      } else if (!_notificationPermissionChecked) {
+        _notificationPermissionChecked = true;
+        WidgetsBinding.instance.addPostFrameCallback((_) {
+          if (mounted) unawaited(_requestFirstNotificationPermission());
+        });
+      }
     }
     // Lock again when app goes to background
     if (state == AppLifecycleState.paused) {
@@ -68,16 +75,33 @@ class _AppInitializerState extends ConsumerState<AppInitializer>
       });
       if (passed && !_notificationPermissionChecked) {
         _notificationPermissionChecked = true;
-        unawaited(_requestFirstNotificationPermission());
+        // Native permission dialogs need an attached, resumed Activity. Asking
+        // from initState can silently fail on physical Android devices.
+        WidgetsBinding.instance.addPostFrameCallback((_) {
+          if (mounted) unawaited(_requestFirstNotificationPermission());
+        });
       }
     }
   }
 
   Future<void> _requestFirstNotificationPermission() async {
-    final granted = await NotificationService.instance
-        .requestPermissionOnFirstLaunch();
-    if (granted != true || !mounted) return;
-    await ref.read(notificationProvider.notifier).setMaster(true);
+    if (WidgetsBinding.instance.lifecycleState != AppLifecycleState.resumed) {
+      // A resumed lifecycle callback will retry this without consuming the
+      // persisted one-time prompt flag.
+      _notificationPermissionChecked = false;
+      return;
+    }
+    try {
+      final granted = await NotificationService.instance
+          .requestPermissionOnFirstLaunch();
+      if (granted != true || !mounted) return;
+      await ref.read(notificationProvider.notifier).setMaster(true);
+    } catch (error, stack) {
+      // Notifications are optional. A platform/resource failure must not turn
+      // the first-launch permission request into an uncaught fatal error.
+      debugPrint('Notification permission request failed: $error');
+      debugPrintStack(stackTrace: stack);
+    }
   }
 
   @override

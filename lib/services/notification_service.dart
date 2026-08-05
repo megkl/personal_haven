@@ -46,8 +46,12 @@ class NotificationService {
   final _plugin = FlutterLocalNotificationsPlugin();
   bool _initialized = false;
   Future<void>? _initializing;
+  Future<bool>? _requestingPermission;
+  // Version this key when the permission UX changes so existing installs that
+  // previously attempted the request before the first frame get one clean
+  // retry. Do not reuse the old `notification_permission_prompted_once` key.
   static const _firstPermissionPromptKey =
-      'notification_permission_prompted_once';
+      'notification_permission_prompted_v2';
 
   Future<void> initialize() {
     if (_initialized) return Future<void>.value();
@@ -81,24 +85,40 @@ class NotificationService {
 
   void _onTap(NotificationResponse response) {}
 
-  Future<bool> requestPermission() async {
+  Future<bool> requestPermission() {
+    return _requestingPermission ??= _requestPermission().whenComplete(() {
+      _requestingPermission = null;
+    });
+  }
+
+  Future<bool> _requestPermission() async {
     await initialize();
-    final ios = await _plugin
+
+    final android = _plugin
+        .resolvePlatformSpecificImplementation<
+          AndroidFlutterLocalNotificationsPlugin
+        >();
+    if (android != null) {
+      await android.requestNotificationsPermission();
+
+      // The current OS setting is authoritative. Some Android/OEM versions
+      // return false from a duplicate request even though notifications are
+      // already allowed, which previously made the in-app switch unusable.
+      return await android.areNotificationsEnabled() ?? true;
+    }
+
+    final ios = _plugin
         .resolvePlatformSpecificImplementation<
           IOSFlutterLocalNotificationsPlugin
-        >()
-        ?.requestPermissions(alert: true, badge: true, sound: true);
-    final android = await _plugin
-        .resolvePlatformSpecificImplementation<
-          AndroidFlutterLocalNotificationsPlugin
-        >()
-        ?.requestNotificationsPermission();
-    final androidEnabled = await _plugin
-        .resolvePlatformSpecificImplementation<
-          AndroidFlutterLocalNotificationsPlugin
-        >()
-        ?.areNotificationsEnabled();
-    return (ios ?? true) && (android ?? true) && (androidEnabled ?? true);
+        >();
+    if (ios != null) {
+      await ios.requestPermissions(alert: true, badge: true, sound: true);
+      final permissions = await ios.checkPermissions();
+      return permissions?.isEnabled == true &&
+          permissions?.isAlertEnabled == true;
+    }
+
+    return true;
   }
 
   Future<bool?> requestPermissionOnFirstLaunch() async {

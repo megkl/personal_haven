@@ -7,7 +7,6 @@ import 'package:personal_haven/core/utils/currency_formatter.dart';
 import 'package:personal_haven/providers/currency_provider.dart';
 import 'package:personal_haven/providers/insights_settings_provider.dart';
 import 'package:personal_haven/providers/notification_provider.dart';
-import 'package:personal_haven/providers/theme_provider.dart';
 
 class SettingsScreen extends ConsumerStatefulWidget {
   const SettingsScreen({super.key});
@@ -17,9 +16,36 @@ class SettingsScreen extends ConsumerStatefulWidget {
 }
 
 class _SettingsScreenState extends ConsumerState<SettingsScreen> {
+  bool _updatingNotificationPermission = false;
+
+  Future<void> _setNotificationsEnabled(bool value) async {
+    if (_updatingNotificationPermission) return;
+    setState(() => _updatingNotificationPermission = true);
+
+    var updated = false;
+    try {
+      updated = await ref.read(notificationProvider.notifier).setMaster(value);
+    } catch (_) {
+      updated = false;
+    } finally {
+      if (mounted) {
+        setState(() => _updatingNotificationPermission = false);
+      }
+    }
+
+    if (!mounted || updated || !value) return;
+    ScaffoldMessenger.of(context).showSnackBar(
+      const SnackBar(
+        content: Text(
+          'Personal Haven could not enable notifications. Check the device '
+          'notification permission, then try again.',
+        ),
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
-    final themeMode = ref.watch(themeProvider).value ?? ThemeMode.system;
     final currencyCode =
         ref.watch(currencyProvider).value ?? CurrencyFormatter.defaultCode;
     final notificationPrefs = ref.watch(notificationProvider);
@@ -50,9 +76,9 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
                   Icons.notifications_outlined,
                   Switch(
                     value: notificationPrefs.masterEnabled,
-                    onChanged: (value) => ref
-                        .read(notificationProvider.notifier)
-                        .setMaster(value),
+                    onChanged: _updatingNotificationPermission
+                        ? null
+                        : _setNotificationsEnabled,
                     activeThumbColor: AppColors.primary,
                   ),
                 ),

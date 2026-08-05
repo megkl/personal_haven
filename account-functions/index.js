@@ -26,10 +26,29 @@ exports.syncPremiumEntitlement = onCall(
       }
 
       const isLifetimePremium = isLifetimePremiumAccount(request.auth);
-      await admin.firestore()
-          .collection("users")
-          .doc(request.auth.uid)
-          .set({isPremium: isLifetimePremium}, {merge: true});
+      const db = admin.firestore();
+      const userRef = db.collection("users").doc(request.auth.uid);
+      const activeSubscriptions = userRef
+          .collection("subscriptions")
+          .where("status", "==", "active");
+
+      await db.runTransaction(async (transaction) => {
+        const subscriptions = await transaction.get(activeSubscriptions);
+        const now = Date.now();
+        const hasActiveSubscription = subscriptions.docs.some((doc) => {
+          const value = doc.data().expiryDate;
+          const expiryDate = value && typeof value.toDate === "function" ?
+            value.toDate() : new Date(value);
+          return !Number.isNaN(expiryDate.getTime()) &&
+            expiryDate.getTime() > now;
+        });
+
+        // isPremium is a denormalized display field. Paid access remains
+        // server-authoritative in users/{uid}/subscriptions.
+        transaction.set(userRef, {
+          isPremium: isLifetimePremium || hasActiveSubscription,
+        }, {merge: true});
+      });
 
       return {isLifetimePremium};
     },

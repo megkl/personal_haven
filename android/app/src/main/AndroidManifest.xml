@@ -10,6 +10,12 @@
         android:label="Personal Haven"
         android:name="${applicationName}"
         android:icon="@mipmap/launcher_icon">
+        <!-- Keep a native reference to the small notification icon. Dart-side
+             icon names are resolved dynamically and may otherwise be removed
+             by Android's release resource shrinker. -->
+        <meta-data
+            android:name="com.google.firebase.messaging.default_notification_icon"
+            android:resource="@drawable/ic_notification" />
         <activity
             android:name=".MainActivity"
             android:exported="true"
