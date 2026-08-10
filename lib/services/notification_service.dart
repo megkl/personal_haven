@@ -268,15 +268,15 @@ class NotificationService {
       channelId: NotificationChannels.dailyId,
       channelName: NotificationChannels.dailyName,
     );
-    await _scheduleDailyAt(
-      id: NotificationIds.mealReminder,
-      hour: mealMinuteOfDay ~/ 60,
-      minute: mealMinuteOfDay % 60,
-      title: '🥗 Lunch check',
-      body: "Don't forget to log your meals in your food diary.",
-      channelId: NotificationChannels.wellnessId,
-      channelName: NotificationChannels.wellnessName,
-    );
+    // await _scheduleDailyAt(
+    //   id: NotificationIds.mealReminder,
+    //   hour: mealMinuteOfDay ~/ 60,
+    //   minute: mealMinuteOfDay % 60,
+    //   title: '🥗 Lunch check',
+    //   body: "Don't forget to log your meals in your food diary.",
+    //   channelId: NotificationChannels.wellnessId,
+    //   channelName: NotificationChannels.wellnessName,
+    // );
   }
 
   Future<void> _scheduleDailyAt({
